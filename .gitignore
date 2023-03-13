@@ -6,6 +6,8 @@ cache/
 build/
 dist/
 results/
+src/gzstream/*
 src/gencodegenes/*.cpp
+tests/data/*.fai
 *.egg-info/
 *.so
