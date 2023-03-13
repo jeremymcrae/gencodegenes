@@ -1,0 +1,11 @@
+*.pyc
+*.pdf
+*.log
+*__pycache__/
+cache/
+build/
+dist/
+results/
+src/gencodegenes/*.cpp
+*.egg-info/
+*.so
