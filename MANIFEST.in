@@ -1,10 +1,10 @@
 # genecodegenes code
 include MANIFEST.in
 include pyproject.toml
-include genecodegenes/*.cpp
-include genecodegenes/*.py
-include genecodegenes/*.pyx
-include genecodegenes/*.pxd
+include src/genecodegenes/*.cpp
+include src/genecodegenes/*.py
+include src/genecodegenes/*.pyx
+include src/genecodegenes/*.pxd
 include src/*.h
 include src/*.cpp
 include src/gzstream/gzstream.C
