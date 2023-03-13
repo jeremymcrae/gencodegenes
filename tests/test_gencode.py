@@ -22,7 +22,7 @@ class TestGencode(unittest.TestCase):
     def setUp(self):
         ''' set path to folder with test data
         '''
-        self.folder = Path(__file__).parent.parent /  "data"
+        self.folder = Path(__file__).parent /  "data"
         self.gtf_path = self.folder / 'example.grch38.gtf'
         self.fasta_path = self.folder / 'example.grch38.fa'
         temp_gtf = tempfile.NamedTemporaryFile(delete=False)
