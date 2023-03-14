@@ -3,6 +3,7 @@ import sys
 import os
 import io
 import glob
+import shutil
 
 from distutils.ccompiler import new_compiler
 from setuptools import setup
@@ -103,6 +104,9 @@ genes = cythonize([
         language="c++"),
     ])
 
+# include tx.h in the package, for downstream usage
+shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
+
 setup(name="gencodegenes",
     description='Package to load genes from GENCODE GTF files',
     long_description=io.open('README.md', encoding='utf-8').read(),
@@ -118,7 +122,7 @@ setup(name="gencodegenes",
         'pyfaidx >= 0.5.8',
     ],
     package_dir={'': 'src'},
-    package_data={'gencodegenes': ['transcript.pxd']},
+    package_data={'gencodegenes': ['transcript.pxd', 'tx.h']},
     include_package_data=True,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
