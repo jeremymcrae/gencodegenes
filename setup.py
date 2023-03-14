@@ -118,7 +118,7 @@ setup(name="gencodegenes",
         'pyfaidx >= 0.5.8',
     ],
     package_dir={'': 'src'},
-    package_data={'gencodegenes': 'transcript.pxd'},
+    package_data={'gencodegenes': ['transcript.pxd']},
     include_package_data=True,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
