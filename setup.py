@@ -106,6 +106,7 @@ genes = cythonize([
 
 # include tx.h in the package, for downstream usage
 shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
+shutil.copy("src/tx.cpp", "src/gencodegenes/tx.cpp")
 
 setup(name="gencodegenes",
     description='Package to load genes from GENCODE GTF files',
@@ -122,7 +123,7 @@ setup(name="gencodegenes",
         'pyfaidx >= 0.5.8',
     ],
     package_dir={'': 'src'},
-    package_data={'gencodegenes': ['transcript.pxd', 'tx.h']},
+    package_data={'gencodegenes': ['transcript.pxd', 'tx.h', 'tx.cpp']},
     include_package_data=True,
     classifiers=[
         "Development Status :: 5 - Production/Stable",
