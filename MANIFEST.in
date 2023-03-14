@@ -5,12 +5,12 @@ include src/gencodegenes/*.cpp
 include src/gencodegenes/*.py
 include src/gencodegenes/*.pyx
 include src/gencodegenes/*.pxd
-include src/gencodegenes/data/rates.txt
 include src/*.h
 include src/*.cpp
 include src/gzstream/gzstream.C
 include src/gzstream/gzstream.h
-include data/*.txt
 
 # gencodegenes tests
 include tests/*.py
+include tests/data/*.fa
+include tests/data/*.gtf
