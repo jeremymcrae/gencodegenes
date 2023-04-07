@@ -239,15 +239,15 @@ cdef class Transcript:
             self.chrom, min(self.start, other.start),
             max(self.end, other.end), self.strand, self.type)
         
-        exons = self.merge_coordinates(self.exons, other.exons)
-        cds = self.merge_coordinates(self.cds, other.cds)
+        exons = self._merge_coordinates(self.exons, other.exons)
+        cds = self._merge_coordinates(self.cds, other.cds)
         
         altered.exons = exons
         altered.cds = cds
         
         if self.genomic_sequence != "":
             altered.genomic_offset = self.genomic_offset
-            altered.genomic_sequence = self.merge_genomic_seq(other)
+            altered.genomic_sequence = self._merge_genomic_seq(other)
         
         return altered
     
