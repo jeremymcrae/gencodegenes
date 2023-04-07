@@ -85,13 +85,9 @@ cdef class Transcript:
     def __hash__(self):
         return hash((self.chrom, self.start, self.end))
     
-    def __richcmp__(self, other, op):
-        
-        if op == 2:
-            return self.__hash__() == other.__hash__()
-        else:
-            err_msg = "op {0} isn't implemented yet".format(op)
-            raise NotImplementedError(err_msg)
+    def __eq__(self, other):
+        ''' check if transcripts occupy exact same genomic region '''
+        return self.__hash__() == other.__hash__()
     
     def _get_overlaps(self, exon, regions):
         ''' find all regions which overlap a given region
@@ -119,7 +115,7 @@ cdef class Transcript:
         
         return coords + [{'start': start, 'end': end}]
     
-    def merge_coordinates(self, first, second):
+    def _merge_coordinates(self, first, second):
         ''' merge two sets of coordinates, to get the union of regions
         
         This uses an inefficient approach, looping over and over, but we won't
@@ -144,7 +140,7 @@ cdef class Transcript:
         
         return [ (x['start'], x['end']) for x in sorted(coords, key=lambda x: x['start']) ]
     
-    def merge_genomic_seq(self, other):
+    def _merge_genomic_seq(self, other):
         ''' merge the genomic sequence from two transcripts
         
         We have two transcripts A, and B. We need to get the contiguous sequence
