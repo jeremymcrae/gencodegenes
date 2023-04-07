@@ -97,17 +97,18 @@ cdef class Transcript:
         ''' add exon ranges
         
         Args:
-            exon_ranges: a CDS position of the selected base.
+            exon_ranges: a list of (start, end) tuples for the exons
+            cds_ranges: a list of (start, end) tuples for the CDS coords
         '''
         self.thisptr.set_exons(exon_ranges, cds_ranges)
     
-    def get_overlaps(self, exon, regions):
+    def _get_overlaps(self, exon, regions):
         ''' find all regions which overlap a given region
         '''
         return [ i for i, x in enumerate(regions) if
             exon['start'] <= x['end'] and exon['end'] >= x['start'] ]
     
-    def insert_region(self, coords, region):
+    def _insert_region(self, coords, region):
         ''' include a region into a list of regions
         
         To include a region, we have to check which pre-existing regions the new
@@ -117,7 +118,7 @@ cdef class Transcript:
             coords: list of {start: X, end: Y} dictionaries
             region: dict of {'start': X, 'end': Y} positions
         '''
-        indices = self.get_overlaps(region, coords)
+        indices = self._get_overlaps(region, coords)
         overlaps = [ coords[i] for i in indices ]
         start = min( x['start'] for x in overlaps + [region] )
         end = max( x['end'] for x in overlaps + [region] )
@@ -147,8 +148,8 @@ cdef class Transcript:
                     'end': max(a['end'], b['end'])}
                 a, b = region, region
             
-            coords = self.insert_region(coords, a)
-            coords = self.insert_region(coords, b)
+            coords = self._insert_region(coords, a)
+            coords = self._insert_region(coords, b)
         
         return [ (x['start'], x['end']) for x in sorted(coords, key=lambda x: x['start']) ]
     
@@ -274,26 +275,51 @@ cdef class Transcript:
     def get_genomic_offset(self):
         return self.thisptr.get_genomic_offset()
     def get_exons(self):
+        ''' get list of exon coords as {'start': int, 'end': int} dicts
+        '''
         return self.thisptr.get_exons()
     def get_cds(self):
+        ''' get list of CDS coords as {'start': int, 'end': int} dicts
+        '''
         return self.thisptr.get_cds()
     def get_name(self):
+        ''' get transcript ID
+        '''
         return self.thisptr.get_name().decode('utf8')
     def get_chrom(self):
+        ''' get chromosome
+        '''
         return self.thisptr.get_chrom().decode('utf8')
     def get_type(self):
+        ''' get transcript functional type (protein_coding etc.)
+        '''
         return self.thisptr.get_type().decode('utf8')
     def get_start(self):
+        ''' get transcript start position (TSS)
+        '''
         return self.thisptr.get_start()
     def get_end(self):
+        ''' get transcript end position
+        '''
         return self.thisptr.get_end()
     def get_strand(self):
+        ''' get the strand the transcript is on
+        '''
         return chr(self.thisptr.get_strand())
     def get_cds_start(self):
+        ''' get CDS start position
+        '''
         return self.thisptr.get_cds_start()
     def get_cds_end(self):
+        ''' get CDS end position
+        '''
         return self.thisptr.get_cds_end()
     def fix_cds_boundary(self, pos):
+        ''' adjust CDS boundary
+
+        Args:
+            pos: nucleotide position on chromosome
+        '''
         return self.thisptr.fix_cds_boundary(pos)
     
     def in_exons(self, position):
@@ -305,55 +331,124 @@ cdef class Transcript:
         
         return self.thisptr.is_exonic(position)
     
-    def get_closest_exon(self, position):
-        ''' finds the positions of the exon closest to a position
+    def get_closest_exon(self, pos):
+        ''' finds the the exon closest to a site
+
+        Args:
+            pos: nucleotide position on chromosome
         '''
-        return self.thisptr.get_closest_exon(position)
+        return self.thisptr.get_closest_exon(pos)
     
-    def in_coding_region(self, position):
-        return self.thisptr.in_coding_region(position)
+    def in_coding_region(self, pos):
+        ''' determine if a genomic position lies within the coding region
+
+        Args:
+            pos: nucleotide position on chromosome
+        '''
+        return self.thisptr.in_coding_region(pos)
     
     def get_coding_distance(self, pos):
         ''' get distance to CDS start (and intronic offset)
+
+        Args:
+            pos: nucleotide position on chromosome
         '''
         coords = self.thisptr.get_coding_distance(pos)
         
         return {'pos': coords.position, 'offset': coords.offset}
     
     def get_position_on_chrom(self, pos, offset=0):
+        ''' convert CDS coordinate to position on chromosome
+
+        Args:
+            pos: number of bases to CDS position
+            offset: if intronic, number of bases into the intron
+        '''
         return self.thisptr.get_position_on_chrom(pos, offset)
     
-    def get_codon_number_for_cds_position(self, pos):
-        return self.thisptr.get_codon_number_for_cds_position(pos)
+    def get_codon_number_for_cds_position(self, cds_pos):
+        ''' find which codon number a CDS position is at
+
+        Args:
+            cds_pos: CDS distance in bp to CDS start
+        '''
+        return self.thisptr.get_codon_number_for_cds_position(cds_pos)
     
-    def get_position_within_codon(self, pos):
-        return self.thisptr.get_position_within_codon(pos)
+    def get_position_within_codon(self, cds_pos):
+        ''' find the position within 
+
+        Args:
+            cds_pos: CDS distance in bp to CDS start
+        '''
+        return self.thisptr.get_position_within_codon(cds_pos)
     
     def add_cds_sequence(self, text):
+        ''' add CDS sequence to the transcript
+
+        Args:
+            text: CDS sequence
+        '''
         self.thisptr.add_cds_sequence(text.encode('utf8'))
         
     def get_cds_sequence(self):
+        ''' get CDS sequence for the transcript
+        '''
         return self.thisptr.get_cds_sequence().decode('utf8')
     
     def add_genomic_sequence(self, text, offset=0):
+        ''' add genomic sequence to the transcript
+
+        Args:
+            text: DNA sequence
+            offset: how far the DNA sequence expands beyond the gene boundaries 
+               (symmetric in both directions). Default is 0, i.e. no expansion.
+        '''
         self.thisptr.add_genomic_sequence(text.encode('utf8'), offset)
     
     def get_genomic_sequence(self):
+        ''' get the genomic sequence spanning the transcript 
+        '''
         return self.thisptr.get_genomic_sequence().decode('utf8')
     
     def reverse_complement(self, text):
+        ''' reverse complement a sequence
+
+        Args:
+            text: DNA sequence
+        '''
         return self.thisptr.reverse_complement(text).decode('utf8')
     
     def get_centered_sequence(self, pos, length=3):
+        ''' get DNA sequence around a chromosome position
+
+        Args:
+            pos: chromosome position
+            length: number of bases to include
+        '''
         return self.thisptr.get_centered_sequence(pos, length).decode('utf8')
     
-    def get_codon_sequence(self, pos):
-        return self.thisptr.get_codon_sequence(pos).decode('utf8')
+    def get_codon_sequence(self, codon_num):
+        ''' get the cDNA sequence for a codon
+
+        Args:
+            codon_num: number of codon to extract
+        '''
+        return self.thisptr.get_codon_sequence(codon_num).decode('utf8')
     
     def translate(self, text):
+        ''' translate DNA sequence to amino acid sequence
+
+        Args:
+            text: DNA/mRNA sequence
+        '''
         return self.thisptr.translate(text.encode('utf8')).decode('utf8')
     
     def get_codon_info(self, pos):
+        ''' find information about the codon that a position occurs at
+
+        Args:
+            pos: nucleotide position on chromosome
+        '''
         codon = dict(self.thisptr.get_codon_info(pos))
         
         if codon['codon_number'] == -9999999:
@@ -371,8 +466,20 @@ cdef class Transcript:
         return codon
     
     def get_boundary_distance(self, pos):
+        ''' get the distance in bp between a site and the nearest exon boundary
+
+        Args:
+            pos: nucleotide position on chromosome
+        '''
         return self.thisptr.get_boundary_distance(pos)
     
     def consequence(self, pos, ref, alt):
+        ''' get consequence of variant on transcript
+
+        Args:
+            pos: nucleotide position of variant on chromosome
+            ref: reference allele DNA sequence
+            alt: alternate allele DNA sequence
+        '''
         cq = self.thisptr.consequence(pos, ref.encode('utf8'), alt.encode('utf8'))
         return cq.decode('utf8')
