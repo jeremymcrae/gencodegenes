@@ -57,8 +57,7 @@ class Tx {
     Tx(std::string transcript_id, std::string chromosome, int start_pos,
         int end_pos, char strand, std::string _transcript_type);
     Tx() {};
-    void set_exons(std::vector<std::vector<int>> exon_ranges,
-        std::vector<std::vector<int>> cds_ranges);
+    void set_exons(std::vector<std::vector<int>> exon_ranges);
     void set_cds(std::vector<std::vector<int>> cds_ranges);
     Region fix_cds_boundary(int position);
     
@@ -86,9 +85,10 @@ class Tx {
     int get_codon_number_for_cds_position(int cds_position);
     int get_position_within_codon(int cds_position);
     void add_cds_sequence(std::string cds_dna);
-    void add_genomic_sequence(std::string gdna, int offset);
+    void add_genomic_sequence(std::string gdna);
     std::string get_cds_sequence() { return cds_sequence; }
     std::string get_genomic_sequence() { return genomic_sequence; }
+    void set_genomic_offset(int offset) { gdna_offset=offset; }
     int get_genomic_offset() { return gdna_offset; }
     
     void _fix_transcript_off_by_one_bp();

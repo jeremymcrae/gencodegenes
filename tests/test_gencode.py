@@ -164,7 +164,7 @@ class TestGencode(unittest.TestCase):
         
         gene = gencode['TEST1']
         canonical = gene.canonical 
-        self.assertEqual(canonical.get_name(), 'ENST_A')
+        self.assertEqual(canonical.name, 'ENST_A')
         del gencode
         
         # give the second transcript the appris_principal tag as well, which
@@ -176,7 +176,7 @@ class TestGencode(unittest.TestCase):
         
         gene = gencode['TEST1']
         canonical = gene.canonical
-        self.assertEqual(canonical.get_name(), 'ENST_B')
+        self.assertEqual(canonical.name, 'ENST_B')
         del gencode
     
     def test_parse_gtf_gene_line(self):
@@ -416,10 +416,10 @@ class TestGencode(unittest.TestCase):
         symbol1, tx1, is_principal = data[0]
         symbol2, tx2, is_principal = data[1]
         self.assertEqual(symbol1, symbol2)
-        self.assertEqual(tx1.get_name(), 'ENST_A')
-        self.assertEqual(tx1.get_cds(), [{'start': 15, 'end': 20}])
-        self.assertEqual(tx2.get_name(), 'ENST_B')
-        self.assertEqual(tx2.get_cds(), [{'start': 15, 'end': 30}])
+        self.assertEqual(tx1.name, 'ENST_A')
+        self.assertEqual(tx1.cds, [{'start': 15, 'end': 20}])
+        self.assertEqual(tx2.name, 'ENST_B')
+        self.assertEqual(tx2.cds, [{'start': 15, 'end': 30}])
         
     def test__open_gencode_multi_exon(self):
         '''test we can parse a GTF into transcripts
@@ -441,9 +441,9 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(len(data), 1)
         symbol, tx, is_principal = data[0]
         self.assertEqual(symbol, 'TEST')
-        self.assertEqual(tx.get_name(), 'ENST_A')
-        self.assertEqual(tx.get_strand(), '-')
-        self.assertEqual(tx.get_exons(), [{'start': 10, 'end': 20}, {'start': 30, 'end': 40}, {'start': 90, 'end': 100}])
-        self.assertEqual(tx.get_cds(), [{'start': 15, 'end': 20}, {'start': 30, 'end': 40}])
+        self.assertEqual(tx.name, 'ENST_A')
+        self.assertEqual(tx.strand, '-')
+        self.assertEqual(tx.exons, [{'start': 10, 'end': 20}, {'start': 30, 'end': 40}, {'start': 90, 'end': 100}])
+        self.assertEqual(tx.cds, [{'start': 15, 'end': 20}, {'start': 30, 'end': 40}])
     
 

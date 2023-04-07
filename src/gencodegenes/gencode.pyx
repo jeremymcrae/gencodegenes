@@ -109,33 +109,33 @@ cdef class Gene:
         '''
         assert isinstance(_tx, Transcript)
         # construct a new Tx obect by copying out the relevant data
-        cdef string tx_id = _tx.get_name().encode('utf8')
-        cdef string chrom = _tx.get_chrom().encode('utf8')
-        cdef int start = _tx.get_start()
-        cdef int end = _tx.get_end()
-        cdef char strand = ord(_tx.get_strand())
-        cdef string tx_type = _tx.get_type().encode('utf8')
+        cdef string tx_id = _tx.name.encode('utf8')
+        cdef string chrom = _tx.chrom.encode('utf8')
+        cdef int start = _tx.start
+        cdef int end = _tx.end
+        cdef char strand = ord(_tx.strand)
+        cdef string tx_type = _tx.type.encode('utf8')
         cdef vector[vector[int]] exons
         cdef vector[vector[int]] cds
         cdef vector[int] exon
-        for x in _tx.get_exons():
+        for x in _tx.exons:
             exon = [x['start'], x['end']]
             exons.push_back(exon)
-        for x in _tx.get_cds():
+        for x in _tx.cds:
             exon = [x['start'], x['end']]
             cds.push_back(exon)
         
         cdef Tx tx = Tx(tx_id, chrom, start, end, strand, tx_type)
-        tx.set_exons(exons, cds)
+        tx.set_exons(exons)
         tx.set_cds(cds)
         
-        cdef string seq = _tx.get_genomic_sequence().encode('utf8')
-        cdef int offset = _tx.get_genomic_offset()
+        cdef string seq = _tx.genomic_sequence.encode('utf8')
+        tx.set_genomic_offset(_tx.genomic_offset)
         if len(seq) > 0:
             if chr(strand) == '-':
                 _tx.reverse_complement(seq)
                 seq = _tx.reverse_complement(seq).encode('utf8')
-            tx.add_genomic_sequence(seq, offset)
+            tx.add_genomic_sequence(seq)
         self.add_tx(tx, False)
     
     def __repr__(self):
@@ -390,7 +390,7 @@ cdef class Gencode:
                 overlaps = cds_overlaps
             # prioritise the gene with longest CDS (in the canonical tx)
             txs = [x.canonical for x in overlaps]
-            lengths = [x.get_coding_distance(x.get_cds_end())['pos'] for x in txs]
+            lengths = [x.get_coding_distance(x.cds_end)['pos'] for x in txs]
             idx = lengths.index(max(lengths))
             return overlaps[idx]
         

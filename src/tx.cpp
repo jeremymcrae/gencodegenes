@@ -48,30 +48,13 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
 // set exon ranges to the class object
 //
 // @param exon_ranges list of lists e.g. [[5, 10], [20, 30]]
-void Tx::set_exons(std::vector<std::vector<int>> exon_ranges,
-    std::vector<std::vector<int>> cds_ranges) {
+void Tx::set_exons(std::vector<std::vector<int>> exon_ranges) {
     exons.clear();
     std::sort(exon_ranges.begin(), exon_ranges.end());
     
     for (auto range : exon_ranges) {
         Region region {range[0], range[1]};
         exons.push_back(region);
-    }
-    
-    // If the transcript lacks exon coordinates and only has a single CDS
-    // region, then if the CDS region fits within the gene range, make a
-    // single exon, using the transcript start and end. This prevents issues
-    // when adding the CDS coordinates for the transcript.
-    if (exons.empty()) {
-        std::vector<int> exon = cds_ranges[0];
-        if (cds_ranges.size() == 1 && std::min(exon[0], exon[1]) >= tx_start \
-                && std::max(exon[0], exon[1]) <= tx_end) {
-            Region region {tx_start, tx_end};
-            exons.push_back(region);
-        } else {
-            std::string msg = get_name() + " lacks exon coordinates";
-            throw std::invalid_argument( msg );
-        }
     }
 }
 
@@ -81,8 +64,20 @@ void Tx::set_exons(std::vector<std::vector<int>> exon_ranges,
 void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
    cds.clear();
    
+   // If the transcript lacks exon coordinates and only has a single CDS
+    // region, then if the CDS region fits within the gene range, make a
+    // single exon, using the transcript start and end. This prevents issues
+    // when adding the CDS coordinates for the transcript.
     if ( exons.empty() ) {
-        throw std::invalid_argument( "you need to set the exons before the CDS" );
+        std::vector<int> exon = cds_ranges[0];
+        if (cds_ranges.size() == 1 && std::min(exon[0], exon[1]) >= tx_start \
+                && std::max(exon[0], exon[1]) <= tx_end) {
+            Region region {tx_start, tx_end};
+            exons.push_back(region);
+        } else {
+            std::string msg = get_name() + " lacks exon coordinates";
+            throw std::invalid_argument( msg );
+        }
     }
     
     std::sort(cds_ranges.begin(), cds_ranges.end());
@@ -404,19 +399,18 @@ void Tx::add_cds_sequence(std::string cds_dna) {
 // @param gdna string for genomic sequence. If the transcript strand is '-',
 //    then the DNA sequence will be for the - strand, so we need to
 //    reorient the DNA to the + strand.
-void Tx::add_genomic_sequence(std::string gdna, int offset=0) {
+void Tx::add_genomic_sequence(std::string gdna) {
     char fwd = '+';
     if (get_strand() != fwd) {
         // orient the DNA sequence to the + strand.
         gdna = reverse_complement(gdna);
     }
     
-    gdna_offset = offset;
     genomic_sequence = gdna;
     
     std::string cds_seq;
     for (auto &region : cds) {
-        int x = std::abs(region.start - get_start()) + offset;
+        int x = std::abs(region.start - get_start()) + gdna_offset;
         int len = (region.end - region.start) + 1;
         std::string bases = genomic_sequence.substr(x, len);
         

@@ -29,7 +29,7 @@ cdef extern from "tx.h":
         Tx(string, string, int, int, char, string) except +
         Tx() except +
         
-        void set_exons(vector[vector[int]], vector[vector[int]]) except +
+        void set_exons(vector[vector[int]]) except +
         void set_cds(vector[vector[int]]) except +
         Region fix_cds_boundary(int) except +
         
@@ -55,10 +55,11 @@ cdef extern from "tx.h":
         int get_codon_number_for_cds_position(int)
         int get_position_within_codon(int)
         void add_cds_sequence(string)
-        void add_genomic_sequence(string, int) except +
+        void add_genomic_sequence(string) except +
         string get_cds_sequence()
         string get_genomic_sequence()
         int get_genomic_offset()
+        void set_genomic_offset(int)
         
         string reverse_complement(string)
         string get_centered_sequence(int, int) except +

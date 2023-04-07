@@ -20,8 +20,8 @@ class TestTranscriptPy(unittest.TestCase):
             cds=[(1100, 1200), (1800, 1900)]):
         
         tx = Transcript(name, chrom, start, end, strand)
-        tx.set_exons(exons, cds)
-        tx.set_cds(cds)
+        tx.exons = exons
+        tx.cds = cds
         
         return tx
     
@@ -31,13 +31,13 @@ class TestTranscriptPy(unittest.TestCase):
         
         exons = [(0, 200), (800, 1000)]
         cds = [(1100, 1200), (1800, 1900)]
-        self.gene.set_exons(exons, cds)
+        self.gene.exons = exons
         
-        self.assertEqual(self.gene.get_exons(), [{'start': 0, 'end': 200}, {'start': 800, 'end': 1000}])
+        self.assertEqual(self.gene.exons, [{'start': 0, 'end': 200}, {'start': 800, 'end': 1000}])
         
         self.gene = self.construct_gene(strand='-')
-        self.gene.set_exons(exons, cds)
-        self.assertEqual(self.gene.get_exons(), [{'start': 0, 'end': 200}, {'start': 800, 'end': 1000}])
+        self.gene.exons = exons
+        self.assertEqual(self.gene.exons, [{'start': 0, 'end': 200}, {'start': 800, 'end': 1000}])
     
     def test_set_exons_missing_exon(self):
         """ test that set_exons() works correctly when we lack coordinates
@@ -47,13 +47,16 @@ class TestTranscriptPy(unittest.TestCase):
         # for a transcript with a single CDS region
         exons = []
         cds = [(1100, 1200)]
-        self.gene.set_exons(exons, cds)
-        self.assertEqual(self.gene.get_exons(), [{'start': 1000, 'end': 2000}])
+        self.gene.exons = exons
+        self.assertEqual(self.gene.exons, [])
+        self.gene.cds = cds
+        self.assertEqual(self.gene.exons, [{'start': 1000, 'end': 2000}])
         
         # check that missing exons, but 2+ CDS regions raises an error.
         cds = [(1100, 1200), (1300, 1400)]
+        self.gene.exons = []
         with self.assertRaises(ValueError):
-            self.gene.set_exons(exons, cds)
+            self.gene.cds = cds
     
     def test_set_cds(self):
         """ test that set_cds() works correctly
@@ -65,25 +68,25 @@ class TestTranscriptPy(unittest.TestCase):
         # make sure we raise an error if we try to set the CDS before the exons
         with self.assertRaises(ValueError):
             tx = Transcript('test', '1', 0, 1000, '+')
-            tx.set_cds(cds)
+            tx.cds = cds
         
         # check CDS positions
-        self.gene.set_exons(exons, cds)
-        self.gene.set_cds(cds)
-        self.assertEqual(self.gene.get_cds(), [{'start': 100, 'end': 200}, {'start': 800, 'end': 900}])
+        self.gene.exons = exons
+        self.gene.cds = cds
+        self.assertEqual(self.gene.cds, [{'start': 100, 'end': 200}, {'start': 800, 'end': 900}])
         
         # check that CDS ends outside an exon are corrected
         exons = [(0, 200), (300, 400), (800, 1000)]
         cds = [(100, 200), (300, 402)]
-        self.gene.set_exons(exons, cds)
-        self.gene.set_cds(cds)
-        self.assertEqual(self.gene.get_cds(), [{'start': 100, 'end': 200},
+        self.gene.exons = exons
+        self.gene.cds = cds
+        self.assertEqual(self.gene.cds, [{'start': 100, 'end': 200},
             {'start': 300, 'end': 400}, {'start': 800, 'end': 802}])
         
         cds = [(298, 400), (800, 1000)]
-        self.gene.set_exons(exons, cds)
-        self.gene.set_cds(cds)
-        self.assertEqual(self.gene.get_cds(), [{'start': 198, 'end': 200},
+        self.gene.exons = exons
+        self.gene.cds = cds
+        self.assertEqual(self.gene.cds, [{'start': 198, 'end': 200},
             {'start': 300, 'end': 400}, {'start': 800, 'end': 1000}])
     
     def test_fix_cds_boundary(self):
@@ -95,19 +98,20 @@ class TestTranscriptPy(unittest.TestCase):
         
         tx = Transcript('test', '1', 0, 1000, '+')
         
-        tx.set_exons(exons, cds)
+        tx.exons = exons
+        tx.cds = cds
         
-        self.assertEqual(tx.fix_cds_boundary(1295), {'start': 1195, 'end': 1200})
-        self.assertEqual(tx.fix_cds_boundary(1205), {'start': 1300, 'end': 1305})
+        self.assertEqual(tx._fix_cds_boundary(1295), {'start': 1195, 'end': 1200})
+        self.assertEqual(tx._fix_cds_boundary(1205), {'start': 1300, 'end': 1305})
         
-        self.assertEqual(tx.fix_cds_boundary(1402), {'start': 1800, 'end': 1802})
-        self.assertEqual(tx.fix_cds_boundary(1798), {'start': 1398, 'end': 1400})
+        self.assertEqual(tx._fix_cds_boundary(1402), {'start': 1800, 'end': 1802})
+        self.assertEqual(tx._fix_cds_boundary(1798), {'start': 1398, 'end': 1400})
         
         # raise an error if the position is within the exons
         with self.assertRaises(ValueError):
-            self.gene.fix_cds_boundary(1105)
+            self.gene._fix_cds_boundary(1105)
     
-    def test_get_cds_range(self):
+    def test_cdsange(self):
         """ unit test checking the CDS end points by strand
         """
         
@@ -116,12 +120,12 @@ class TestTranscriptPy(unittest.TestCase):
         
         self.gene = self.construct_gene(exons=[(0, 300)], cds=[(100, 200)])
         
-        self.assertEqual(self.gene.get_cds_start(), 100)
-        self.assertEqual(self.gene.get_cds_end(), 200)
+        self.assertEqual(self.gene.cds_start, 100)
+        self.assertEqual(self.gene.cds_end, 200)
         
         self.gene = self.construct_gene(exons=[(0, 300)], cds=[(100, 200)], strand='-')
-        self.assertEqual(self.gene.get_cds_start(), 200)
-        self.assertEqual(self.gene.get_cds_end(), 100)
+        self.assertEqual(self.gene.cds_start, 200)
+        self.assertEqual(self.gene.cds_end, 100)
         
         with self.assertRaises(ValueError):
             self.construct_gene(strand='x')
@@ -138,27 +142,27 @@ class TestTranscriptPy(unittest.TestCase):
         c = Transcript("c", "1", 10, 100, "+")
         d = Transcript("d", "1", 10, 100, "+")
         
-        a.set_exons(exons, [(55, 60), (90, 100)])
-        a.set_cds([(55, 60), (90, 100)])
+        a.exons = exons
+        a.cds = [(55, 60), (90, 100)]
         
-        b.set_exons(exons, [(50, 60), (90, 95)])
-        b.set_cds([(50, 60), (90, 95)])
+        b.exons = exons
+        b.cds = [(50, 60), (90, 95)]
         
-        c.set_exons([(45, 65)], [(45, 65)])
-        c.set_cds([(45, 65)])
+        c.exons = [(45, 65)]
+        c.cds = [(45, 65)]
         
-        d.set_exons([(30, 40)], [(30, 40)])
-        d.set_cds([(30, 40)])
+        d.exons = [(30, 40)]
+        d.cds = [(30, 40)]
         
         # check that adding two Transcripts gives the union of CDS regions
-        self.assertEqual((a + b).get_cds(), [{'start': 50, 'end': 60}, {'start': 90, 'end': 100}])
-        self.assertEqual((a + c).get_cds(), [{'start': 45, 'end': 65}, {'start': 90, 'end': 100}])
+        self.assertEqual((a + b).cds, [{'start': 50, 'end': 60}, {'start': 90, 'end': 100}])
+        self.assertEqual((a + c).cds, [{'start': 45, 'end': 65}, {'start': 90, 'end': 100}])
         
         # check that addition is reversible
-        self.assertEqual((c + a).get_cds(), [{'start': 45, 'end': 65}, {'start': 90, 'end': 100}])
+        self.assertEqual((c + a).cds, [{'start': 45, 'end': 65}, {'start': 90, 'end': 100}])
         
         # check that adding previously unknown exons works
-        self.assertEqual((a + d).get_cds(), [{'start': 30, 'end': 40}, {'start': 55, 'end': 60}, {'start': 90, 'end': 100}])
+        self.assertEqual((a + d).cds, [{'start': 30, 'end': 40}, {'start': 55, 'end': 60}, {'start': 90, 'end': 100}])
         
         # check that we can add transcript + None correctly
         self.assertEqual(a + None, a)
@@ -171,33 +175,35 @@ class TestTranscriptPy(unittest.TestCase):
         a = Transcript("a", "1", 10, 50, "+")
         b = Transcript("b", "1", 60, 80, "+")
         
-        a.set_exons([(10, 50)], [(10, 50)])
-        a.set_cds([(10, 50)])
-        a.add_genomic_sequence('N' * 40)
+        a.exons = [(10, 50)]
+        a.cds = [(10, 50)]
+        a.genomic_sequence = 'N' * 40
         
-        b.set_exons([(60, 80)], [(60, 80)])
-        b.set_cds([(60, 80)])
-        b.add_genomic_sequence('N' * 20)
+        b.exons = [(60, 80)]
+        b.cds = [(60, 80)]
+        b.genomic_sequence = 'N' * 20
         
-        self.assertEqual(len((a + b).get_genomic_sequence()), 70)
+        self.assertEqual(len((a + b).genomic_sequence), 70)
     
     def test___add__cds_length_fixed(self):
         """ check that we can merge transcripts, even with fixed CDS coords
         """
         
         a = Transcript("a", "1", 10, 20, "+")
-        a.set_exons([(10, 20)], [(10, 20)])
-        a.set_cds([(10, 20)])
+        a.exons = [(10, 20)]
+        a.cds = [(10, 20)]
         
-        a.add_cds_sequence('ACTGTACGCAT')
-        a.add_genomic_sequence('CGTAGACTGTACGCATCGATT', offset=5)
+        a.cds_sequence = 'ACTGTACGCAT'
+        a.genomic_offset = 5
+        a.genomic_sequence = 'CGTAGACTGTACGCATCGATT'
         
         b = Transcript("b", "1", 0, 10, "+")
-        b.set_exons([(0, 10)], [(0, 10)])
-        b.set_cds([(0, 10)])
+        b.exons = [(0, 10)]
+        b.cds = [(0, 10)]
         
-        b.add_cds_sequence('ACTGTACGCAT')
-        b.add_genomic_sequence('CGTAGACTGTACGCATCGTAG', offset=5)
+        b.cds_sequence = 'ACTGTACGCAT'
+        b.genomic_offset = 5
+        b.genomic_sequence = 'CGTAGACTGTACGCATCGTAG'
         
         # without a fix to tx.cpp to adjust an exon coordinate simultaneously,
         # the line below would give an error.

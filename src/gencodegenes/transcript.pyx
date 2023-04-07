@@ -44,20 +44,21 @@ cdef class Transcript:
         self.thisptr = new Tx(name, chrom, start, end, ord(strand), transcript_type)
         
         if exons is not None and cds is not None:
-            self.set_exons(exons, cds)
-            self.set_cds(cds)
+            self.exons = exons
+            self.cds = cds
             
+            self.genomic_offset = offset
             if sequence is not None:
-                self.add_genomic_sequence(sequence, offset)
+                self.genomic_sequence = sequence
     
     def __dealloc__(self):
         del self.thisptr
     
     def __repr__(self):
         
-        exons = [ (x['start'], x['end']) for x in self.get_exons() ]
-        cds = [ (x['start'], x['end']) for x in self.get_cds() ]
-        seq = self.get_genomic_sequence()
+        exons = [ (x['start'], x['end']) for x in self.exons ]
+        cds = [ (x['start'], x['end']) for x in self.cds ]
+        seq = self.genomic_sequence
         
         if len(seq) > 40:
             seq = seq[:20] + '...[{} bp]...'.format(len(seq) - 40) + seq[-20:]
@@ -73,17 +74,16 @@ cdef class Transcript:
         else:
             seq = '"' + seq + '"'
         
-        return f'Transcript(name="{self.get_name()}", chrom="{self.get_chrom()}", ' \
-            f'start={self.get_start()}, end={self.get_end()}, strand="{self.get_strand()}", ' \
-            f'transcript_type="{self.get_type()}", exons={exons}, cds={cds}, ' \
-            f'sequence={seq}, offset={self.get_genomic_offset()})'
+        return f'Transcript(name="{self.name}", chrom="{self.chrom}", ' \
+            f'start={self.start}, end={self.end}, strand="{self.strand}", ' \
+            f'transcript_type="{self.type}", exons={exons}, cds={cds}, ' \
+            f'sequence={seq}, offset={self.genomic_offset})'
     
     def __str__(self):
         return self.__repr__()
     
     def __hash__(self):
-        return hash((self.thisptr.get_chrom(), self.thisptr.get_start(),
-            self.thisptr.get_end()))
+        return hash((self.chrom, self.start, self.end))
     
     def __richcmp__(self, other, op):
         
@@ -92,15 +92,6 @@ cdef class Transcript:
         else:
             err_msg = "op {0} isn't implemented yet".format(op)
             raise NotImplementedError(err_msg)
-    
-    def set_exons(self, exon_ranges, cds_ranges):
-        ''' add exon ranges
-        
-        Args:
-            exon_ranges: a list of (start, end) tuples for the exons
-            cds_ranges: a list of (start, end) tuples for the CDS coords
-        '''
-        self.thisptr.set_exons(exon_ranges, cds_ranges)
     
     def _get_overlaps(self, exon, regions):
         ''' find all regions which overlap a given region
@@ -183,37 +174,37 @@ cdef class Transcript:
         # transcripts.
         # TODO: this could be worked around, by figuring the minimum offset length,
         # TODO: then trimming the respective DNA offset sequences to that length.
-        assert self.get_genomic_offset() == other.get_genomic_offset()
+        assert self.genomic_offset == other.genomic_offset
         
         # figure out which transcripts hold the leading and lagging sections
         lead, not_lead = self, other
-        if self.get_start() > other.get_start():
+        if self.start > other.start:
             lead, not_lead = other, self
         
         lag, not_lag = self, other
-        if self.get_end() < other.get_end():
+        if self.end < other.end:
             lag, not_lag = other, self
         
-        lead_offset = lead.get_genomic_offset()
-        lead_gdna = lead.get_genomic_sequence()
-        initial = lead_gdna[:not_lead.get_start() - lead.get_start() + lead_offset]
+        lead_offset = lead.genomic_offset
+        lead_gdna = lead.genomic_sequence
+        initial = lead_gdna[:not_lead.start - lead.start + lead_offset]
         
-        if self.get_start() <= other.get_end() and self.get_end() >= other.get_start():
-            intersect_start = not_lead.get_start() - lead.get_start() + lead_offset
-            intersect_end = not_lag.get_end() - lead.get_start() + lead_offset
+        if self.start <= other.end and self.end >= other.start:
+            intersect_start = not_lead.start - lead.start + lead_offset
+            intersect_end = not_lag.end - lead.start + lead_offset
             intersect = lead_gdna[intersect_start:intersect_end]
         else:
-            intersect = 'N' * (lag.get_start() - lead.get_end() - lead_offset * 2)
+            intersect = 'N' * (lag.start - lead.end - lead_offset * 2)
         
-        lag_offset = lag.get_genomic_offset()
-        lag_gdna = lag.get_genomic_sequence()
+        lag_offset = lag.genomic_offset
+        lag_gdna = lag.genomic_sequence
         
         # some transcripts overlap, but some do not. We need to find the position
         # where the lagging transcript takes over, which is either at the end of
         # not lagging transcript, or the start of the lagging transcript,
         # whichever is higher
-        pos = max(not_lag.get_end(), lag.get_start())
-        final = lag_gdna[pos - lag.get_start() + lead_offset:]
+        pos = max(not_lag.end, lag.start)
+        final = lag_gdna[pos - lag.start + lead_offset:]
         
         return initial + intersect + final
     
@@ -248,73 +239,101 @@ cdef class Transcript:
         if self is None:
             return other
         
-        altered = Transcript('{}:{}'.format(self.get_name(), other.get_name()),
-            self.get_chrom(), min(self.get_start(), other.get_start()),
-            max(self.get_end(), other.get_end()), self.get_strand(), self.get_type())
+        altered = Transcript('{}:{}'.format(self.name, other.name),
+            self.chrom, min(self.start, other.start),
+            max(self.end, other.end), self.strand, self.type)
         
-        exons = self.merge_coordinates(self.get_exons(), other.get_exons())
-        cds = self.merge_coordinates(self.get_cds(), other.get_cds())
+        exons = self.merge_coordinates(self.exons, other.exons)
+        cds = self.merge_coordinates(self.cds, other.cds)
         
-        altered.set_exons(exons, cds)
-        altered.set_cds(cds)
+        altered.exons = exons
+        altered.cds = cds
         
-        if self.get_genomic_sequence() != "":
-            altered.add_genomic_sequence(self.merge_genomic_seq(other), self.get_genomic_offset())
+        if self.genomic_sequence != "":
+            altered.genomic_offset = self.genomic_offset
+            altered.genomic_sequence = self.merge_genomic_seq(other)
         
         return altered
     
-    def set_cds(self, cds_ranges):
-        ''' set CDS ranges
-        
-        Args:
-            cds_ranges: a CDS position of the selected base.
-        '''
-        
-        self.thisptr.set_cds(cds_ranges)
-    
-    def get_genomic_offset(self):
-        return self.thisptr.get_genomic_offset()
-    def get_exons(self):
-        ''' get list of exon coords as {'start': int, 'end': int} dicts
-        '''
-        return self.thisptr.get_exons()
-    def get_cds(self):
-        ''' get list of CDS coords as {'start': int, 'end': int} dicts
-        '''
-        return self.thisptr.get_cds()
-    def get_name(self):
-        ''' get transcript ID
-        '''
+    @property
+    def name(self):
+        '''transcript ID'''
         return self.thisptr.get_name().decode('utf8')
-    def get_chrom(self):
-        ''' get chromosome
-        '''
+    @property
+    def chrom(self):
+        '''chromosome the gene is on'''
         return self.thisptr.get_chrom().decode('utf8')
-    def get_type(self):
-        ''' get transcript functional type (protein_coding etc.)
-        '''
+    @property
+    def type(self):
+        '''transcript functional type (protein_coding etc.)'''
         return self.thisptr.get_type().decode('utf8')
-    def get_start(self):
-        ''' get transcript start position (TSS)
-        '''
+    @property
+    def start(self):
+        '''transcript start position (TSS) on chromosome'''
         return self.thisptr.get_start()
-    def get_end(self):
-        ''' get transcript end position
-        '''
+    @property
+    def end(self):
+        '''transcript end position on chromosome'''
         return self.thisptr.get_end()
-    def get_strand(self):
-        ''' get the strand the transcript is on
-        '''
+    @property
+    def strand(self):
+        '''strand the transcript is on (+ or -)'''
         return chr(self.thisptr.get_strand())
-    def get_cds_start(self):
-        ''' get CDS start position
-        '''
+    @property
+    def cds_start(self):
+        '''CDS start position on chromosome'''
         return self.thisptr.get_cds_start()
-    def get_cds_end(self):
-        ''' get CDS end position
-        '''
+    @property
+    def cds_end(self):
+        '''CDS end position on chromosome'''
         return self.thisptr.get_cds_end()
-    def fix_cds_boundary(self, pos):
+    
+    @property
+    def exons(self):
+        ''' list of exon coords as {'start': int, 'end': int} dicts '''
+        return self.thisptr.get_exons()
+    @exons.setter
+    def exons(self, exon_ranges):
+        self.thisptr.set_exons(exon_ranges)
+
+    @property
+    def cds(self):
+        '''list of CDS coords as {'start': int, 'end': int} dicts '''
+        return self.thisptr.get_cds()
+    @cds.setter
+    def cds(self, cds_ranges):
+        self.thisptr.set_cds(cds_ranges)
+
+    @property
+    def cds_sequence(self):
+        ''' CDS sequence for the transcript
+        '''
+        return self.thisptr.get_cds_sequence().decode('utf8')
+    
+    @cds_sequence.setter
+    def cds_sequence(self, text):
+        self.thisptr.add_cds_sequence(text.encode('utf8'))
+
+    @property
+    def genomic_offset(self):
+        '''distance the DNA sequence extends symmetrically beyond gene boundaries'''
+        return self.thisptr.get_genomic_offset()
+    
+    @genomic_offset.setter
+    def genomic_offset(self, int offset):
+        self.thisptr.set_genomic_offset(offset)
+
+    @property
+    def genomic_sequence(self):
+        ''' genomic sequence spanning the transcript 
+        '''
+        return self.thisptr.get_genomic_sequence().decode('utf8')
+    
+    @genomic_sequence.setter
+    def genomic_sequence(self, str text):
+        self.thisptr.add_genomic_sequence(text.encode('utf8'))
+
+    def _fix_cds_boundary(self, pos):
         ''' adjust CDS boundary
 
         Args:
@@ -382,34 +401,7 @@ cdef class Transcript:
         '''
         return self.thisptr.get_position_within_codon(cds_pos)
     
-    def add_cds_sequence(self, text):
-        ''' add CDS sequence to the transcript
 
-        Args:
-            text: CDS sequence
-        '''
-        self.thisptr.add_cds_sequence(text.encode('utf8'))
-        
-    def get_cds_sequence(self):
-        ''' get CDS sequence for the transcript
-        '''
-        return self.thisptr.get_cds_sequence().decode('utf8')
-    
-    def add_genomic_sequence(self, text, offset=0):
-        ''' add genomic sequence to the transcript
-
-        Args:
-            text: DNA sequence
-            offset: how far the DNA sequence expands beyond the gene boundaries 
-               (symmetric in both directions). Default is 0, i.e. no expansion.
-        '''
-        self.thisptr.add_genomic_sequence(text.encode('utf8'), offset)
-    
-    def get_genomic_sequence(self):
-        ''' get the genomic sequence spanning the transcript 
-        '''
-        return self.thisptr.get_genomic_sequence().decode('utf8')
-    
     def reverse_complement(self, text):
         ''' reverse complement a sequence
 
