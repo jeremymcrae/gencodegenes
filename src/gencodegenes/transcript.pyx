@@ -251,6 +251,9 @@ cdef class Transcript:
         
         return altered
     
+    def __radd__(self, other):
+        return self.__add__(other)
+    
     @property
     def name(self):
         '''transcript ID'''
