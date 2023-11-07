@@ -192,6 +192,7 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'',
             'transcript_type': b'',
             'is_canonical': 0,
@@ -215,6 +216,69 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
+            'tx_id': b'ENST00000335137.3',
+            'transcript_type': b'protein_coding',
+            'is_canonical': 5,
+            }
+        self.assertEqual(obj, expected)
+    
+    def test_parse_gtf_transcript_line_alternate_ids(self):
+        ''' test we can parse a GTF line which includes both alternate IDs
+        '''
+        line = 'chr1\tHAVANA\ttranscript\t69091\t70008\t.\t+\t.\tgene_id "ENSG00000186092.4"; '\
+            'transcript_id "ENST00000335137.3"; gene_type "protein_coding"; ' \
+            'gene_status "KNOWN"; gene_name "OR4F5"; transcript_type "protein_coding"; ' \
+            'transcript_status "KNOWN"; transcript_name "OR4F5-001"; level 2; ' \
+            'protein_id "ENSP00000334393.3"; tag "basic"; transcript_support_level "NA"; ' \
+            'hgnc_id "HGNC:14825", tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; ' \
+            'havana_gene "OTTHUMG00000001094.2"; havana_transcript "OTTHUMT00000003223.2";\n'
+        obj = _parse_gtfline(line.encode('utf8'))
+        expected = {'chrom': b'chr1', 
+            'feature': b'transcript', 
+            'start': 69091,
+            'end': 70008,
+            'strand': b'+',
+            'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4', b'HGNC:14825'],
+            'tx_id': b'ENST00000335137.3',
+            'transcript_type': b'protein_coding',
+            'is_canonical': 5,
+            }
+        self.assertEqual(obj, expected)
+        
+        # try without alternate gene ID from ensembl gene ID
+        line = 'chr1\tHAVANA\ttranscript\t69091\t70008\t.\t+\t.\t '\
+            'transcript_id "ENST00000335137.3"; gene_type "protein_coding"; ' \
+            'gene_status "KNOWN"; gene_name "OR4F5"; transcript_type "protein_coding";' \
+            'hgnc_id "HGNC:14825", tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; '
+        obj = _parse_gtfline(line.encode('utf8'))
+        expected = {'chrom': b'chr1', 
+            'feature': b'transcript', 
+            'start': 69091,
+            'end': 70008,
+            'strand': b'+',
+            'symbol': b'OR4F5',
+            'alternate_ids': [b'HGNC:14825'],
+            'tx_id': b'ENST00000335137.3',
+            'transcript_type': b'protein_coding',
+            'is_canonical': 5,
+            }
+        self.assertEqual(obj, expected)
+        
+        # try without any alternate ID
+        line = 'chr1\tHAVANA\ttranscript\t69091\t70008\t.\t+\t.\t '\
+            'transcript_id "ENST00000335137.3"; gene_type "protein_coding"; ' \
+            'gene_status "KNOWN"; gene_name "OR4F5"; transcript_type "protein_coding";' \
+            'tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; '
+        obj = _parse_gtfline(line.encode('utf8'))
+        expected = {'chrom': b'chr1', 
+            'feature': b'transcript', 
+            'start': 69091,
+            'end': 70008,
+            'strand': b'+',
+            'symbol': b'OR4F5',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 5,
@@ -239,6 +303,7 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,  ## exons don't get checked for principal tag
@@ -263,6 +328,7 @@ class TestGencode(unittest.TestCase):
             'end': 70005,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,  ## CDS don't get checked for principal tag
@@ -286,6 +352,7 @@ class TestGencode(unittest.TestCase):
             'end': 69093,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
@@ -309,6 +376,7 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
@@ -332,6 +400,7 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'+',
             'symbol': b'OR4F5',
+            'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
@@ -349,6 +418,7 @@ class TestGencode(unittest.TestCase):
             'end': 70008,
             'strand': b'-',
             'symbol': b'TEST',
+            'alternate_ids': [],
             'tx_id': b'',
             'transcript_type': b'',
             'is_canonical': 0,

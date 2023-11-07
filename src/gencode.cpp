@@ -82,6 +82,7 @@ void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool co
     std::map<std::string, int> cds_range = {{"max", 0}, {"min", 999999999}};
     std::string tx_id = "";
     std::string symbol = "";
+    std::vector<std::string> alt_ids;
     std::string current;
     TxInfo info;
 
@@ -105,6 +106,7 @@ void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool co
         if (tx_id == "") {
             tx_id = current;
             symbol = gtf.symbol;
+            alt_ids = gtf.alternate_ids;
         }
 
         if (tx_id != current) {
@@ -114,12 +116,13 @@ void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool co
                 info.transcript_type);
             tx.set_exons(info.exons);
             tx.set_cds(info.cds);
-            transcripts.push_back({symbol, tx, info.is_canonical});
+            transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
             info = {};
             tx_id = current;
             cds_range["max"] = 0;
             cds_range["min"] = 999999999;
             symbol = gtf.symbol;
+            alt_ids = gtf.alternate_ids;
             info.is_canonical = false;
         }
 
@@ -152,7 +155,7 @@ void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool co
         Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], info.transcript_type);
         tx.set_exons(info.exons);
         tx.set_cds(info.cds);
-        transcripts.push_back({symbol, tx, info.is_canonical});
+        transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
     }
 }
 

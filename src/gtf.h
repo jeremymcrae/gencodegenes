@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "gzstream/gzstream.h"
 
@@ -17,6 +18,7 @@ struct GTFLine {
     int end;
     std::string strand;
     std::string symbol;
+    std::vector<std::string> alternate_ids;
     std::string tx_id;
     std::string transcript_type;
     int is_canonical;

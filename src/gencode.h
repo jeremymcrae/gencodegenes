@@ -30,6 +30,7 @@ struct TxInfo {
 // stores HGNC symbol with the transcript, so we can collect transcripts by gene
 struct NamedTx {
     std::string symbol;
+    std::vector<std::string> alternate_ids;
     Tx tx;
     int is_canonical;
 };

@@ -27,6 +27,15 @@ void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
         tx_end = offset;
     }
 
+    int gene_id_start = line.find("gene_id", offset) + 9;
+    int gene_id_end = line.find("\"", gene_id_start);
+    if (gene_id_start - 9 == (int)std::string::npos) {
+        // handle if the string was not found
+        gene_id_start = offset;
+        gene_id_end = offset;
+    }
+    
+
     int gene_start = line.find("gene_name", tx_end) + 11;
     int gene_end = line.find("\"", gene_start);
 
@@ -45,9 +54,25 @@ void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
         type_end = gene_end;
     }
     
+    int hgnc_id_start = line.find("hgnc_id", type_end) + 9;
+    int hgnc_id_end = line.find("\"", hgnc_id_start);
+    if (hgnc_id_start - 9 == (int)std::string::npos) {
+        // handle if the string was not found
+        hgnc_id_start = offset;
+        hgnc_id_end = offset;
+    }
+    
     info.symbol = line.substr(gene_start, gene_end - gene_start);
     info.tx_id = line.substr(tx_start, tx_end - tx_start);
     info.transcript_type = line.substr(type_start, type_end - type_start);
+    
+    if (gene_id_start != gene_id_end) {
+        info.alternate_ids.push_back(line.substr(gene_id_start, gene_id_end - gene_id_start));
+    }
+    if (hgnc_id_start != hgnc_id_end) {
+        info.alternate_ids.push_back(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start));
+    }
+    
     info.is_canonical = 0;
     if (info.feature == "transcript") {
         if (line.find("appris_principal", type_end) != std::string::npos) {

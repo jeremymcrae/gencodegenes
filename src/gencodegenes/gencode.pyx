@@ -23,6 +23,7 @@ cdef extern from "gtf.h" namespace "gencode":
         int end
         string strand
         string symbol
+        vector[string] alternate_ids
         string tx_id
         string transcript_type
         int is_canonical
@@ -32,6 +33,7 @@ cdef extern from "gtf.h" namespace "gencode":
 cdef extern from "gencode.h" namespace "gencode":
     cdef struct NamedTx:
         string symbol
+        vector[string] alternate_ids
         Tx tx
         int is_canonical
     
@@ -86,10 +88,17 @@ cdef class Gene:
     cdef vector[int] _canonical
     cdef str _chrom
     cdef int _start, _end
-    def __cinit__(self, symbol):
+    cdef vector[string] _alternate_ids
+    def __cinit__(self, symbol, alt_ids=None):
         if isinstance(symbol, str):
             symbol = symbol.encode('utf8')
         self._symbol = symbol
+        
+        if alt_ids is None:
+            alt_ids = []
+        elif isinstance(alt_ids, str):
+            alt_ids = [alt_ids]
+        self.alternate_ids = [x.decode('utf8') for x in alt_ids]
         self.start = 999999999
         self.end = -999999999
     
@@ -145,6 +154,18 @@ cdef class Gene:
     @property
     def symbol(self):
         return self._symbol.decode('utf8')
+    
+    @property
+    def alternate_ids(self):
+        return [x.decode('utf8') for x in self._alternate_ids]
+    
+    @alternate_ids.setter
+    def alternate_ids(self, ids):
+        self._alternate_ids.clear()
+        if isinstance(ids, str):
+            ids = [ids]
+        for x in ids:
+            self._alternate_ids.push_back(x.encode('utf8'))
     
     @property
     def chrom(self):
@@ -329,7 +350,7 @@ cdef class Gencode:
             for x in transcripts:
                 symbol = x.symbol.decode('utf8')
                 if symbol not in self.genes:
-                    self.genes[symbol] = Gene(symbol.encode('utf8'))
+                    self.genes[symbol] = Gene(symbol.encode('utf8'), x.alternate_ids)
                 curr = self.genes[symbol]
                 curr.add_tx(x.tx, x.is_canonical)
                 self.genes[symbol] = curr
