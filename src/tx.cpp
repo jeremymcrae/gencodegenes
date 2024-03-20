@@ -210,7 +210,7 @@ int Tx::closest_exon_num(int pos) {
 //
 // @param position chromosomal nucleotide position
 // @returns number of exon containing the position
-int Tx::closest_exon_num(int pos, std::vector<Region> group) {
+int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
     size_t idx = std::lower_bound(group.begin(), group.end(), pos, compareRegion) - group.begin();
     size_t size = group.size();
     if (idx == 0) {

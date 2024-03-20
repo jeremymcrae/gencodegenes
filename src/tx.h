@@ -75,7 +75,7 @@ class Tx {
     bool is_exonic(int pos, Region exon);
     bool is_exonic(int pos);
     int closest_exon_num(int pos);
-    int closest_exon_num(int pos, std::vector<Region> group);
+    int closest_exon_num(int pos, std::vector<Region> & group);
     Region get_closest_exon(int pos);
     bool in_coding_region(int pos);
     CDS_coords to_closest_exon(int pos, Region exon);
