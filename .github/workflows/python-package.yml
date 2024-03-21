@@ -61,6 +61,7 @@ jobs:
 
       - name: Build sdist
         run:
+          pip install cython
           python setup.py sdist
 
       - uses: actions/upload-artifact@v3
