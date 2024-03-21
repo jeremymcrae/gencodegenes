@@ -10,7 +10,7 @@
 
 #include "tx.h"
 
-std::unordered_map<std::string, char> aa_code = {
+static std::unordered_map<std::string, char> aa_code = {
     {"AAA", 'K'}, {"AAC", 'N'}, {"AAG", 'K'}, {"AAT", 'N'},
     {"ACA", 'T'}, {"ACC", 'T'}, {"ACG", 'T'}, {"ACT", 'T'},
     {"AGA", 'R'}, {"AGC", 'S'}, {"AGG", 'R'}, {"AGT", 'S'},
@@ -197,7 +197,7 @@ bool Tx::is_exonic(int pos, Region exon) {
 
 // include a sort operator for Region structs. This allows quick searching
 // of vectors of Regions
-bool compareRegion(const Region& a, int b) {
+static bool compareRegion(const Region& a, int b) {
     return a.start < b;
 }
 
@@ -641,7 +641,7 @@ int Tx::get_boundary_distance(int bp) {
 }
 
 // check for overlap of two ranges
-bool overlap(const int & start1, const int & end1, const int & start2, const int & end2) {
+static bool overlap(const int & start1, const int & end1, const int & start2, const int & end2) {
     return (end1 >= start2) && (end2 >= start1);
 }
 

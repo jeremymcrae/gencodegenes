@@ -16,16 +16,16 @@
 namespace gencode {
 
 // check which exon is first, by start position
-bool compareExons(std::vector<int> e1, std::vector<int> e2) {
+static bool compareExons(std::vector<int> e1, std::vector<int> e2) {
     return (e1[0] < e2[0]);
 }
 
-void sort_exons(std::vector<std::vector<int> > & exons) {
+static void sort_exons(std::vector<std::vector<int> > & exons) {
     std::sort(exons.begin(), exons.end(), compareExons);
 }
 
 // find the index of the exon containing a given chromosome position
-std::uint32_t get_exon_num(std::vector<std::vector<int> > exons, int pos) {
+static std::uint32_t get_exon_num(std::vector<std::vector<int> > exons, int pos) {
     for (std::uint32_t i=0; i<exons.size(); i++) {
         if ((pos >= exons[i][0]) && (pos <= exons[i][1])) {
             return i;
@@ -41,7 +41,7 @@ std::uint32_t get_exon_num(std::vector<std::vector<int> > exons, int pos) {
 // just set the first CDS coord and last CDS coord to their values though,
 // as at least one stop codon spans an intron boundary, which messes up the
 // CDS if included as is.
-void include_end_codons(std::map<std::string, int> cds_range, TxInfo & info) {
+static void include_end_codons(std::map<std::string, int> cds_range, TxInfo & info) {
     if (info.cds.size() == 0) {
         return;
     }
@@ -76,7 +76,7 @@ void include_end_codons(std::map<std::string, int> cds_range, TxInfo & info) {
 //
 // When we load lines from gencode GTF files, each line represents a single exon
 // or CDS, and we need to combine these based on transcript ID
-void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool coding=true) {
+static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool coding=true) {
     std::set<std::string> permit = {"exon", "CDS", "UTR", "transcript", 
         "stop_codon", "start_codon"};
     std::map<std::string, int> cds_range = {{"max", 0}, {"min", 999999999}};

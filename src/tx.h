@@ -56,7 +56,7 @@ class Tx {
  public:
     Tx(std::string transcript_id, std::string chromosome, int start_pos,
         int end_pos, char strand, std::string _transcript_type);
-    Tx() {};
+    Tx() {}
     void set_exons(std::vector<std::vector<int>> exon_ranges);
     void set_cds(std::vector<std::vector<int>> cds_ranges);
     Region fix_cds_boundary(int position);
