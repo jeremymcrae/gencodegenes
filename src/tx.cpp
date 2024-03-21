@@ -492,10 +492,17 @@ void Tx::_fix_cds_length() {
 // reverse complement a DNA or RNA sequence
 std::string Tx::reverse_complement(std::string seq) {
     static char transdict[128];
-    transdict['a'] = 't'; transdict['c'] = 'g'; transdict['g'] = 'c'; 
-    transdict['t'] = 'a'; transdict['u'] = 'a'; transdict['A'] = 'T'; 
-    transdict['C'] = 'G'; transdict['G'] = 'C'; transdict['T'] = 'A'; 
-    transdict['U'] = 'A'; transdict['N'] = 'N';
+    transdict[(int) 'a'] = 't';
+    transdict[(int) 'c'] = 'g';
+    transdict[(int) 'g'] = 'c';
+    transdict[(int) 't'] = 'a';
+    transdict[(int) 'u'] = 'a';
+    transdict[(int) 'A'] = 'T';
+    transdict[(int) 'C'] = 'G';
+    transdict[(int) 'G'] = 'C';
+    transdict[(int) 'T'] = 'A';
+    transdict[(int) 'U'] = 'A';
+    transdict[(int) 'N'] = 'N';
     std::reverse(seq.begin(), seq.end());
     std::string complement;
     complement.resize(seq.size());
