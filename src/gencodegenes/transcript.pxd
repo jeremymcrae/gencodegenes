@@ -24,7 +24,7 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp cimport bool
 
-cdef extern from "tx.h":
+cdef extern from "tx.h" namespace "gencode":
     cdef cppclass Tx:
         Tx(string, string, int, int, char, string) except +
         Tx() except +

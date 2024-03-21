@@ -5,6 +5,8 @@
 #include <vector>
 #include <unordered_map>
 
+namespace gencode {
+
 struct CDS_coords {
     int position;
     int offset;
@@ -105,5 +107,7 @@ class Tx {
     
     std::string consequence(int pos, std::string ref, std::string alt);
 };
+
+} // namespace
 
 #endif  // GENCODEGENES_TX_H_

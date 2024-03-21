@@ -10,6 +10,8 @@
 
 #include "tx.h"
 
+namespace gencode {
+
 static std::unordered_map<std::string, char> aa_code = {
     {"AAA", 'K'}, {"AAC", 'N'}, {"AAG", 'K'}, {"AAT", 'N'},
     {"ACA", 'T'}, {"ACC", 'T'}, {"ACG", 'T'}, {"ACT", 'T'},
@@ -857,3 +859,5 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     
     return coding_cq(start, alt);
 }
+
+} // namespace
