@@ -93,8 +93,6 @@ class Tx {
     void set_genomic_offset(int offset) { gdna_offset=offset; }
     int get_genomic_offset() { return gdna_offset; }
     
-    void _fix_transcript_off_by_one_bp();
-    
     std::string reverse_complement(std::string seq);
     std::string get_centered_sequence(int pos, int length=3);
     std::string get_seq_in_region(int start, int end);
