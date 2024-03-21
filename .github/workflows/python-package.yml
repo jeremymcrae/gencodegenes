@@ -60,7 +60,7 @@ jobs:
           python -m unittest discover
 
       - name: Build sdist
-        run:
+        run: |
           pip install cython
           python setup.py sdist
 
