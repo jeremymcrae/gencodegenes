@@ -662,7 +662,7 @@ bool Tx::overlaps_cds(int start, int end) {
     return false;
 }
 
-std::string Tx::outside_gene_cq(int start, int end, std::string alt) {
+std::string Tx::outside_gene_cq(int start, int end) {
     bool fwd = get_strand() == '+';
     if ((end < tx_start) & ((tx_start - end) <= 5000)) {
         if (fwd) {
@@ -782,7 +782,7 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     }
 }
 
-std::string Tx::coding_cq(int start, int end, std::string alt) {
+std::string Tx::coding_cq(int start, std::string alt) {
     if (get_strand() == '-') {
         alt = reverse_complement(alt);
     }
@@ -842,7 +842,7 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     trim_alleles(start, end, ref, alt);
     
     if ((end < tx_start) | (start > tx_end)) {
-        return outside_gene_cq(start, end, alt);
+        return outside_gene_cq(start, end);
     }
     
     if (!overlaps_cds(start, end)) {
@@ -855,5 +855,5 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
         return indel_cq(start, end, ref, alt);
     }
     
-    return coding_cq(start, end, alt);
+    return coding_cq(start, alt);
 }
