@@ -84,7 +84,12 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     info.transcript_type = trim(line.substr(type_start, type_end - type_start), " \"");
     
     if (gene_id_start != gene_id_end) {
-        info.alternate_ids.push_back(trim(line.substr(gene_id_start, gene_id_end - gene_id_start), " \""));
+        std::string gene_id = trim(line.substr(gene_id_start, gene_id_end - gene_id_start), " \"");
+        if (info.symbol.size() == 0) {
+            info.symbol = gene_id;
+        } else {
+            info.alternate_ids.push_back(gene_id);
+        }
     }
     if (hgnc_id_start != hgnc_id_end) {
         info.alternate_ids.push_back(trim(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start), " \""));
