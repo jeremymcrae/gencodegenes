@@ -96,7 +96,7 @@ GTFLine parse_gtfline(std::string & line) {
     // tab along the line, then extract the substring to get the required fields.
     // getline() with tab delimiter was 2X slower.
     int chr_idx = 0;
-    int source_idx = line.find("\t", chr_idx + 4);
+    int source_idx = line.find("\t", chr_idx);
     int feature_idx = line.find("\t", source_idx + 6);
     int start_idx = line.find("\t", feature_idx + 3);
     int end_idx = line.find("\t", start_idx + 2);
