@@ -14,16 +14,25 @@
 
 namespace gencode {
 
+std::string trim(const std::string &s, const std::string &vals) {
+    size_t start = s.find_first_not_of(vals);
+    if (start == std::string::npos) {
+        return "";
+    }
+    size_t end = s.find_last_not_of(vals);
+    return s.substr(start, (end + 1) - start);
+}
+
 // parse the required fields from the attributes field
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
-    const std::string tx_id_key = "transcript_id \"";
-    const std::string gene_id_key = "gene_id \"";
-    const std::string gene_name_key = "gene_name \"";
-    std::string type_key = "transcript_type \"";
-    const std::string hgnc_id_key = "hgnc_id \"";
+    const std::string tx_id_key = "transcript_id ";
+    const std::string gene_id_key = "gene_id ";
+    const std::string gene_name_key = "gene_name ";
+    std::string type_key = "transcript_type ";
+    const std::string hgnc_id_key = "hgnc_id ";
 
     size_t tx_start = line.find(tx_id_key, offset) + tx_id_key.size();
-    size_t tx_end = line.find("\"", tx_start);
+    size_t tx_end = line.find(";", tx_start);
 
     if (tx_start - tx_id_key.size() == std::string::npos) {
         // handle if the string was not found
@@ -32,7 +41,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     }
 
     size_t gene_id_start = line.find(gene_id_key, offset) + gene_id_key.size();
-    size_t gene_id_end = line.find("\"", gene_id_start);
+    size_t gene_id_end = line.find(";", gene_id_start);
     if (gene_id_start - gene_id_key.size() == std::string::npos) {
         // handle if the string was not found
         gene_id_start = offset;
@@ -40,7 +49,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     }
     
     size_t gene_start = line.find(gene_name_key, offset) + gene_name_key.size();
-    size_t gene_end = line.find("\"", gene_start);
+    size_t gene_end = line.find(";", gene_start);
 
     if (gene_start - gene_name_key.size() == std::string::npos) {
         // handle if the string was not found
@@ -51,10 +60,10 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     size_t type_start = line.find(type_key, offset) + type_key.size();
     if (type_start - type_key.size() == std::string::npos) {
         // allow for alternate transcript_type key, as found in non-gencode GTF files 
-        type_key = "transcript_biotype \"";
+        type_key = "transcript_biotype ";
         type_start = line.find(type_key, offset) + type_key.size();
     }
-    size_t type_end = line.find("\"", type_start);
+    size_t type_end = line.find(";", type_start);
 
     if (type_start - type_key.size() == std::string::npos) {
         // handle if the string was not found
@@ -63,22 +72,22 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     }
 
     size_t hgnc_id_start = line.find(hgnc_id_key, offset) + hgnc_id_key.size();
-    size_t hgnc_id_end = line.find("\"", hgnc_id_start);
+    size_t hgnc_id_end = line.find(";", hgnc_id_start);
     if (hgnc_id_start - hgnc_id_key.size() == std::string::npos) {
         // handle if the string was not found
         hgnc_id_start = offset;
         hgnc_id_end = offset;
     }
     
-    info.symbol = line.substr(gene_start, gene_end - gene_start);
-    info.tx_id = line.substr(tx_start, tx_end - tx_start);
-    info.transcript_type = line.substr(type_start, type_end - type_start);
+    info.symbol = trim(line.substr(gene_start, gene_end - gene_start), " \"");
+    info.tx_id = trim(line.substr(tx_start, tx_end - tx_start), " \"");
+    info.transcript_type = trim(line.substr(type_start, type_end - type_start), " \"");
     
     if (gene_id_start != gene_id_end) {
-        info.alternate_ids.push_back(line.substr(gene_id_start, gene_id_end - gene_id_start));
+        info.alternate_ids.push_back(trim(line.substr(gene_id_start, gene_id_end - gene_id_start), " \""));
     }
     if (hgnc_id_start != hgnc_id_end) {
-        info.alternate_ids.push_back(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start));
+        info.alternate_ids.push_back(trim(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start), " \""));
     }
     
     if (info.feature == "transcript") {
