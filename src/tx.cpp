@@ -251,6 +251,9 @@ int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
 //
 // @param position integer chromosome position e.g. 10000000
 Region Tx::get_closest_exon(int pos) {
+    if (exons.size() == 0) {
+        throw std::invalid_argument("no exons assigned to this transcript");
+    }
     int idx = closest_exon_num(pos);
     return exons[idx];
 }
@@ -259,6 +262,9 @@ Region Tx::get_closest_exon(int pos) {
 //
 // @param position integer chromosome position e.g. 10000000
 bool Tx::in_coding_region(int pos) {
+    if (cds.size() == 0) {
+        return false;
+    }
     int idx = closest_exon_num(pos, cds);
     Region region = cds[idx];
     return (pos >= region.start) && (pos <= region.end);
