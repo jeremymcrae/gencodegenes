@@ -14,7 +14,10 @@ pip install gencodegenes
 ```py
 from gencodegenes import Gencode
 
-gencode = Gencode(GTF_PATH)  # or Gencode(GTF, FASTA_PATH) to give transcripts DNA sequence
+gencode = Gencode(GTF_PATH)
+# full function arguments are Gencode(gtf_path, fasta_path=None, coding_only=True)
+#  - fasta_path: pass in path to fasta file to get gene transcripts with sequence
+#  - coding_only: pass in False to include all transcripts, not just protein coding
 
 # get gene by HGNC symbol
 gene = gencode['OR5A1']
