@@ -66,6 +66,10 @@ void Tx::set_exons(std::vector<std::vector<int>> exon_ranges) {
 void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
    cds.clear();
    
+   if (cds_ranges.size() == 0) {
+    return;
+   }
+   
    // If the transcript lacks exon coordinates and only has a single CDS
     // region, then if the CDS region fits within the gene range, make a
     // single exon, using the transcript start and end. This prevents issues
