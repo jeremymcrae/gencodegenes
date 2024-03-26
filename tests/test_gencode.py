@@ -55,12 +55,12 @@ class TestGencode(unittest.TestCase):
         lines = '##format: gtf\n' \
                 'chr1\tHAVANA\tgene\t10\t20\t.\t-\t.\tgene_name "TEST1";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A";gene_name "TEST1"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n' \
                 'chr1\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST2";\n' \
                 'chr1\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_B";gene_name "TEST2"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n'\
+                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n'\
                 'chr2\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST3";\n' \
                 'chr2\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_C";gene_name "TEST3"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
                 'chr2\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_C" gene_name "TEST3"; transcript_type "protein_coding"\n' \
@@ -112,16 +112,16 @@ class TestGencode(unittest.TestCase):
         lines = ['##format: gtf\n',
                 'chr1\tHAVANA\tgene\t10\t20\t.\t-\t.\tgene_name "TEST1";\n',
                 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding"; tag "appris_principal_1";\n',
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n',
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n',
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
                 'chr1\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST2";\n',
                 'chr1\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding"; tag "appris_principal_1";\n',
-                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n',
-                'chr1\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n',
+                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n',
+                'chr1\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n',
                 'chr2\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST3";\n',
                 'chr2\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding"; tag "appris_principal_1";\n',
-                'chr2\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_C" gene_name "TEST3"; transcript_type "protein_coding"\n',
-                'chr2\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_C" gene_name "TEST3"; transcript_type "protein_coding"\n']
+                'chr2\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding;"\n',
+                'chr2\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding;"\n']
         
         write_gtf(self.temp_gtf_path, lines)
         make_fasta(self.temp_fasta_path, ['chr1', 'chr2'])
@@ -150,12 +150,12 @@ class TestGencode(unittest.TestCase):
         lines = ['##format: gtf\n',
                 'chr1\tHAVANA\tgene\t20\t30\t.\t-\t.\tgene_name "TEST1";\n',
                 'chr1\tHAVANA\ttranscript\t20\t30\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding"; tag "appris_principal_1";\n',
-                'chr1\tHAVANA\texon\t20\t30\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n',
-                'chr1\tHAVANA\tCDS\t25\t30\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n',
+                'chr1\tHAVANA\texon\t20\t30\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
+                'chr1\tHAVANA\tCDS\t25\t30\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
                 'chr1\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST1";\n',
                 'chr1\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST1"; transcript_type "protein_coding";\n',
-                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST1"; transcript_type "protein_coding"\n',
-                'chr1\tHAVANA\tCDS\t110\t100\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST1"; transcript_type "protein_coding"\n',
+                'chr1\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
+                'chr1\tHAVANA\tCDS\t110\t100\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST1"; transcript_type "protein_coding;"\n',
         ]
         
         write_gtf(self.temp_gtf_path, lines)
@@ -231,7 +231,7 @@ class TestGencode(unittest.TestCase):
             'gene_status "KNOWN"; gene_name "OR4F5"; transcript_type "protein_coding"; ' \
             'transcript_status "KNOWN"; transcript_name "OR4F5-001"; level 2; ' \
             'protein_id "ENSP00000334393.3"; tag "basic"; transcript_support_level "NA"; ' \
-            'hgnc_id "HGNC:14825", tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; ' \
+            'hgnc_id "HGNC:14825"; tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; ' \
             'havana_gene "OTTHUMG00000001094.2"; havana_transcript "OTTHUMT00000003223.2";\n'
         obj = _parse_gtfline(line.encode('utf8'))
         expected = {'chrom': b'chr1', 
@@ -251,7 +251,7 @@ class TestGencode(unittest.TestCase):
         line = 'chr1\tHAVANA\ttranscript\t69091\t70008\t.\t+\t.\t '\
             'transcript_id "ENST00000335137.3"; gene_type "protein_coding"; ' \
             'gene_status "KNOWN"; gene_name "OR4F5"; transcript_type "protein_coding";' \
-            'hgnc_id "HGNC:14825", tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; '
+            'hgnc_id "HGNC:14825"; tag "appris_principal_1"; tag "CCDS"; ccdsid "CCDS30547.1"; '
         obj = _parse_gtfline(line.encode('utf8'))
         expected = {'chrom': b'chr1', 
             'feature': b'transcript', 
@@ -431,12 +431,12 @@ class TestGencode(unittest.TestCase):
         lines = '##format: gtf\n' \
                 'chr1\tHAVANA\tgene\t10\t20\t.\t-\t.\tgene_name "TEST1";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A";gene_name "TEST1"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST1"; transcript_type "protein_coding"\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding;"\n' \
                 'chr1\tHAVANA\tgene\t10\t30\t.\t-\t.\tgene_name "TEST2";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t30\t.\t-\t.\ttranscript_id "ENST_B";gene_name "TEST2"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t30\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST2"; transcript_type "protein_coding"\n'
+                'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n'
         
         write_gtf(self.temp_gtf_path, lines)
         data = _open_gencode(self.temp_gtf_path)
@@ -452,8 +452,8 @@ class TestGencode(unittest.TestCase):
         lines = '##format: gtf\n' \
                 'chr1\tHAVANA\tgene\t10\t20\t.\t-\t.\tgene_name "TEST";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A";gene_name "TEST"; transcript_type "processed_transcript"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "processed_transcript"\n' \
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "processed_transcript"\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "processed_transcript;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "processed_transcript;"\n' \
                         
         write_gtf(self.temp_gtf_path, lines)
         data = _open_gencode(self.temp_gtf_path)
@@ -472,12 +472,12 @@ class TestGencode(unittest.TestCase):
         lines = '##format: gtf\n' \
                 'chr1\tHAVANA\tgene\t10\t20\t.\t-\t.\tgene_name "TEST";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A";gene_name "TEST"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
                 'chr1\tHAVANA\tgene\t10\t30\t.\t-\t.\tgene_name "TEST";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t30\t.\t-\t.\ttranscript_id "ENST_B";gene_name "TEST"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t30\t.\t-\t.\ttranscript_id "ENST_B" gene_name "TEST"; transcript_type "protein_coding"\n'
+                'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST"; transcript_type "protein_coding;"\n'
         
         write_gtf(self.temp_gtf_path, lines)
         data = _open_gencode(self.temp_gtf_path)
@@ -497,13 +497,13 @@ class TestGencode(unittest.TestCase):
         lines = '##format: gtf\n' \
                 'chr1\tHAVANA\tgene\t10\t100\t.\t-\t.\tgene_name "TEST";\n' \
                 'chr1\tHAVANA\ttranscript\t10\t100\t.\t-\t.\ttranscript_id "ENST_A";gene_name "TEST"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr1\tHAVANA\tUTR\t10\t15\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding";\n' \
-                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\texon\t30\t40\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tCDS\t30\t40\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\texon\t90\t100\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n' \
-                'chr1\tHAVANA\tUTR\t90\t100\t.\t-\t.\ttranscript_id "ENST_A" gene_name "TEST"; transcript_type "protein_coding"\n'
+                'chr1\tHAVANA\tUTR\t10\t15\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\texon\t30\t40\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tCDS\t30\t40\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\texon\t90\t100\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n' \
+                'chr1\tHAVANA\tUTR\t90\t100\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST"; transcript_type "protein_coding;"\n'
         
         write_gtf(self.temp_gtf_path, lines)
         data = _open_gencode(self.temp_gtf_path)
