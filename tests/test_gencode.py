@@ -516,4 +516,29 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(tx.exons, [{'start': 10, 'end': 20}, {'start': 30, 'end': 40}, {'start': 90, 'end': 100}])
         self.assertEqual(tx.cds, [{'start': 15, 'end': 20}, {'start': 30, 'end': 40}])
     
+    def test__open_gencode_unquoted(self):
+        '''test we can parse a GTF without quoted attributes
+        '''
+        lines = '##format: gtf\n' \
+                'chr1\tHAVANA\tgene\t10\t100\t.\t-\t.\tgene_name "TEST";\n' \
+                'chr1\tHAVANA\ttranscript\t10\t100\t.\t-\t.\ttranscript_id ENST_A;gene_name TEST; transcript_type protein_coding; tag appris_principal_1;\n' \
+                'chr1\tHAVANA\tUTR\t10\t15\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\tCDS\t15\t20\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\texon\t30\t40\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\tCDS\t30\t40\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\texon\t90\t100\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n' \
+                'chr1\tHAVANA\tUTR\t90\t100\t.\t-\t.\ttranscript_id ENST_A; gene_name TEST; transcript_type protein_coding;\n'
+        
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        
+        self.assertEqual(len(data), 1)
+        symbol, tx, is_principal = data[0]
+        self.assertEqual(symbol, 'TEST')
+        self.assertEqual(tx.name, 'ENST_A')
+        self.assertEqual(tx.strand, '-')
+        self.assertEqual(tx.exons, [{'start': 10, 'end': 20}, {'start': 30, 'end': 40}, {'start': 90, 'end': 100}])
+        self.assertEqual(tx.cds, [{'start': 15, 'end': 20}, {'start': 30, 'end': 40}])
+    
 
