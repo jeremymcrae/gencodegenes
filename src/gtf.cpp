@@ -18,45 +18,54 @@ namespace gencode {
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
     // we could check for each field individually, but since we know the order
     // of the fields, it's much quicker to just search the remaining substring
-    size_t tx_start = line.find("transcript_id", offset) + 15;
+    const std::string tx_id_key = "transcript_id \"";
+    const std::string gene_id_key = "gene_id \"";
+    const std::string gene_name_key = "gene_name \"";
+    std::string type_key = "transcript_type \"";
+    const std::string hgnc_id_key = "hgnc_id \"";
+
+    size_t tx_start = line.find(tx_id_key, offset) + tx_id_key.size();
     size_t tx_end = line.find("\"", tx_start);
 
-    if (tx_start - 15 == std::string::npos) {
+    if (tx_start - tx_id_key.size() == std::string::npos) {
         // handle if the string was not found
         tx_start = offset;
         tx_end = offset;
     }
 
-    size_t gene_id_start = line.find("gene_id", offset) + 9;
+    size_t gene_id_start = line.find(gene_id_key, offset) + gene_id_key.size();
     size_t gene_id_end = line.find("\"", gene_id_start);
-    if (gene_id_start - 9 == std::string::npos) {
+    if (gene_id_start - gene_id_key.size() == std::string::npos) {
         // handle if the string was not found
         gene_id_start = offset;
         gene_id_end = offset;
     }
     
-
-    size_t gene_start = line.find("gene_name", tx_end) + 11;
+    size_t gene_start = line.find(gene_name_key, offset) + gene_name_key.size();
     size_t gene_end = line.find("\"", gene_start);
 
-    if (gene_start - 11 == std::string::npos) {
+    if (gene_start - gene_name_key.size() == std::string::npos) {
         // handle if the string was not found
         gene_start = tx_end;
         gene_end = tx_end;
     }
 
-    size_t type_start = line.find("transcript_type", gene_end) + 17;
+    size_t type_start = line.find(type_key, offset) + type_key.size();
+    if (type_start - type_key.size() == std::string::npos) {
+        type_key = "transcript_biotype \"";
+        type_start = line.find(type_key, offset) + type_key.size();
+    }
     size_t type_end = line.find("\"", type_start);
 
-    if (type_start - 17 == std::string::npos) {
+    if (type_start - type_key.size() == std::string::npos) {
         // handle if the string was not found
         type_start = gene_end;
         type_end = gene_end;
     }
 
-    size_t hgnc_id_start = line.find("hgnc_id", type_end) + 9;
+    size_t hgnc_id_start = line.find(hgnc_id_key, offset) + hgnc_id_key.size();
     size_t hgnc_id_end = line.find("\"", hgnc_id_start);
-    if (hgnc_id_start - 9 == std::string::npos) {
+    if (hgnc_id_start - hgnc_id_key.size() == std::string::npos) {
         // handle if the string was not found
         hgnc_id_start = offset;
         hgnc_id_end = offset;
@@ -75,9 +84,9 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     
     info.is_canonical = 0;
     if (info.feature == "transcript") {
-        if (line.find("appris_principal", type_end) != std::string::npos) {
+        if (line.find("appris_principal", offset) != std::string::npos) {
             info.is_canonical = 5;
-        } else if (line.find("Ensembl_canonical", type_end) != std::string::npos) {
+        } else if (line.find("Ensembl_canonical", offset) != std::string::npos) {
             info.is_canonical = 10;
         }
     }
