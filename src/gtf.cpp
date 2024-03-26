@@ -83,7 +83,6 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
         info.alternate_ids.push_back(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start));
     }
     
-    info.is_canonical = 0;
     if (info.feature == "transcript") {
         if (line.find("appris_principal", offset) != std::string::npos) {
             info.is_canonical = 5;
