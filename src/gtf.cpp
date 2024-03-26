@@ -16,8 +16,6 @@ namespace gencode {
 
 // parse the required fields from the attributes field
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
-    // we could check for each field individually, but since we know the order
-    // of the fields, it's much quicker to just search the remaining substring
     const std::string tx_id_key = "transcript_id \"";
     const std::string gene_id_key = "gene_id \"";
     const std::string gene_name_key = "gene_name \"";
