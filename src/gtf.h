@@ -21,7 +21,7 @@ struct GTFLine {
     std::vector<std::string> alternate_ids;
     std::string tx_id;
     std::string transcript_type;
-    int is_canonical;
+    int is_canonical = 0;
 };
 
 GTFLine parse_gtfline(std::string &line);
