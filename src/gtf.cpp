@@ -52,6 +52,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
 
     size_t type_start = line.find(type_key, offset) + type_key.size();
     if (type_start - type_key.size() == std::string::npos) {
+        // allow for alternate transcript_type key, as found in non-gencode GTF files 
         type_key = "transcript_biotype \"";
         type_start = line.find(type_key, offset) + type_key.size();
     }
