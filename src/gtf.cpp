@@ -86,6 +86,10 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     if (gene_id_start != gene_id_end) {
         std::string gene_id = trim(line.substr(gene_id_start, gene_id_end - gene_id_start), " \"");
         if (info.symbol.size() == 0) {
+            // if we don't have a gene symbol available, use the gene_id field.
+            // This means the gene.symbol in the python code can hold non-HGNC
+            // data, but it's better than the transcript having a blank name and
+            // being used in a gene object with all other blank name transcripts
             info.symbol = gene_id;
         } else {
             info.alternate_ids.push_back(gene_id);
