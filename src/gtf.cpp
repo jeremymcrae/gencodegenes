@@ -14,7 +14,7 @@
 
 namespace gencode {
 
-// parse the required firleds from the attributes field
+// parse the required fields from the attributes field
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
     // we could check for each field individually, but since we know the order
     // of the fields, it's much quicker to just search the remaining substring
