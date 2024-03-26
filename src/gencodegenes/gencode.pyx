@@ -41,7 +41,7 @@ cdef extern from "gencode.h" namespace "gencode":
         int pos
         string symbol
     
-    vector[NamedTx] open_gencode(string, bool)
+    vector[NamedTx] open_gencode(string, bool) except +
     bool CompFunc(const GenePoint &l, const GenePoint &r)
     vector[string] _in_region(string chrom, int start, int end, 
         map[string, vector[GenePoint]] & starts, map[string, vector[GenePoint]] & ends,
