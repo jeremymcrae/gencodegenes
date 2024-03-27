@@ -1,8 +1,9 @@
 
 ### GENCODEGenes
 
-This code loads genes from GENCODE GTF files into, groups transcripts by gene, 
-and provides methods for transcripts, so you can find CDS distances and sequences.
+This package loads genes from GENCODE GTF/GFF files, groups transcripts by gene, 
+and provides methods for transcripts, so you can find exon coordinates, CDS 
+distances and sequences.
 
 ### Install
 ```sh
