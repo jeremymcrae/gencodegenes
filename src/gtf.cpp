@@ -14,22 +14,34 @@
 
 namespace gencode {
 
-std::string trim(const std::string &s, const std::string &vals) {
-    size_t start = s.find_first_not_of(vals);
-    if (start == std::string::npos) {
+// trims characters from either end of a string.
+//
+// This operates on a selected range of a GTF line, in a portion where we have 
+// identified a value to extract. This avoids creating extra string objects and 
+// redundantly running substr.
+//
+// @param s string for a full GTF line (without line-ending though)
+// @param vals string of characters to drop from either end
+// @param start position where the substring starts
+// @param end position where the substring ends
+std::string trim(const std::string &s, const std::string &vals, size_t start, size_t end) {
+    start = s.find_first_not_of(vals, start);
+    if (start >= end) {
         return "";
     }
-    size_t end = s.find_last_not_of(vals);
+    end = s.find_last_not_of(vals, end);
     return s.substr(start, (end + 1) - start);
 }
 
+const std::string tx_id_key = "transcript_id";
+const std::string gene_id_key = "gene_id";
+const std::string gene_name_key = "gene_name";
+const std::string hgnc_id_key = "hgnc_id";
+const std::string trim_chars = ";= \"";
+
 // parse the required fields from the attributes field
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
-    const std::string tx_id_key = "transcript_id ";
-    const std::string gene_id_key = "gene_id ";
-    const std::string gene_name_key = "gene_name ";
-    std::string type_key = "transcript_type ";
-    const std::string hgnc_id_key = "hgnc_id ";
+    std::string type_key = "transcript_type";
 
     size_t tx_start = line.find(tx_id_key, offset) + tx_id_key.size();
     size_t tx_end = line.find(";", tx_start);
@@ -60,7 +72,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
     size_t type_start = line.find(type_key, offset) + type_key.size();
     if (type_start - type_key.size() == std::string::npos) {
         // allow for alternate transcript_type key, as found in non-gencode GTF files 
-        type_key = "transcript_biotype ";
+        type_key = "transcript_biotype";
         type_start = line.find(type_key, offset) + type_key.size();
     }
     size_t type_end = line.find(";", type_start);
@@ -79,12 +91,12 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
         hgnc_id_end = offset;
     }
     
-    info.symbol = trim(line.substr(gene_start, gene_end - gene_start), " \"");
-    info.tx_id = trim(line.substr(tx_start, tx_end - tx_start), " \"");
-    info.transcript_type = trim(line.substr(type_start, type_end - type_start), " \"");
+    info.symbol = trim(line, trim_chars, gene_start, gene_end);
+    info.tx_id = trim(line, trim_chars, tx_start, tx_end );
+    info.transcript_type = trim(line, trim_chars, type_start, type_end);
     
     if (gene_id_start != gene_id_end) {
-        std::string gene_id = trim(line.substr(gene_id_start, gene_id_end - gene_id_start), " \"");
+        std::string gene_id = trim(line, trim_chars, gene_id_start, gene_id_end);
         if (info.symbol.size() == 0) {
             // if we don't have a gene symbol available, use the gene_id field.
             // This means the gene.symbol in the python code can hold non-HGNC
@@ -96,7 +108,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
         }
     }
     if (hgnc_id_start != hgnc_id_end) {
-        info.alternate_ids.push_back(trim(line.substr(hgnc_id_start, hgnc_id_end - hgnc_id_start), " \""));
+        info.alternate_ids.push_back(trim(line, trim_chars, hgnc_id_start, hgnc_id_end));
     }
     
     if (info.feature == "transcript") {
