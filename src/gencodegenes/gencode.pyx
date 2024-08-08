@@ -417,14 +417,14 @@ cdef class Gencode:
         
         # no overlaps observed, look for the nearest upstream or downstream gene
         cdef GenePoint site = GenePoint(pos, b'A');
-        cdef unsigned int i = lower_bound(self.starts[_chrom].begin(), self.starts[_chrom].end(), site, &CompFunc) - self.starts[_chrom].begin()
-        cdef unsigned int j = upper_bound(self.ends[_chrom].begin(), self.ends[_chrom].begin(), site, &CompFunc) - self.ends[_chrom].begin()
+        cdef unsigned int i = lower_bound(self.ends[_chrom].begin(), self.ends[_chrom].end(), site, &CompFunc) - self.ends[_chrom].begin()
+        cdef unsigned int j = lower_bound(self.starts[_chrom].begin(), self.starts[_chrom].end(), site, &CompFunc) - self.starts[_chrom].begin()
         
-        i = min(i, self.starts[_chrom].size() - 1)
+        i = min(max(i-1, 0), self.starts[_chrom].size() - 1)
         j = min(j, self.starts[_chrom].size() - 1)
         
-        downstream = self[self.starts[_chrom][i].symbol.decode('utf8')]
-        upstream = self[self.starts[_chrom][j].symbol.decode('utf8')]
+        upstream = self[self.starts[_chrom][i].symbol.decode('utf8')]
+        downstream = self[self.starts[_chrom][j].symbol.decode('utf8')]
         
         if upstream.distance(chrom, pos) <= downstream.distance(chrom, pos):
             return upstream
