@@ -402,7 +402,7 @@ cdef class Gencode:
         chrom = f'chr{chrom}' if not chrom.startswith('chr') else chrom
         _chrom = chrom.encode('utf8')
         
-        # first, account for any overlapping genespython
+        # first, account for any overlapping genes
         overlaps = self.in_region(chrom, pos-1, pos+1)  # NOTE: possibly fix?
         if len(overlaps) > 0:
             # if we have > 0 prioritise if the position is in the CDS
