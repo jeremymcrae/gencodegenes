@@ -85,6 +85,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.github_token }}
         run: |
+          pip install coveralls
           python -m coverage run --source=./gencodegenes -m unittest discover
           coveralls --service=github
 
