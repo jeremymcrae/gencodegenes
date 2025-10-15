@@ -108,27 +108,9 @@ genes = cythonize([
 shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
 shutil.copy("src/tx.cpp", "src/gencodegenes/tx.cpp")
 
-setup(name="gencodegenes",
-    description='Package to load genes from GENCODE GTF files',
-    long_description=io.open('README.md', encoding='utf-8').read(),
-    long_description_content_type='text/markdown',
-    version="1.1.5",
-    author="Jeremy McRae",
-    author_email="jeremy.mcrae@gmail.com",
-    license="MIT",
-    url='https://github.com/jeremymcrae/gencodegenes',
-    packages=["gencodegenes"],
-    install_requires=[
-        'pyfaidx >= 0.5.8',
-    ],
+setup(
     package_dir={'': 'src'},
     package_data={'gencodegenes': ['transcript.pxd', 'tx.h', 'tx.cpp']},
     include_package_data=True,
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "License :: OSI Approved :: MIT License",
-    ],
-    python_requires='>=3.8',
     ext_modules=genes,
     test_suite="tests")
