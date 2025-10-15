@@ -10,6 +10,9 @@ include src/*.cpp
 include src/gzstream/gzstream.C
 include src/gzstream/gzstream.h
 
+include src/zlib/*.c
+include src/zlib/*.h
+
 # gencodegenes tests
 include tests/*.py
 include tests/data/*.fa
