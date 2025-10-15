@@ -30,4 +30,4 @@ packages = [
 ]
 
 [project.urls]
-homepage = 'https://github.com/jeremymcrae/gencodegenes',
+homepage = 'https://github.com/jeremymcrae/gencodegenes'
