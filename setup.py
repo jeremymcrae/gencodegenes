@@ -79,7 +79,7 @@ else:
 
 scrub_gzstream()
 
-genes = cythonize([
+extensions = [
     Extension("gencodegenes.transcript",
         extra_compile_args=EXTRA_COMPILE_ARGS,
         extra_link_args=EXTRA_LINK_ARGS,
@@ -102,7 +102,7 @@ genes = cythonize([
         include_dirs=["src/", "src/zlib"],
         libraries=libs,
         language="c++"),
-    ])
+    ]
 
 # include tx.h in the package, for downstream usage
 shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
@@ -112,5 +112,5 @@ setup(
     package_dir={'': 'src'},
     package_data={'gencodegenes': ['transcript.pxd', 'tx.h', 'tx.cpp']},
     include_package_data=True,
-    ext_modules=genes,
+    ext_modules=cythonize(extensions),
     test_suite="tests")
