@@ -19,7 +19,6 @@ dependencies = [
 ]
 
 classifiers = [
-    "License :: OSI Approved :: MIT License",
     "Development Status :: 4 - Beta",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
