@@ -4,6 +4,7 @@ import bisect
 import logging
 from pathlib import Path
 
+from cython.operator cimport dereference as deref
 from libcpp.algorithm cimport lower_bound, upper_bound
 from libcpp.vector cimport vector
 from libcpp.string cimport string
@@ -12,8 +13,12 @@ from libcpp.map cimport map
 
 from pyfaidx import Fasta
 
-from gencodegenes.transcript cimport Tx, Region, CDS_coords
-from gencodegenes.transcript import Transcript
+from gencodegenes.transcript cimport (
+    Tx,
+    Region,
+    CDS_coords,
+    Transcript,
+    )
 
 cdef extern from "gtf.h" namespace "gencode":
     cdef struct GTFLine:
@@ -111,41 +116,10 @@ cdef class Gene:
     
     def add_transcript(self, _tx):
         ''' add a Transcript to the gene object
-        
-        This ends up coping the data from the Transcript object, rather than
-        reusing the Tx object contained in the Trnascript, but it's not too much
-        time wasted, so long as we don't do this millions of times.
         '''
         assert isinstance(_tx, Transcript)
-        # construct a new Tx obect by copying out the relevant data
-        cdef string tx_id = _tx.name.encode('utf8')
-        cdef string chrom = _tx.chrom.encode('utf8')
-        cdef int start = _tx.start
-        cdef int end = _tx.end
-        cdef char strand = ord(_tx.strand)
-        cdef string tx_type = _tx.type.encode('utf8')
-        cdef vector[vector[int]] exons
-        cdef vector[vector[int]] cds
-        cdef vector[int] exon
-        for x in _tx.exons:
-            exon = [x['start'], x['end']]
-            exons.push_back(exon)
-        for x in _tx.cds:
-            exon = [x['start'], x['end']]
-            cds.push_back(exon)
-        
-        cdef Tx tx = Tx(tx_id, chrom, start, end, strand, tx_type)
-        tx.set_exons(exons)
-        tx.set_cds(cds)
-        
-        cdef string seq = _tx.genomic_sequence.encode('utf8')
-        tx.set_genomic_offset(_tx.genomic_offset)
-        if len(seq) > 0:
-            if chr(strand) == '-':
-                _tx.reverse_complement(seq)
-                seq = _tx.reverse_complement(seq).encode('utf8')
-            tx.add_genomic_sequence(seq)
-        self.add_tx(tx, False)
+        cdef Transcript txn = _tx          # typed handle so Cython sees thisptr
+        self.add_tx(deref(txn.thisptr), False)
     
     def __repr__(self):
         chrom = self.chrom
