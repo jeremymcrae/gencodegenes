@@ -20,12 +20,15 @@ IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 '''
 
+from libcpp.map cimport map
+from libcpp.string cimport string
+
 from itertools import combinations
 
 cdef class Transcript:
     def __cinit__(self, name, chrom, start, end, strand, 
             transcript_type='protein_coding', exons=None, cds=None, sequence=None, 
-            offset=0):
+            offset=0, attributes=None):
         ''' construct a Transcript object
         
         Args:
@@ -36,12 +39,18 @@ cdef class Transcript:
             cds: list of tuples defining start and end positions of CDS regions
             sequence: DNA sequence of genome region of the transcript.
             offset: how many base pairs the DNA sequence extends outwards
+            attributes: dict of key/value pairs from the GTF attributes field
         '''
         
         name = name.encode('utf8')
         chrom = chrom.encode('utf8')
         transcript_type = transcript_type.encode('utf8')
-        self.thisptr = new Tx(name, chrom, start, end, ord(strand), transcript_type)
+        
+        cdef map[string, string] _attributes
+        if attributes is not None:
+            for key, value in attributes.items():
+                _attributes[key.encode('utf8')] = value.encode('utf8')
+        self.thisptr = new Tx(name, chrom, start, end, ord(strand), transcript_type, _attributes)
         
         if exons is not None and cds is not None:
             self.exons = exons
@@ -332,6 +341,17 @@ cdef class Transcript:
     def genomic_sequence(self, str text):
         self.thisptr.add_genomic_sequence(text.encode('utf8'))
 
+    @property
+    def attributes(self):
+        ''' dict-like view of the raw key/value pairs from the GTF attributes field
+
+        The view reads each field lazily from the underlying Tx object, so
+        indexing a single key (e.g. ``tx.attributes['gene_id']``) does not
+        materialize the whole map. Values for keys that were repeated in the GTF
+        (e.g. "tag") are joined into a single comma-separated string.
+        '''
+        return _Attributes(self)
+
     def _fix_cds_boundary(self, pos):
         ''' adjust CDS boundary
 
@@ -474,3 +494,52 @@ cdef class Transcript:
         '''
         cq = self.thisptr.consequence(pos, ref.encode('utf8'), alt.encode('utf8'))
         return cq.decode('utf8')
+
+
+cdef class _Attributes:
+    ''' a lazy, dict-like view over a Transcript's GTF attributes
+
+    Each lookup reads directly from the underlying Tx object, so indexing a
+    single key does not build the full attribute map. Assigning to a key
+    (``tx.attributes[key] = value``) writes straight through to the Tx. Repeated
+    GTF keys (e.g. "tag") are exposed as a single comma-separated value.
+    '''
+    cdef Transcript _tx
+
+    def __cinit__(self, Transcript tx):
+        self._tx = tx
+
+    def __getitem__(self, key):
+        if not self._tx.thisptr.has_attribute(key.encode('utf8')):
+            raise KeyError(key)
+        return self._tx.thisptr.get_attribute(key.encode('utf8')).decode('utf8')
+
+    def __setitem__(self, key, value):
+        if not isinstance(value, str):
+            raise ValueError(f'value ({value}) must be str, got {type(value)}')
+        self._tx.thisptr.set_attribute(key.encode('utf8'), value.encode('utf8'))
+
+    def __contains__(self, key):
+        return self._tx.thisptr.has_attribute(key.encode('utf8'))
+
+    def keys(self):
+        return [k.decode('utf8') for k, v in self._tx.thisptr.get_attributes()]
+
+    def values(self):
+        return [v.decode('utf8') for k, v in self._tx.thisptr.get_attributes()]
+
+    def items(self):
+        return [(k.decode('utf8'), v.decode('utf8'))
+            for k, v in self._tx.thisptr.get_attributes()]
+
+    def __iter__(self):
+        return iter(self.keys())
+
+    def __len__(self):
+        return self._tx.thisptr.get_attributes().size()
+
+    def __eq__(self, other):
+        return dict(self.items()) == other
+
+    def __repr__(self):
+        return repr(dict(self.items()))

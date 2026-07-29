@@ -25,6 +25,7 @@ struct TxInfo {
     std::vector<std::vector<int> > cds;
     int offset = 0;
     int is_canonical = 0;
+    std::map<std::string, std::string> attributes;
 };
 
 // stores HGNC symbol with the transcript, so we can collect transcripts by gene

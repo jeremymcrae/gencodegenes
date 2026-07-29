@@ -191,11 +191,12 @@ class TestGencode(unittest.TestCase):
             'start': 69091,
             'end': 70008,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'',
             'transcript_type': b'',
             'is_canonical': 0,
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -220,6 +221,23 @@ class TestGencode(unittest.TestCase):
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 5,
+            'attributes': {
+                b'gene_id': b'ENSG00000186092.4',
+                b'transcript_id': b'ENST00000335137.3',
+                b'gene_type': b'protein_coding',
+                b'gene_status': b'KNOWN',
+                b'gene_name': b'OR4F5',
+                b'transcript_type': b'protein_coding',
+                b'transcript_status': b'KNOWN',
+                b'transcript_name': b'OR4F5-001',
+                b'level': b'2',
+                b'protein_id': b'ENSP00000334393.3',
+                b'tag': b'basic,appris_principal_1,CCDS',
+                b'transcript_support_level': b'NA',
+                b'ccdsid': b'CCDS30547.1',
+                b'havana_gene': b'OTTHUMG00000001094.2',
+                b'havana_transcript': b'OTTHUMT00000003223.2',
+                },
             }
         self.assertEqual(obj, expected)
     
@@ -244,6 +262,24 @@ class TestGencode(unittest.TestCase):
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 5,
+            'attributes': {
+                b'gene_id': b'ENSG00000186092.4',
+                b'transcript_id': b'ENST00000335137.3',
+                b'gene_type': b'protein_coding',
+                b'gene_status': b'KNOWN',
+                b'gene_name': b'OR4F5',
+                b'transcript_type': b'protein_coding',
+                b'transcript_status': b'KNOWN',
+                b'transcript_name': b'OR4F5-001',
+                b'level': b'2',
+                b'protein_id': b'ENSP00000334393.3',
+                b'tag': b'basic,appris_principal_1,CCDS',
+                b'transcript_support_level': b'NA',
+                b'hgnc_id': b'HGNC:14825',
+                b'ccdsid': b'CCDS30547.1',
+                b'havana_gene': b'OTTHUMG00000001094.2',
+                b'havana_transcript': b'OTTHUMT00000003223.2',
+                },
             }
         self.assertEqual(obj, expected)
         
@@ -263,6 +299,16 @@ class TestGencode(unittest.TestCase):
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 5,
+            'attributes': {
+                b'transcript_id': b'ENST00000335137.3',
+                b'gene_type': b'protein_coding',
+                b'gene_status': b'KNOWN',
+                b'gene_name': b'OR4F5',
+                b'transcript_type': b'protein_coding',
+                b'hgnc_id': b'HGNC:14825',
+                b'tag': b'appris_principal_1,CCDS',
+                b'ccdsid': b'CCDS30547.1',
+                },
             }
         self.assertEqual(obj, expected)
         
@@ -282,6 +328,15 @@ class TestGencode(unittest.TestCase):
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 5,
+            'attributes': {
+                b'transcript_id': b'ENST00000335137.3',
+                b'gene_type': b'protein_coding',
+                b'gene_status': b'KNOWN',
+                b'gene_name': b'OR4F5',
+                b'transcript_type': b'protein_coding',
+                b'tag': b'appris_principal_1,CCDS',
+                b'ccdsid': b'CCDS30547.1',
+                },
             }
         self.assertEqual(obj, expected)
     
@@ -302,11 +357,12 @@ class TestGencode(unittest.TestCase):
             'start': 69091,
             'end': 70008,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,  ## exons don't get checked for principal tag
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -327,11 +383,12 @@ class TestGencode(unittest.TestCase):
             'start': 69091,
             'end': 70005,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,  ## CDS don't get checked for principal tag
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -351,11 +408,12 @@ class TestGencode(unittest.TestCase):
             'start': 69091,
             'end': 69093,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -375,11 +433,12 @@ class TestGencode(unittest.TestCase):
             'start': 70006,
             'end': 70008,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -399,11 +458,12 @@ class TestGencode(unittest.TestCase):
             'start': 70006,
             'end': 70008,
             'strand': b'+',
-            'symbol': b'OR4F5',
-            'alternate_ids': [b'ENSG00000186092.4'],
+            'symbol': b'',
+            'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
             'is_canonical': 0,
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     
@@ -417,11 +477,12 @@ class TestGencode(unittest.TestCase):
             'start': 70006,
             'end': 70008,
             'strand': b'-',
-            'symbol': b'TEST',
+            'symbol': b'',
             'alternate_ids': [],
             'tx_id': b'',
             'transcript_type': b'',
             'is_canonical': 0,
+            'attributes': {},
             }
         self.assertEqual(obj, expected)
     

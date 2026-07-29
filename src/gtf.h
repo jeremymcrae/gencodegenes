@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <fstream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,7 @@ struct GTFLine {
     std::string tx_id;
     std::string transcript_type;
     int is_canonical = 0;
+    std::map<std::string, std::string> attributes;
 };
 
 GTFLine parse_gtfline(std::string &line);

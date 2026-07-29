@@ -113,7 +113,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
             // adjust CDS for start and stop codon coords
             include_end_codons(cds_range, info);
             Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], 
-                info.transcript_type);
+                info.transcript_type, info.attributes);
             tx.set_exons(info.exons);
             tx.set_cds(info.cds);
             transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
@@ -137,6 +137,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
         if (gtf.feature == "transcript") {
             info.start = gtf.start;
             info.end = gtf.end;
+            info.attributes = std::move(gtf.attributes);
         } else if (gtf.feature == "CDS") {
             info.cds.push_back(std::vector<int> {gtf.start, gtf.end});
             cds_range["max"] = std::max(std::max(cds_range["max"], gtf.start), gtf.end);
@@ -152,7 +153,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
     // also include the final transcript (if it transcript exists)
     if (info.name != "") {
         include_end_codons(cds_range, info);
-        Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], info.transcript_type);
+        Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], info.transcript_type, info.attributes);
         tx.set_exons(info.exons);
         tx.set_cds(info.cds);
         transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});

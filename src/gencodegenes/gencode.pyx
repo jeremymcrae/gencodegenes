@@ -32,6 +32,7 @@ cdef extern from "gtf.h" namespace "gencode":
         string tx_id
         string transcript_type
         int is_canonical
+        map[string, string] attributes
         
     GTFLine parse_gtfline(string line)
 
@@ -69,6 +70,7 @@ cpdef _open_gencode(gtf_path, coding_only=True):
     ''' python function for unit testing loading transcripts from GTF
     '''
     cdef vector[NamedTx] _transcripts = open_gencode(gtf_path.encode('utf8'), coding_only)
+    cdef Transcript transcript
     
     transcripts = []
     for x in _transcripts:
@@ -81,7 +83,9 @@ cpdef _open_gencode(gtf_path, coding_only=True):
         strand = chr(tx.get_strand())
         tx_id = tx.get_name().decode('utf8')
         transcript_type = tx.get_type().decode('utf8')
-        transcript = Transcript(tx_id, chrom, start, end, strand, transcript_type, exons, cds, offset=0)
+        attributes = {k.decode('utf8'): v.decode('utf8') for k, v in tx.get_attributes()}
+        transcript = Transcript(tx_id, chrom, start, end, strand, transcript_type,
+            exons, cds, offset=0, attributes=attributes)
         transcripts.append((x.symbol.decode('utf8'), transcript, x.is_canonical))
     return transcripts
 
@@ -195,7 +199,9 @@ cdef class Gene:
             seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
         tx_id = tx.get_name().decode('utf8')
         tx_type = tx.get_type().decode('utf8')
-        return Transcript(tx_id, chrom, start, end, strand, tx_type, exons, cds, seq, offset=offset)
+        attributes = {k.decode('utf8'): v.decode('utf8') for k, v in tx.get_attributes()}
+        return Transcript(tx_id, chrom, start, end, strand, tx_type, exons, cds, seq,
+            offset=offset, attributes=attributes)
     
     @property
     def transcripts(self):

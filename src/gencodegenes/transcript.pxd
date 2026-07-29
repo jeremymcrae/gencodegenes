@@ -22,11 +22,12 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 from libcpp.vector cimport vector
 from libcpp.string cimport string
+from libcpp.map cimport map
 from libcpp cimport bool
 
 cdef extern from "tx.h" namespace "gencode":
     cdef cppclass Tx:
-        Tx(string, string, int, int, char, string) except +
+        Tx(string, string, int, int, char, string, map[string, string]) except +
         Tx() except +
         
         void set_exons(vector[vector[int]]) except +
@@ -60,6 +61,11 @@ cdef extern from "tx.h" namespace "gencode":
         string get_genomic_sequence()
         int get_genomic_offset()
         void set_genomic_offset(int)
+        
+        void set_attribute(string, string)
+        map[string, string] get_attributes()
+        bool has_attribute(string)
+        string get_attribute(string) except +
         
         string reverse_complement(string)
         string get_centered_sequence(int, int) except +

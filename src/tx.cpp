@@ -32,7 +32,8 @@ static std::unordered_map<std::string, char> aa_code = {
 
 // Constructor for Tx class
 Tx::Tx(std::string transcript_id, std::string chromosome,
-    int start_pos, int end_pos, char strand, std::string _transcript_type="protein_coding") {
+    int start_pos, int end_pos, char strand, std::string _transcript_type="protein_coding",
+    std::map<std::string, std::string> _attributes={}) {
     
     name = transcript_id;
     
@@ -45,6 +46,7 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
     }
     tx_strand = strand;
     transcript_type = _transcript_type;
+    attributes = _attributes;
 }
 
 // set exon ranges to the class object

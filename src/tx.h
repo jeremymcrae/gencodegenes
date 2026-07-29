@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 #include <unordered_map>
 
 namespace gencode {
@@ -43,6 +44,7 @@ class Tx {
     std::string cds_sequence = "";
     int gdna_offset=0;
     std::string genomic_sequence = "";
+    std::map<std::string, std::string> attributes;
     
     std::unordered_map<int, int> exon_to_cds;
     void _cache_exon_cds_positions();
@@ -57,7 +59,8 @@ class Tx {
 
  public:
     Tx(std::string transcript_id, std::string chromosome, int start_pos,
-        int end_pos, char strand, std::string _transcript_type);
+        int end_pos, char strand, std::string _transcript_type,
+        std::map<std::string, std::string> _attributes);
     Tx() {}
     void set_exons(std::vector<std::vector<int>> exon_ranges);
     void set_cds(std::vector<std::vector<int>> cds_ranges);
@@ -92,6 +95,11 @@ class Tx {
     std::string get_genomic_sequence() { return genomic_sequence; }
     void set_genomic_offset(int offset) { gdna_offset=offset; }
     int get_genomic_offset() { return gdna_offset; }
+    
+    void set_attribute(std::string key, std::string value) { attributes[key] = value; }
+    std::map<std::string, std::string> get_attributes() { return attributes; }
+    bool has_attribute(std::string key) { return attributes.count(key) > 0; }
+    std::string get_attribute(std::string key) { return attributes.at(key); }
     
     std::string reverse_complement(std::string seq);
     std::string get_centered_sequence(int pos, int length=3);
