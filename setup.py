@@ -110,7 +110,8 @@ shutil.copy("src/tx.cpp", "src/gencodegenes/tx.cpp")
 
 setup(
     package_dir={'': 'src'},
-    package_data={'gencodegenes': ['transcript.pxd', 'tx.h', 'tx.cpp']},
+    package_data={'gencodegenes': ['transcript.pxd', 'tx.h', 'tx.cpp',
+        'py.typed', '*.pyi']},
     include_package_data=True,
     ext_modules=cythonize(extensions),
     test_suite="tests")

@@ -5,6 +5,8 @@ include src/gencodegenes/*.cpp
 include src/gencodegenes/*.py
 include src/gencodegenes/*.pyx
 include src/gencodegenes/*.pxd
+include src/gencodegenes/*.pyi
+include src/gencodegenes/py.typed
 include src/*.h
 include src/*.cpp
 include src/gzstream/gzstream.C
