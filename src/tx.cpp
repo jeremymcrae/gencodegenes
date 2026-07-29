@@ -550,7 +550,7 @@ std::string Tx::get_centered_sequence(int pos, int length) {
 }
 
 std::string Tx::get_seq_in_region(int start, int end) {
-    if (start < get_start() - gdna_offset || end > get_end() + gdna_offset) {
+    if (start < (get_start() - gdna_offset) || end > (get_end() + gdna_offset)) {
         throw std::invalid_argument( "sequence position not in gene range" );
     }
     int pos = start - get_start() + gdna_offset;
