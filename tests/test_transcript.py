@@ -385,3 +385,67 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_coding_distance(1205), {'pos': 101, 'offset': -5})
         self.assertEqual(self.gene.get_coding_distance(1200), {'pos': 101, 'offset': 0})
     
+    def test_get_boundary_distance(self):
+        """ check the function to get distances to the nearest intron/exon boundary
+        """
+        print(self.gene)
+        # check a site upstream of the gene
+        self.assertEqual(self.gene.get_boundary_distance(50), 950)
+        
+        # check a site at the start of a gene
+        self.assertEqual(self.gene.get_boundary_distance(1000), 0)
+        
+        # check some sites within the first exon
+        self.assertEqual(self.gene.get_boundary_distance(1100), 101)
+        self.assertEqual(self.gene.get_boundary_distance(1150), 51)
+        
+        # check sites in the first intron
+        self.assertEqual(self.gene.get_boundary_distance(1250), 50)
+        self.assertEqual(self.gene.get_boundary_distance(1400), 200)
+        
+        # check a site in the first exon, as it becomes closer to the next intron
+        self.assertEqual(self.gene.get_boundary_distance(1101), 100)
+        
+        # check a site downstream of the gene
+        self.assertEqual(self.gene.get_boundary_distance(2200), 200)
+    
+    def test_get_codon_info(self):
+        """ check the function that checks the codon information for a position
+        """
+        
+        self.gene.cds_sequence = 'ATGTCCATGTTGATGTTG'
+
+        # make sure a site well outside the gene raises an error
+        with self.assertRaises(ValueError):
+            self.gene.get_codon_info(50)
+        
+        # a position near the start site, but upstream of the CDS will raise a
+        # different error
+        with self.assertRaises(ValueError):
+            self.gene.get_codon_info(1050)
+        
+        # check the first base of the CDS
+        self.assertEqual(self.gene.get_codon_info(1100),
+            {'cds_pos': 0, 'codon_seq': 'ATG', 'intra_codon': 0,
+                "codon_number": 0, 'initial_aa': 'M', 'offset': 0})
+        
+        # check the second base of the CDS
+        self.assertEqual(self.gene.get_codon_info(1101),
+            {'cds_pos': 1, 'codon_seq': 'ATG', 'intra_codon': 1,
+                "codon_number": 0, 'initial_aa': 'M', 'offset': 0})
+        
+        # check the third base of the CDS
+        self.assertEqual(self.gene.get_codon_info(1102),
+            {'cds_pos': 2, 'codon_seq': 'ATG', 'intra_codon': 2,
+                "codon_number": 0, 'initial_aa': 'M', 'offset': 0})
+        
+        # check the fourth base of the CDS
+        self.assertEqual(self.gene.get_codon_info(1103),
+            {'cds_pos': 3, 'codon_seq': 'TCC', 'intra_codon': 0,
+                "codon_number": 1, 'initial_aa': 'S', 'offset': 0})
+        
+        # check a site 2 bp into the first intron. We assign this as the
+        # position of the closest exon boundary, but without any codon info
+        self.assertEqual(self.gene.get_codon_info(1202),
+            {'cds_pos': 100, 'codon_seq': None, 'intra_codon': None,
+                "codon_number": None, 'initial_aa': None, 'offset': 2})
