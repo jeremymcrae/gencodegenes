@@ -95,3 +95,5 @@ cdef extern from "tx.h" namespace "gencode":
 
 cdef class Transcript:
     cdef Tx *thisptr # hold a C++ instance which we're wrapping
+
+cdef Transcript _wrap_tx(Tx tx)

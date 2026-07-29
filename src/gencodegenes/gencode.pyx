@@ -18,6 +18,7 @@ from gencodegenes.transcript cimport (
     Region,
     CDS_coords,
     Transcript,
+    _wrap_tx,
     )
 
 cdef extern from "gtf.h" namespace "gencode":
@@ -70,23 +71,12 @@ cpdef _open_gencode(gtf_path, coding_only=True):
     ''' python function for unit testing loading transcripts from GTF
     '''
     cdef vector[NamedTx] _transcripts = open_gencode(gtf_path.encode('utf8'), coding_only)
-    cdef Transcript transcript
+    cdef Tx tx
     
     transcripts = []
     for x in _transcripts:
         tx = x.tx
-        chrom = tx.get_chrom().decode('utf8')
-        start = tx.get_start()
-        end = tx.get_end()
-        exons = _convert_exons(tx.get_exons())
-        cds = _convert_exons(tx.get_cds())
-        strand = chr(tx.get_strand())
-        tx_id = tx.get_name().decode('utf8')
-        transcript_type = tx.get_type().decode('utf8')
-        attributes = {k.decode('utf8'): v.decode('utf8') for k, v in tx.get_attributes()}
-        transcript = Transcript(tx_id, chrom, start, end, strand, transcript_type,
-            exons, cds, offset=0, attributes=attributes)
-        transcripts.append((x.symbol.decode('utf8'), transcript, x.is_canonical))
+        transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.is_canonical))
     return transcripts
 
 __genome_ = None
@@ -172,36 +162,25 @@ cdef class Gene:
             return chr(self._transcripts[0].get_strand())
         raise IndexError('no transcripts in gene yet')
     
-    cdef _convert_exons(self, vector[Region] exons):
-        ''' convert vector of exon Regions to list of lists
-        
-        We need exons and CDS as lists of lists for constructing the python 
-        Transcript object.
-        '''
-        return [[y.start, y.end] for y in exons]
-    
     cdef _to_Transcript(self, Tx tx):
         ''' construct Transcript (python object) from Tx (c++ object)
         '''
-        offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
-        chrom = tx.get_chrom().decode('utf8')
-        start = tx.get_start()
-        end = tx.get_end()
-        exons = self._convert_exons(tx.get_exons())
-        cds = self._convert_exons(tx.get_cds())
-        seq = tx.get_genomic_sequence().decode('utf8')
-        if seq == '':
-            seq = None
-        if seq is None and __genome_ is not None:
+        cdef Transcript transcript = _wrap_tx(tx)
+        
+        # if the transcript lacks a genomic sequence, pull one from the genome
+        # fasta (if available), matching the transcript's strand orientation
+        if tx.get_genomic_sequence().size() == 0 and __genome_ is not None:
+            offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
+            chrom = tx.get_chrom().decode('utf8')
+            start = tx.get_start()
+            end = tx.get_end()
             seq = __genome_[chrom][start-1-offset:end-1+offset].seq.upper()
-        strand = chr(tx.get_strand())
-        if strand == '-' and seq is not None:
-            seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
-        tx_id = tx.get_name().decode('utf8')
-        tx_type = tx.get_type().decode('utf8')
-        attributes = {k.decode('utf8'): v.decode('utf8') for k, v in tx.get_attributes()}
-        return Transcript(tx_id, chrom, start, end, strand, tx_type, exons, cds, seq,
-            offset=offset, attributes=attributes)
+            if chr(tx.get_strand()) == '-':
+                seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
+            transcript.genomic_offset = offset
+            transcript.genomic_sequence = seq
+        
+        return transcript
     
     @property
     def transcripts(self):
