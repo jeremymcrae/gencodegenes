@@ -10,8 +10,10 @@ include src/gencodegenes/py.typed
 include src/*.h
 include src/*.cpp
 
-include src/zlib/*.c
-include src/zlib/*.h
+graft src/zlib-ng
+prune src/zlib-ng/test
+prune src/zlib-ng/.github
+exclude src/zlib-ng/.git
 
 # gencodegenes tests
 include tests/*.py

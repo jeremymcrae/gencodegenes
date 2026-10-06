@@ -322,11 +322,11 @@ GTFLine parse_gtfline(std::string & line, bool all_fields) {
     return info;
 }
 
-GzReader::GzReader(const std::string &path) : file(gzopen(path.c_str(), "rb")), path(path) {}
+GzReader::GzReader(const std::string &path) : file(zng_gzopen(path.c_str(), "rb")), path(path) {}
 
 GzReader::~GzReader() {
     if (file) {
-        gzclose(file);
+        zng_gzclose(file);
     }
 }
 
@@ -338,11 +338,11 @@ bool GzReader::getline(std::string &line) {
     line.clear();
     while (true) {
         if (buf_pos >= buf_len) {
-            buf_len = gzread(file, buffer, sizeof(buffer));
+            buf_len = zng_gzread(file, buffer, sizeof(buffer));
             buf_pos = 0;
             if (buf_len <= 0) {
-                int errnum = 0;
-                const char *msg = gzerror(file, &errnum);
+                int32_t errnum = 0;
+                const char *msg = zng_gzerror(file, &errnum);
                 if (buf_len < 0 || (errnum != Z_OK && errnum != Z_STREAM_END)) {
                     throw std::invalid_argument(msg && *msg ? msg : "error reading GTF: " + path);
                 }

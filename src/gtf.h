@@ -6,11 +6,11 @@
 #include <string>
 #include <vector>
 
-#include <zlib.h>
+#include <zlib-ng.h>
 
 namespace gencode {
 
-// read lines from a file via zlib, which handles gzipped or uncompressed files
+// read lines from a file via zlib-ng, which handles gzipped or uncompressed files
 class GzReader {
     gzFile file;
     std::string path;
