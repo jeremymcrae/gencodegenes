@@ -432,7 +432,7 @@ cdef class Transcript:
         Args:
             text: DNA sequence
         '''
-        return self.thisptr.reverse_complement(text).decode('utf8')
+        return self.thisptr.reverse_complement(text.encode('utf8')).decode('utf8')
     
     def get_centered_sequence(self, pos, length=3):
         ''' get DNA sequence around a chromosome position

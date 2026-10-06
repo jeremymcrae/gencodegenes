@@ -1,3 +1,4 @@
+#include <array>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -513,30 +514,26 @@ void Tx::_fix_cds_length() {
     }
 }
 
+// lookup table of complementary bases, including IUPAC ambiguity codes. Any
+// other character complements to 'N'.
+static std::array<char, 256> make_complements() {
+    std::array<char, 256> table;
+    table.fill('N');
+    const std::string bases = "ACGTUNRYKMSWBDHVacgtunrykmswbdhv";
+    const std::string complements = "TGCAANYRMKSWVHDBtgcaanyrmkswvhdb";
+    for (size_t i = 0; i < bases.size(); i++) {
+        table[(uint8_t) bases[i]] = complements[i];
+    }
+    return table;
+}
+
 // reverse complement a DNA or RNA sequence
 std::string Tx::reverse_complement(std::string seq) {
-    static char transdict[128];
-    transdict[(int) 'a'] = 't';
-    transdict[(int) 'c'] = 'g';
-    transdict[(int) 'g'] = 'c';
-    transdict[(int) 't'] = 'a';
-    transdict[(int) 'u'] = 'a';
-    transdict[(int) 'A'] = 'T';
-    transdict[(int) 'C'] = 'G';
-    transdict[(int) 'G'] = 'C';
-    transdict[(int) 'T'] = 'A';
-    transdict[(int) 'U'] = 'A';
-    transdict[(int) 'N'] = 'N';
-    std::reverse(seq.begin(), seq.end());
-    std::string complement;
-    complement.resize(seq.size());
-    
-    int i = 0;
-    for (auto &base : seq) {
-        complement[i] = transdict[(uint8_t)base];
-        i += 1;
+    static const std::array<char, 256> complements = make_complements();
+    std::string complement(seq.rbegin(), seq.rend());
+    for (auto &base : complement) {
+        base = complements[(uint8_t) base];
     }
-    
     return complement;
 }
 

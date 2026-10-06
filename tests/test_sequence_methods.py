@@ -133,6 +133,19 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.gene.genomic_sequence = gdna
         self.assertEqual(self.gene.cds_sequence, "AGGCTT")
     
+    def test_reverse_complement(self):
+        """ check reverse complementing DNA, RNA and ambiguity codes
+        """
+        self.assertEqual(self.gene.reverse_complement('ACGT'), 'ACGT')
+        self.assertEqual(self.gene.reverse_complement('AACG'), 'CGTT')
+        self.assertEqual(self.gene.reverse_complement('acgn'), 'ncgt')
+        self.assertEqual(self.gene.reverse_complement('UUA'), 'TAA')
+        self.assertEqual(self.gene.reverse_complement('RYKMSWBDHV'), 'BDHVWSKMRY')
+        self.assertEqual(self.gene.reverse_complement(''), '')
+        
+        # unrecognised characters complement to N
+        self.assertEqual(self.gene.reverse_complement('A-é'), 'NNNT')
+    
     def test_genomic_sequence_incomplete_cds(self):
         """ check a CDS that isn't a multiple of 3 is extended to a full codon
         """
