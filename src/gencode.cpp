@@ -72,6 +72,27 @@ static void include_end_codons(std::map<std::string, int> cds_range, TxInfo & in
     }
 }
 
+// construct a Tx from the features collected for a transcript
+//
+// Transcripts with inconsistent coordinates (e.g. a stop codon outside the
+// exons) are skipped with a warning, so one malformed transcript doesn't stop
+// the rest of the GTF from loading.
+static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
+        std::map<std::string, int> & cds_range, std::string & symbol,
+        std::vector<std::string> & alt_ids) {
+    try {
+        // adjust CDS for start and stop codon coords
+        include_end_codons(cds_range, info);
+        Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0],
+            info.transcript_type, info.attributes);
+        tx.set_exons(info.exons);
+        tx.set_cds(info.cds);
+        transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
+    } catch (const std::invalid_argument & e) {
+        std::cerr << "skipping transcript " << info.name << ": " << e.what() << std::endl;
+    }
+}
+
 // collect all features for a transcript into a single object
 //
 // When we load lines from gencode GTF files, each line represents a single exon
@@ -103,13 +124,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
         }
 
         if (tx_id != current) {
-            // adjust CDS for start and stop codon coords
-            include_end_codons(cds_range, info);
-            Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], 
-                info.transcript_type, info.attributes);
-            tx.set_exons(info.exons);
-            tx.set_cds(info.cds);
-            transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
+            add_transcript(transcripts, info, cds_range, symbol, alt_ids);
             info = {};
             tx_id = current;
             cds_range["max"] = 0;
@@ -145,11 +160,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
 
     // also include the final transcript (if it transcript exists)
     if (info.name != "") {
-        include_end_codons(cds_range, info);
-        Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0], info.transcript_type, info.attributes);
-        tx.set_exons(info.exons);
-        tx.set_cds(info.cds);
-        transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
+        add_transcript(transcripts, info, cds_range, symbol, alt_ids);
     }
 }
 

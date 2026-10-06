@@ -689,6 +689,25 @@ class TestGencode(unittest.TestCase):
             Path(gz_path).unlink()
         self.assertEqual([x[0] for x in data], ['TEST1', 'TEST2'])
     
+    def test__open_gencode_skips_bad_transcripts(self):
+        '''test malformed transcripts are skipped, without stopping the GTF load
+        '''
+        lines = '##format: gtf\n' \
+                'chr1\tHAVANA\ttranscript\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\tCDS\t12\t18\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\ttranscript\t30\t40\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t30\t40\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\tCDS\t32\t38\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\tstop_codon\t50\t52\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\ttranscript\t60\t70\t.\t.\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t60\t70\t.\t.\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n'
+        
+        # ENST_B has a stop codon outside its exons, ENST_C lacks a valid strand
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[1].name for x in data], ['ENST_A'])
+    
     def test__open_gencode_missing_file(self):
         '''test a GTF which can't be opened raises an error
         '''
