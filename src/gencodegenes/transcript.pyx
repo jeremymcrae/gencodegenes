@@ -97,12 +97,18 @@ cdef class Transcript:
     def __str__(self):
         return self.__repr__()
     
+    def _key(self):
+        return (self.name, self.chrom, self.start, self.end, self.strand)
+    
     def __hash__(self):
-        return hash((self.chrom, self.start, self.end))
+        return hash(self._key())
     
     def __eq__(self, other):
-        ''' check if transcripts occupy exact same genomic region '''
-        return self.__hash__() == other.__hash__()
+        ''' check if transcripts have the same ID, position, exons and CDS '''
+        if not isinstance(other, Transcript):
+            return NotImplemented
+        return self._key() == other._key() and self.exons == other.exons \
+            and self.cds == other.cds
     
     def _get_overlaps(self, exon, regions):
         ''' find all regions which overlap a given region

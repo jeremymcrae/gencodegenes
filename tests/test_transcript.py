@@ -270,6 +270,23 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_closest_exon(2001), exon_2)
         self.assertEqual(self.gene.get_closest_exon(10000), exon_2)
     
+    def test_equality(self):
+        """ check transcripts are only equal with the same ID, position and structure
+        """
+        tx = self.construct_gene()
+        self.assertEqual(tx, self.gene)
+        self.assertEqual(hash(tx), hash(self.gene))
+        self.assertEqual(len({tx, self.gene}), 1)
+        
+        # same span, but different ID, strand, exons or CDS
+        self.assertNotEqual(self.construct_gene(name='OTHER'), self.gene)
+        self.assertNotEqual(self.construct_gene(strand='-'), self.gene)
+        self.assertNotEqual(self.construct_gene(exons=[(1000, 1300), (1800, 2000)]), self.gene)
+        self.assertNotEqual(self.construct_gene(cds=[(1150, 1200), (1800, 1900)]), self.gene)
+        
+        self.assertNotEqual(self.gene, None)
+        self.assertNotEqual(self.gene, 'TEST')
+    
     def test_construct_without_cds(self):
         """ check exons, offset and sequence are kept when constructed without CDS
         """
