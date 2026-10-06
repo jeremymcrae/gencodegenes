@@ -1,4 +1,5 @@
 
+import gzip
 from pathlib import Path
 import unittest
 import tempfile
@@ -661,6 +662,38 @@ class TestGencode(unittest.TestCase):
         symbol1, tx1, is_principal = data[0]
         symbol2, tx2, is_principal = data[1]
         self.assertNotEqual(symbol1, symbol2)
+    
+    def test__open_gencode_blank_lines(self):
+        '''test blank and comment lines mid-file are skipped, in plain and gzipped GTFs
+        '''
+        lines = '##format: gtf\n' \
+                'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n' \
+                '\n' \
+                '# a comment\n' \
+                '\r\n' \
+                'chr1\tHAVANA\ttranscript\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
+                '\n'
+        
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[0] for x in data], ['TEST1', 'TEST2'])
+        
+        gz_path = self.temp_gtf_path + '.gz'
+        with gzip.open(gz_path, 'wt') as output:
+            output.write(lines)
+        try:
+            data = _open_gencode(gz_path)
+        finally:
+            Path(gz_path).unlink()
+        self.assertEqual([x[0] for x in data], ['TEST1', 'TEST2'])
+    
+    def test__open_gencode_missing_file(self):
+        '''test a GTF which can't be opened raises an error
+        '''
+        with self.assertRaises(ValueError):
+            _open_gencode(self.temp_gtf_path + '.missing')
     
     def test__open_gencode_not_coding(self):
         '''test we can parse GTFs without protein coding transcripts

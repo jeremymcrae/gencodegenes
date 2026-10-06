@@ -36,9 +36,12 @@ class GTF
     igzstream gzhandle;  
     std::string line;
     bool gzipped;
+    std::istream & stream() {
+        return gzipped ? static_cast<std::istream &>(gzhandle) : static_cast<std::istream &>(handle);
+    }
 public:
     GTF(std::string path);
-    GTFLine next();
+    bool next(GTFLine &info);
 };
 
 } // namespace

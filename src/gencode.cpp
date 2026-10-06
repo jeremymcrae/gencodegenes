@@ -88,14 +88,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
 
     GTFLine gtf;
 
-    while (true) {
-        try {
-            gtf = gtf_file.next();
-        } catch (const std::out_of_range& e) {
-            break;
-        }
-        
-
+    while (gtf_file.next(gtf)) {
         if (permit.count(gtf.feature) == 0) {
             continue;
         } else if (coding && (gtf.transcript_type != "protein_coding")) {

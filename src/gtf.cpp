@@ -194,10 +194,6 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
 
 // parse required fields from a GTF line
 GTFLine parse_gtfline(std::string & line) {
-    if (line.size() == 0) {
-        throw std::out_of_range("end of file");
-    }
-
     GTFLine info;
 
     // find the tabs ending each of the first 8 fields (chrom, source, feature,
@@ -228,29 +224,30 @@ GTFLine parse_gtfline(std::string & line) {
 
 // open GTF file handle
 GTF::GTF(std::string path) {
-    gzipped = path.substr(path.length()-2, 2) == "gz";
+    gzipped = path.size() >= 2 && path.substr(path.size() - 2) == "gz";
     if (gzipped) {
         gzhandle.open(path.c_str());
     } else {
         handle.open(path, std::ios::in);
     }
+    if (!stream()) {
+        throw std::invalid_argument("cannot open GTF: " + path);
+    }
 }
 
-// get next line from the GTF
-GTFLine GTF::next() {
-    if (gzipped) { 
-        std::getline(gzhandle, line);
-    } else { 
-        std::getline(handle, line);
-    }
-    while (line[0] == '#') {
-        if (gzipped) {
-            std::getline(gzhandle, line);
-        } else {
-            std::getline(handle, line);
+// get the next feature line from the GTF, skipping comments and blank lines
+//
+// @param info GTFLine to fill with the parsed line
+// @returns false once the end of the file is reached
+bool GTF::next(GTFLine &info) {
+    while (std::getline(stream(), line)) {
+        if (line.find_first_not_of(" \t\r") == std::string::npos || line[0] == '#') {
+            continue;
         }
+        info = parse_gtfline(line);
+        return true;
     }
-    return parse_gtfline(line);
+    return false;
 }
 
 } // namespace
