@@ -18,7 +18,7 @@
 namespace gencode {
 
 // check which exon is first, by start position
-static bool compareExons(std::vector<int> e1, std::vector<int> e2) {
+static bool compareExons(const std::vector<int> & e1, const std::vector<int> & e2) {
     return (e1[0] < e2[0]);
 }
 
@@ -27,7 +27,7 @@ static void sort_exons(std::vector<std::vector<int> > & exons) {
 }
 
 // find the index of the exon containing a given chromosome position
-static std::uint32_t get_exon_num(std::vector<std::vector<int> > exons, int pos) {
+static std::uint32_t get_exon_num(const std::vector<std::vector<int> > & exons, int pos) {
     for (std::uint32_t i=0; i<exons.size(); i++) {
         if ((pos >= exons[i][0]) && (pos <= exons[i][1])) {
             return i;
@@ -43,33 +43,35 @@ static std::uint32_t get_exon_num(std::vector<std::vector<int> > exons, int pos)
 // just set the first CDS coord and last CDS coord to their values though,
 // as at least one stop codon spans an intron boundary, which messes up the
 // CDS if included as is.
-static void include_end_codons(std::map<std::string, int> cds_range, TxInfo & info) {
+static void include_end_codons(const std::map<std::string, int> & cds_range, TxInfo & info) {
     if (info.cds.size() == 0) {
         return;
     }
     sort_exons(info.cds);
     sort_exons(info.exons);
+    int cds_min = cds_range.at("min");
+    int cds_max = cds_range.at("max");
 
     // handle left (5') boundary
     std::uint32_t first_idx = get_exon_num(info.exons, info.cds[0][0]);
-    std::uint32_t min_idx = get_exon_num(info.exons, cds_range["min"]);
+    std::uint32_t min_idx = get_exon_num(info.exons, cds_min);
     if (min_idx == first_idx) {
-        info.cds[0][0] = cds_range["min"];
+        info.cds[0][0] = cds_min;
     } else {
         info.cds[0][0] = info.exons[first_idx][0];  // extend existing CDS
-        std::vector<int> extra_cds = {cds_range["min"], info.exons[min_idx][1]};
+        std::vector<int> extra_cds = {cds_min, info.exons[min_idx][1]};
         auto it = info.cds.begin();
         info.cds.insert(it, extra_cds);
     }
 
     // handle right (3') boundary
     std::uint32_t last_idx = get_exon_num(info.exons, info.cds.back()[1]);
-    std::uint32_t max_idx = get_exon_num(info.exons, cds_range["max"]);
+    std::uint32_t max_idx = get_exon_num(info.exons, cds_max);
     if (max_idx == last_idx) {
-        info.cds.back()[1] = cds_range["max"];
+        info.cds.back()[1] = cds_max;
     } else {
         info.cds.back()[1] = info.exons[last_idx][1];  // extend existing CDS
-        std::vector<int> extra_cds = {info.exons[max_idx][0], cds_range["max"]};
+        std::vector<int> extra_cds = {info.exons[max_idx][0], cds_max};
         info.cds.push_back(extra_cds);
     }
 }
