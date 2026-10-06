@@ -724,6 +724,33 @@ class TestGencode(unittest.TestCase):
             Path(gz_path).unlink()
         self.assertEqual([x[0] for x in data], ['TEST1', 'TEST2'])
     
+    def test__open_gencode_without_transcript_lines(self):
+        '''test GTFs without transcript lines (e.g. from UCSC) get gene fields and spans
+        '''
+        attrs = 'transcript_type "protein_coding"; tag "Ensembl_canonical";'
+        lines = []
+        for gene_id, symbol, exons, cds in [
+                ('ENSG1', 'GENEA', [(100, 200), (300, 400)], [(150, 200), (300, 350)]),
+                ('ENSG2', 'GENEB', [(1000, 2000)], [(1100, 1900)])]:
+            for i, (start, end) in enumerate(exons):
+                lines.append(f'chr1\tucsc\texon\t{start}\t{end}\t.\t+\t.\tgene_id "{gene_id}"; '
+                    f'transcript_id "{gene_id}_T"; gene_name "{symbol}"; exon_number "{i + 1}"; {attrs}\n')
+            for start, end in cds:
+                lines.append(f'chr1\tucsc\tCDS\t{start}\t{end}\t.\t+\t0\tgene_id "{gene_id}"; '
+                    f'transcript_id "{gene_id}_T"; gene_name "{symbol}"; {attrs}\n')
+        
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[0] for x in data], ['GENEA', 'GENEB'])
+        self.assertEqual([(x[1].start, x[1].end) for x in data], [(100, 400), (1000, 2000)])
+        self.assertEqual([x[2] for x in data], [10, 10])
+        self.assertEqual(data[0][1].attributes['gene_id'], 'ENSG1')
+        self.assertNotIn('exon_number', data[0][1].attributes)
+        
+        gencode = Gencode(self.temp_gtf_path)
+        self.assertEqual(gencode['GENEA'].alternate_ids, ['ENSG1'])
+        self.assertEqual([x.symbol for x in gencode.in_region('chr1', 50, 150)], ['GENEA'])
+    
     def test__open_gencode_line_endings(self):
         '''test CRLF line endings and a missing final newline, in plain and gzipped GTFs
         '''

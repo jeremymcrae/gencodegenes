@@ -72,6 +72,21 @@ static void include_end_codons(std::map<std::string, int> cds_range, TxInfo & in
     }
 }
 
+// set the transcript span from its exons and CDS, for GTFs without transcript lines
+static void set_span(TxInfo & info) {
+    if (info.start != 0 || info.end != 0) {
+        return;
+    }
+    bool first = true;
+    for (auto regions : {&info.exons, &info.cds}) {
+        for (auto & x : *regions) {
+            info.start = first ? x[0] : std::min(info.start, x[0]);
+            info.end = first ? x[1] : std::max(info.end, x[1]);
+            first = false;
+        }
+    }
+}
+
 // construct a Tx from the features collected for a transcript
 //
 // Transcripts with inconsistent coordinates (e.g. a stop codon outside the
@@ -83,6 +98,7 @@ static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
     try {
         // adjust CDS for start and stop codon coords
         include_end_codons(cds_range, info);
+        set_span(info);
         Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0],
             info.transcript_type, info.attributes);
         tx.set_exons(info.exons);
@@ -140,6 +156,14 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
             info.strand = gtf.strand;
             info.is_canonical = gtf.is_canonical;
             info.transcript_type = gtf.transcript_type;
+            if (gtf.feature != "transcript") {
+                // without a transcript line, use the first line's attributes,
+                // minus the fields specific to that feature
+                info.attributes = gtf.attributes;
+                for (auto key : {"exon_number", "exon_id", "exon_version"}) {
+                    info.attributes.erase(key);
+                }
+            }
         }
 
         if (gtf.feature == "transcript") {

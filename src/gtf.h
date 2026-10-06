@@ -41,12 +41,13 @@ struct GTFLine {
     std::map<std::string, std::string> attributes;
 };
 
-GTFLine parse_gtfline(std::string &line);
+GTFLine parse_gtfline(std::string &line, bool all_fields=false);
 
 class GTF
 {
     GzReader reader;
     std::string line;
+    std::string prev_tx_id;
 public:
     GTF(std::string path);
     bool next(GTFLine &info);

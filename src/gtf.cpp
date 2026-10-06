@@ -113,7 +113,10 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
 }
 
 // parse the required fields from the attributes field
-static void get_attributes_fields(GTFLine &info, std::string &line, int offset) {
+//
+// @param all_fields whether to parse the gene fields and attributes map on lines
+//     other than "transcript" lines
+static void get_attributes_fields(GTFLine &info, std::string &line, int offset, bool all_fields) {
     std::string type_key = "transcript_type";
 
     // tx_id and transcript_type are read for every permitted GTF line in
@@ -147,11 +150,11 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
 
     // The remaining fields (gene symbol, gene_id, hgnc_id and canonical status)
     // are only consumed by load_transcripts from the "transcript" feature line
-    // (which precedes the exon/CDS/codon lines for a transcript in GENCODE GTFs),
+    // (or the first line of a transcript, for GTFs without transcript lines),
     // so we defer that work to those lines to avoid redundant string scanning on
     // the many other feature lines. They are derived from the parsed attribute
     // map, rather than re-scanning the line, to avoid extracting fields twice.
-    if (info.feature == "transcript") {
+    if (all_fields || info.feature == "transcript") {
         info.attributes = parse_attributes(line, offset);
 
         auto gene_name_it = info.attributes.find(gene_name_key);
@@ -191,7 +194,11 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
 }
 
 // parse required fields from a GTF line
-GTFLine parse_gtfline(std::string & line) {
+//
+// @param line GTF line (without line ending)
+// @param all_fields whether to parse the gene fields and attributes map, even
+//     if the line isn't a "transcript" line
+GTFLine parse_gtfline(std::string & line, bool all_fields) {
     GTFLine info;
 
     // find the tabs ending each of the first 8 fields (chrom, source, feature,
@@ -215,7 +222,7 @@ GTFLine parse_gtfline(std::string & line) {
     info.end = std::stoi(line.substr(tabs[3] + 1, tabs[4] - tabs[3] - 1));
     info.strand = line.substr(tabs[5] + 1, tabs[6] - tabs[5] - 1);
 
-    get_attributes_fields(info, line, tabs[7] + 1);
+    get_attributes_fields(info, line, tabs[7] + 1, all_fields);
 
     return info;
 }
@@ -279,6 +286,12 @@ bool GTF::next(GTFLine &info) {
             continue;
         }
         info = parse_gtfline(line);
+        if (info.tx_id != prev_tx_id && info.feature != "transcript" && !info.tx_id.empty()) {
+            // GTFs without transcript lines need the gene fields from the
+            // first line of each transcript
+            info = parse_gtfline(line, true);
+        }
+        prev_tx_id = info.tx_id;
         return true;
     }
     return false;

@@ -17,8 +17,8 @@ namespace gencode {
 struct TxInfo {
     std::string name = "";
     std::string chrom;
-    int start;
-    int end;
+    int start = 0;
+    int end = 0;
     std::string strand;
     std::string transcript_type;
     std::vector<std::vector<int> > exons;
