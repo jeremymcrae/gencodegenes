@@ -54,7 +54,7 @@ class Tx {
     bool overlaps_cds(int start, int end);
     std::string outside_gene_cq(int start, int end);
     std::string intronic_cq(int start, int end);
-    std::string coding_cq(int start, std::string alt);
+    std::string coding_cq(int start, int end, std::string alt);
     std::string indel_cq(int start, int end, std::string ref, std::string alt);
 
  public:

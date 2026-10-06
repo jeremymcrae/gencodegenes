@@ -485,6 +485,29 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(1201, 'A', 'G'), 'splice_donor_variant')
         self.assertEqual(tx.consequence(500, 'A', 'G'), 'upstream_gene_variant')
     
+    def test_consequence_mnv(self):
+        """ check multi-base substitutions apply every base within the CDS
+        """
+        # CDS is ATG GCC TGG TAA (M A W *) at positions 4-15
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 15)],
+            sequence='CCCATGGCCTGGTAAGGGGG')
+        self.assertEqual(tx.consequence(9, 'C', 'T'), 'synonymous_variant')
+        self.assertEqual(tx.consequence(10, 'TG', 'CA'), 'missense_variant')
+        
+        # GCC>GCT is synonymous, but TGG>TAG gains a stop in the next codon
+        self.assertEqual(tx.consequence(9, 'CTG', 'TTA'), 'stop_gained')
+        
+        # the MNV starts upstream of the CDS, but alters the start codon
+        self.assertEqual(tx.consequence(2, 'CCA', 'GGG'), 'start_lost')
+        
+        # same CDS on the - strand, at + strand positions 6-17. Position 8 is the
+        # first base of the stop codon (TAA>CAA), position 9 is the last base of
+        # the TGG codon (TGG>TGA)
+        tx = Transcript('TEST', '1', 1, 20, '-', exons=[(1, 20)], cds=[(6, 17)],
+            sequence='GGGATGGCCTGGTAACCCCC')
+        self.assertEqual(tx.consequence(8, 'AC', 'GT'), 'stop_gained')
+        self.assertEqual(tx.consequence(8, 'A', 'G'), 'stop_lost')
+    
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change
         """

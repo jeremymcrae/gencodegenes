@@ -807,32 +807,64 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     }
 }
 
-std::string Tx::coding_cq(int start, std::string alt) {
-    if (get_strand() == '-') {
-        alt = reverse_complement(alt);
-    }
-    // TODO: figure out initial and mutated amino acids
-    Codon codon = get_codon_info(start);
-    char initial_aa = codon.initial_aa;
-    codon.codon_seq[codon.intra_codon] = alt[0];
-    char mutated_aa = translate_codon(codon.codon_seq);
-    
+// consequence of changing a single codon
+static std::string codon_cq(char initial_aa, char mutated_aa, int codon_number, int last_codon) {
     if (initial_aa != '*' && mutated_aa == '*') { return "stop_gained"; }
     if (initial_aa == '*' && mutated_aa != '*') { return "stop_lost"; }
     
     if (initial_aa != mutated_aa) {
-        if (codon.codon_number == 0) {
+        if (codon_number == 0) {
             return "start_lost";
         }
         return "missense_variant";
     }
     
-    if (codon.codon_number == 0) {
+    if (codon_number == 0) {
         return "start_retained_variant";
-    } else if (get_codon_number_for_cds_position(cds_length - 1) == codon.codon_number) {
+    } else if (codon_number == last_codon) {
         return "stop_retained_variant";
     }
     return "synonymous_variant";
+}
+
+// consequence of a SNV or MNV which overlaps the CDS
+//
+// Each substituted base within the CDS is applied to its codon, and the most
+// severe consequence across the altered codons is returned. Bases outside the
+// CDS are skipped.
+std::string Tx::coding_cq(int start, int end, std::string alt) {
+    bool fwd = get_strand() == '+';
+    std::map<int, Codon> codons;
+    for (int pos = start; pos <= end; pos++) {
+        if (!in_coding_region(pos)) {
+            continue;
+        }
+        Codon codon = get_codon_info(pos);
+        auto it = codons.emplace(codon.codon_number, codon).first;
+        char base = alt[pos - start];
+        if (!fwd) {
+            base = reverse_complement(std::string(1, base))[0];
+        }
+        it->second.codon_seq[codon.intra_codon] = base;
+    }
+    
+    if (codons.empty()) {
+        return "coding_sequence_variant";
+    }
+    
+    static const std::vector<std::string> severity = {"stop_gained", "stop_lost",
+        "start_lost", "missense_variant", "start_retained_variant",
+        "stop_retained_variant", "synonymous_variant"};
+    int last_codon = get_codon_number_for_cds_position(cds_length - 1);
+    size_t worst = severity.size() - 1;
+    for (auto &item : codons) {
+        Codon & codon = item.second;
+        char mutated_aa = translate_codon(codon.codon_seq);
+        std::string cq = codon_cq(codon.initial_aa, mutated_aa, codon.codon_number, last_codon);
+        size_t rank = std::find(severity.begin(), severity.end(), cq) - severity.begin();
+        worst = std::min(worst, rank);
+    }
+    return severity[worst];
 }
 
 int min_len(std::string a, std::string b) {
@@ -880,7 +912,7 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
         return indel_cq(start, end, ref, alt);
     }
     
-    return coding_cq(start, alt);
+    return coding_cq(start, end, alt);
 }
 
 } // namespace
