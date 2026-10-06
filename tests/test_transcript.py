@@ -449,3 +449,12 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_codon_info(1202),
             {'cds_pos': 100, 'codon_seq': None, 'intra_codon': None,
                 "codon_number": None, 'initial_aa': None, 'offset': 2})
+    
+    def test_consequence_indel_frame(self):
+        """ check indels are classed as inframe or frameshift by length change
+        """
+        self.assertEqual(self.gene.consequence(1150, 'G', 'GCCC'), 'inframe_insertion')
+        self.assertEqual(self.gene.consequence(1150, 'G', 'GC'), 'frameshift_variant')
+        self.assertEqual(self.gene.consequence(1150, 'G', 'GCC'), 'frameshift_variant')
+        self.assertEqual(self.gene.consequence(1150, 'GCCC', 'G'), 'inframe_deletion')
+        self.assertEqual(self.gene.consequence(1150, 'GC', 'G'), 'frameshift_variant')

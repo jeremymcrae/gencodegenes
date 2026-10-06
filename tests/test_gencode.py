@@ -178,6 +178,41 @@ class TestGencode(unittest.TestCase):
         canonical = gene.canonical
         self.assertEqual(canonical.name, 'ENST_B')
         del gencode
+        
+        # Ensembl_canonical takes priority over the longer appris_principal CDS,
+        # even when the Ensembl_canonical transcript is also appris_principal
+        lines[2] = lines[2].strip() + ' tag "Ensembl_canonical";\n'
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path, self.temp_fasta_path)
+        
+        gene = gencode['TEST1']
+        canonical = gene.canonical
+        self.assertEqual(canonical.name, 'ENST_A')
+        del gencode
+    
+    def test_gencode_nearest_enveloping_gene(self):
+        ''' test nearest finds a gene that envelops another gene
+        '''
+        lines = ['##format: gtf\n',
+                'chr1\tHAVANA\ttranscript\t1000\t500000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "BIG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t1000\t500000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "BIG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t1000\t500000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "BIG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\ttranscript\t10000\t11000\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SMALL"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t10000\t11000\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SMALL"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t10000\t11000\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SMALL"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\ttranscript\t600000\t601000\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "LATE"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t600000\t601000\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "LATE"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t600000\t601000\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "LATE"; transcript_type "protein_coding";\n']
+        
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path)
+        
+        # BIG ends 40 kb before the site, LATE starts 60 kb after
+        self.assertEqual(gencode.nearest('chr1', 540000).symbol, 'BIG')
+        self.assertEqual(gencode.nearest('chr1', 570000).symbol, 'LATE')
+        self.assertEqual(gencode.nearest('chr1', 1).symbol, 'BIG')
+        self.assertEqual(gencode.nearest('chr1', 700000).symbol, 'LATE')
+        del gencode
     
     def test_parse_gtf_gene_line(self):
         ''' test we can parse a GTF line for a gene feature
