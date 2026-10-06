@@ -661,7 +661,9 @@ static bool overlap(const int & start1, const int & end1, const int & start2, co
 
 // checks if a genomic range overlaps any exon range
 bool Tx::overlaps_cds(int start, int end) {
-    // find the
+    if (cds.empty()) {
+        return false;
+    }
     int idx = closest_exon_num(start, cds);
     int prev = std::max(0, idx - 1);
     int post = std::min((int) cds.size() - 1, idx + 1);
@@ -717,7 +719,9 @@ std::string Tx::intronic_cq(int start, int end) {
     
     bool intronic = (start_coord.offset != 0) & (end_coord.offset != 0);
     if (!intronic) {
-        if (end_coord.position <= 0) {
+        if (cds.empty()) {
+            return "non_coding_transcript_exon_variant";
+        } else if (end_coord.position <= 0) {
             return "5_prime_UTR_variant";
         } else if (start_coord.position >= cds_length) {
             return "3_prime_UTR_variant";

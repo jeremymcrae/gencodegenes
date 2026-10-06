@@ -191,6 +191,8 @@ cdef class Gene:
     cdef int _cds_len(self, Tx tx):
         ''' get length of coding sequence for a Tx object based transcript
         '''
+        if tx.get_cds().size() == 0:
+            return 0
         cdef CDS_coords coords = tx.get_coding_distance(tx.get_cds_end())
         return coords.position + 1
     
@@ -374,7 +376,7 @@ cdef class Gencode:
                 overlaps = cds_overlaps
             # prioritise the gene with longest CDS (in the canonical tx)
             txs = [x.canonical for x in overlaps]
-            lengths = [x.get_coding_distance(x.cds_end)['pos'] for x in txs]
+            lengths = [x.get_coding_distance(x.cds_end)['pos'] if x.cds else 0 for x in txs]
             idx = lengths.index(max(lengths))
             return overlaps[idx]
         

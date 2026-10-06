@@ -208,6 +208,30 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(canonical.name, 'ENST_A')
         del gencode
     
+    def test_gencode_canonical_noncoding(self):
+        ''' test a non-coding transcript isn't picked over a coding transcript
+        '''
+        lines = ['##format: gtf\n',
+                'chr1\tHAVANA\ttranscript\t20\t30\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t20\t30\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t25\t30\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\ttranscript\t100\t500\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST1"; transcript_type "retained_intron";\n',
+                'chr1\tHAVANA\texon\t100\t500\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST1"; transcript_type "retained_intron";\n',
+                'chr1\tHAVANA\ttranscript\t1000\t1100\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "TEST2"; transcript_type "lncRNA";\n',
+                'chr1\tHAVANA\texon\t1000\t1020\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "TEST2"; transcript_type "lncRNA";\n',
+                'chr1\tHAVANA\ttranscript\t1000\t1100\t.\t+\t.\ttranscript_id "ENST_D"; gene_name "TEST2"; transcript_type "lncRNA";\n',
+                'chr1\tHAVANA\texon\t1000\t1100\t.\t+\t.\ttranscript_id "ENST_D"; gene_name "TEST2"; transcript_type "lncRNA";\n',
+        ]
+        
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path, coding_only=False)
+        
+        self.assertEqual(gencode['TEST1'].canonical.name, 'ENST_A')
+        
+        # without any coding transcripts, fall back to the longest exonic length
+        self.assertEqual(gencode['TEST2'].canonical.name, 'ENST_D')
+        del gencode
+    
     def test_gencode_nearest_enveloping_gene(self):
         ''' test nearest finds a gene that envelops another gene
         '''

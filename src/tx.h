@@ -35,9 +35,9 @@ class Tx {
     int tx_start;
     int tx_end;
     char tx_strand;
-    int cds_min;
-    int cds_max;
-    int cds_length;
+    int cds_min = 0;
+    int cds_max = 0;
+    int cds_length = 0;
     std::string transcript_type;
     std::vector<Region> exons;
     std::vector<Region> cds;

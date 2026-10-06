@@ -459,6 +459,18 @@ class TestTranscriptPy(unittest.TestCase):
             {'cds_pos': 100, 'codon_seq': None, 'intra_codon': None,
                 "codon_number": None, 'initial_aa': None, 'offset': 2})
     
+    def test_noncoding_transcript(self):
+        """ check transcripts without a CDS give consistent values
+        """
+        tx = self.construct_gene(cds=[])
+        self.assertEqual((tx.cds_start, tx.cds_end), (0, 0))
+        self.assertFalse(tx.in_coding_region(1100))
+        
+        self.assertEqual(tx.consequence(1100, 'A', 'G'), 'non_coding_transcript_exon_variant')
+        self.assertEqual(tx.consequence(1500, 'A', 'G'), 'intron_variant')
+        self.assertEqual(tx.consequence(1201, 'A', 'G'), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(500, 'A', 'G'), 'upstream_gene_variant')
+    
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change
         """
