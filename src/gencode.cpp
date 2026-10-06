@@ -7,6 +7,7 @@
 #include <set>
 #include <stdexcept>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include <iostream>
@@ -107,7 +108,7 @@ static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
             info.transcript_type, info.attributes);
         tx.set_exons(info.exons);
         tx.set_cds(info.cds);
-        transcripts.push_back({symbol, alt_ids, tx, info.is_canonical});
+        transcripts.push_back({std::move(symbol), std::move(alt_ids), std::move(tx), info.is_canonical});
     } catch (const std::invalid_argument & e) {
         std::cerr << "skipping transcript " << info.name << ": " << e.what() << std::endl;
     }

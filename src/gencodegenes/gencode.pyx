@@ -10,6 +10,7 @@ from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp cimport bool
 from libcpp.map cimport map
+from libcpp.utility cimport move
 
 from pyfaidx import Fasta
 
@@ -101,11 +102,11 @@ cdef class Gene:
         self.end = -999999999
     
     cdef add_tx(self, Tx tx, int is_canonical):
-        self._transcripts.push_back(tx)
-        self._canonical.push_back(is_canonical)
         self.chrom = tx.get_chrom().decode('utf8')
         self.start = min(self.start, tx.get_start())
         self.end = max(self.end, tx.get_end())
+        self._transcripts.push_back(move(tx))
+        self._canonical.push_back(is_canonical)
     
     def add_transcript(self, _tx):
         ''' add a Transcript to the gene object
@@ -309,11 +310,14 @@ cdef class Gencode:
             self._genome = Fasta(str(fasta))
         logging.info(f'opening gencode annotations: {gencode}')
         cdef vector[NamedTx] transcripts
+        cdef NamedTx * x
+        cdef size_t i
         cdef Gene curr
         loci = {}
         if gencode is not None:
             transcripts = open_gencode(str(gencode).encode('utf8'), coding_only)
-            for x in transcripts:
+            for i in range(transcripts.size()):
+                x = &transcripts[i]
                 # group transcripts into genes by chrom and gene_id, so genes
                 # sharing a symbol at different loci are kept apart
                 gene_id = x.symbol
@@ -326,7 +330,7 @@ cdef class Gencode:
                     loci[key] = curr
                     self.genes.setdefault(curr.symbol, []).append(curr)
                 curr = loci[key]
-                curr.add_tx(x.tx, x.is_canonical)
+                curr.add_tx(move(x.tx), x.is_canonical)
         self._sort()
     
     def _sort(self):
