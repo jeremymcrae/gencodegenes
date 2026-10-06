@@ -2,6 +2,7 @@ name: GENCODEGenes
 
 on: 
   push:
+  pull_request:
   schedule:
     - cron: "37 3 3 * *"
 
@@ -75,20 +76,13 @@ jobs:
         run: |
           pip install setuptools build
           python -m build --sdist
+          pip install dist/*.tar.gz
+          python -m unittest discover
 
       - uses: actions/upload-artifact@v4
         with:
           path: dist/*.tar.gz
           name: artifact-source
-
-      - name: Coveralls
-        env:
-          GITHUB_TOKEN: ${{ secrets.github_token }}
-        run: |
-          pip install coveralls
-          pip install .
-          python -m coverage run --source=./gencodegenes -m unittest discover
-          coveralls --service=github
 
   upload_pypi:
     needs: [build_wheels, build_sdist]
