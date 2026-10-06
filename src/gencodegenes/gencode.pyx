@@ -283,6 +283,8 @@ cdef class Gene:
         return min(abs(self.start - pos), abs(self.end - pos))
 
 cdef class Gencode:
+    # maps symbol to a list of Genes, as some symbols are used at multiple loci,
+    # e.g. PAR genes on chrX and chrY
     cdef dict genes
     cdef map[string, vector[GenePoint]] starts, ends
     cdef object _genome
@@ -306,17 +308,23 @@ cdef class Gencode:
         logging.info(f'opening gencode annotations: {gencode}')
         cdef vector[NamedTx] transcripts
         cdef Gene curr
+        loci = {}
         if gencode is not None:
             transcripts = open_gencode(str(gencode).encode('utf8'), coding_only)
             for x in transcripts:
-                symbol = x.symbol.decode('utf8')
-                if symbol not in self.genes:
-                    curr = Gene(symbol.encode('utf8'), x.alternate_ids)
+                # group transcripts into genes by chrom and gene_id, so genes
+                # sharing a symbol at different loci are kept apart
+                gene_id = x.symbol
+                if x.tx.has_attribute(b'gene_id'):
+                    gene_id = x.tx.get_attribute(b'gene_id')
+                key = (x.tx.get_chrom(), gene_id)
+                if key not in loci:
+                    curr = Gene(x.symbol, x.alternate_ids)
                     curr._genome = self._genome
-                    self.genes[symbol] = curr
-                curr = self.genes[symbol]
+                    loci[key] = curr
+                    self.genes.setdefault(curr.symbol, []).append(curr)
+                curr = loci[key]
                 curr.add_tx(x.tx, x.is_canonical)
-                self.genes[symbol] = curr
         self._sort()
     
     def _sort(self):
@@ -324,19 +332,19 @@ cdef class Gencode:
         '''
         self.starts.clear()
         self.ends.clear()
-        for symbol in self.genes:
-            gene = self.genes[symbol]
-            chrom = gene.chrom.encode('utf8')
-            symbol = symbol.encode('utf8')
-            
-            # ensure the chromosome is present
-            if self.starts.count(chrom) == 0:
-                self.starts[chrom] = []
-            if self.ends.count(chrom) == 0:
-                self.ends[chrom] = []
-            
-            self.starts[chrom].push_back(GenePoint(gene.start, symbol))
-            self.ends[chrom].push_back(GenePoint(gene.end, symbol))
+        for symbol, genes in self.genes.items():
+            for i, gene in enumerate(genes):
+                chrom = gene.chrom.encode('utf8')
+                key = f'{symbol}\t{i}'.encode('utf8')
+                
+                # ensure the chromosome is present
+                if self.starts.count(chrom) == 0:
+                    self.starts[chrom] = []
+                if self.ends.count(chrom) == 0:
+                    self.ends[chrom] = []
+                
+                self.starts[chrom].push_back(GenePoint(gene.start, key))
+                self.ends[chrom].push_back(GenePoint(gene.end, key))
         
         # sort start and end coords by position
         for x, values in self.starts:
@@ -349,20 +357,32 @@ cdef class Gencode:
     def __len__(self):
         return len(self.genes)
     def __getitem__(self, symbol):
-        return self.genes[symbol]
+        ''' get the gene for a symbol (the first loaded, if at multiple loci)
+        '''
+        return self.genes[symbol][0]
     def __iter__(self):
         for x in self.genes:
             yield x
     
+    cdef Gene _gene_at(self, string key):
+        ''' get the Gene for a key from the starts/ends index
+        '''
+        symbol, idx = key.decode('utf8').rsplit('\t', 1)
+        return self.genes[symbol][int(idx)]
+    
     def add_gene(self, Gene gene):
         ''' add another gene to the Gencode object
+        
+        The gene is skipped if a gene with the same symbol is already on the
+        same chromosome.
         '''
         if gene.chrom is None:
             raise ValueError(f'cannot add gene without transcripts: {gene.symbol}')
-        if gene.symbol not in self.genes:
+        genes = self.genes.setdefault(gene.symbol, [])
+        if all(x.chrom != gene.chrom for x in genes):
             if gene._genome is None:
                 gene._genome = self._genome
-            self.genes[gene.symbol] = gene
+            genes.append(gene)
         self._sort()
     
     def nearest(self, str chrom, int pos):
@@ -395,8 +415,8 @@ cdef class Gencode:
         i = max(i - 1, 0)
         j = min(j, <int>self.starts[_chrom].size() - 1)
         
-        upstream = self[self.ends[_chrom][i].symbol.decode('utf8')]
-        downstream = self[self.starts[_chrom][j].symbol.decode('utf8')]
+        upstream = self._gene_at(self.ends[_chrom][i].symbol)
+        downstream = self._gene_at(self.starts[_chrom][j].symbol)
         
         if upstream.distance(chrom, pos) <= downstream.distance(chrom, pos):
             return upstream
@@ -419,7 +439,7 @@ cdef class Gencode:
         '''
         symbols = _in_region(self._match_chrom(_chrom), start, end, self.starts,
             self.ends, max_window)
-        return [self[x.decode('utf8')] for x in symbols]
+        return [self._gene_at(x) for x in symbols]
     
     cdef bytes _match_chrom(self, str chrom):
         ''' find the chromosome name used in the annotations, allowing for

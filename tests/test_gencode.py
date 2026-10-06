@@ -219,6 +219,41 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(ValueError):
             gencode.nearest('chr3', 100)
     
+    def test_gencode_symbol_at_multiple_loci(self):
+        ''' test genes sharing a symbol at different loci are kept apart
+        '''
+        attrs = 'gene_name "SHOX"; transcript_type "protein_coding";'
+        lines = []
+        for chrom, gene_id, start, end in [('chrX', 'ENSG1', 100, 200),
+                ('chrY', 'ENSG1_PAR_Y', 5000, 6000), ('chrY', 'ENSG2', 8000, 9000)]:
+            for feature in ['transcript', 'exon', 'CDS']:
+                lines.append(f'{chrom}\tHAVANA\t{feature}\t{start}\t{end}\t.\t+\t.\t'
+                    f'gene_id "{gene_id}"; transcript_id "{gene_id}_T"; {attrs}\n')
+        
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path)
+        
+        self.assertEqual(len(gencode), 1)
+        self.assertEqual(list(gencode), ['SHOX'])
+        gene = gencode['SHOX']
+        self.assertEqual((gene.chrom, gene.start, gene.end), ('chrX', 100, 200))
+        self.assertEqual([x.name for x in gene.transcripts], ['ENSG1_T'])
+        
+        self.assertEqual(gencode.in_region('chrX', 1, 10000), [gene])
+        self.assertEqual(gencode.nearest('chrX', 150), gene)
+        
+        genes = gencode.in_region('chrY', 1, 10000)
+        self.assertEqual(sorted((x.start, x.end) for x in genes), [(5000, 6000), (8000, 9000)])
+        self.assertEqual(gencode.nearest('chrY', 8500).start, 8000)
+        
+        # genes with a symbol already present are only added on other chromosomes
+        gencode.add_gene(gene)
+        new = Gene('SHOX')
+        new.add_transcript(Transcript('ENST3', 'chr1', 10, 20, '+'))
+        gencode.add_gene(new)
+        self.assertEqual(gencode.in_region('chrX', 1, 10000), [gene])
+        self.assertEqual(gencode.in_region('chr1', 1, 100), [new])
+    
     def test_gencode_canonical(self):
         ''' test we find the correct canonical transcript
         '''
