@@ -257,7 +257,7 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
 //     gencode::open_gencode(path);
 // }
 // 
-// g++ -std=c++11 gencode.cpp gtf.cpp tx.cpp gzstream/gzstream.C -Igzstream -lz
+// g++ -std=c++11 gencode.cpp gtf.cpp tx.cpp -lz
 
 
 

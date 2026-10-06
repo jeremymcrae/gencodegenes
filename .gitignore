@@ -6,7 +6,6 @@ cache/
 build/
 dist/
 results/
-src/gzstream/*
 src/gencodegenes/*.h
 src/gencodegenes/*.cpp
 tests/data/*.fai

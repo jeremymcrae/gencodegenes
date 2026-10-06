@@ -2,14 +2,29 @@
 #define GENCODEGENES_GTF_H_
 
 #include <cstdint>
-#include <fstream>
 #include <map>
 #include <string>
 #include <vector>
 
-#include "gzstream/gzstream.h"
+#include <zlib.h>
 
 namespace gencode {
+
+// read lines from a file via zlib, which handles gzipped or uncompressed files
+class GzReader {
+    gzFile file;
+    std::string path;
+    char buffer[65536];
+    int buf_len = 0;
+    int buf_pos = 0;
+public:
+    explicit GzReader(const std::string &path);
+    ~GzReader();
+    GzReader(const GzReader &) = delete;
+    GzReader & operator=(const GzReader &) = delete;
+    bool is_open() const { return file != nullptr; }
+    bool getline(std::string &line);
+};
 
 // store required fields from a GTF line
 struct GTFLine {
@@ -30,15 +45,8 @@ GTFLine parse_gtfline(std::string &line);
 
 class GTF
 {
-    // we need to allow for gzipped GTFs or not, so prepare handles for both.
-    // This is wasteful, but only one will open and unsure of an easier way.
-    std::ifstream handle;
-    igzstream gzhandle;  
+    GzReader reader;
     std::string line;
-    bool gzipped;
-    std::istream & stream() {
-        return gzipped ? static_cast<std::istream &>(gzhandle) : static_cast<std::istream &>(handle);
-    }
 public:
     GTF(std::string path);
     bool next(GTFLine &info);

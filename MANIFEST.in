@@ -9,8 +9,6 @@ include src/gencodegenes/*.pyi
 include src/gencodegenes/py.typed
 include src/*.h
 include src/*.cpp
-include src/gzstream/gzstream.C
-include src/gzstream/gzstream.h
 
 include src/zlib/*.c
 include src/zlib/*.h

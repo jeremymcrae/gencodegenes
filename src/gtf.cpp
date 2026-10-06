@@ -1,15 +1,13 @@
 
 #include <algorithm>
 #include <cmath>
-#include <fstream>
+#include <cstring>
 #include <iostream>
 #include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include "gzstream/gzstream.h"
 
 #include "gtf.h"
 
@@ -222,15 +220,48 @@ GTFLine parse_gtfline(std::string & line) {
     return info;
 }
 
-// open GTF file handle
-GTF::GTF(std::string path) {
-    gzipped = path.size() >= 2 && path.substr(path.size() - 2) == "gz";
-    if (gzipped) {
-        gzhandle.open(path.c_str());
-    } else {
-        handle.open(path, std::ios::in);
+GzReader::GzReader(const std::string &path) : file(gzopen(path.c_str(), "rb")), path(path) {}
+
+GzReader::~GzReader() {
+    if (file) {
+        gzclose(file);
     }
-    if (!stream()) {
+}
+
+// read the next line, without the trailing newline
+//
+// @param line string to fill with the line contents
+// @returns false once the end of the file is reached
+bool GzReader::getline(std::string &line) {
+    line.clear();
+    while (true) {
+        if (buf_pos >= buf_len) {
+            buf_len = gzread(file, buffer, sizeof(buffer));
+            buf_pos = 0;
+            if (buf_len <= 0) {
+                int errnum = 0;
+                const char *msg = gzerror(file, &errnum);
+                if (buf_len < 0 || (errnum != Z_OK && errnum != Z_STREAM_END)) {
+                    throw std::invalid_argument(msg && *msg ? msg : "error reading GTF: " + path);
+                }
+                return !line.empty();
+            }
+        }
+        char *newline = static_cast<char *>(std::memchr(buffer + buf_pos, '\n', buf_len - buf_pos));
+        if (newline != nullptr) {
+            int len = newline - (buffer + buf_pos);
+            line.append(buffer + buf_pos, len);
+            buf_pos += len + 1;
+            return true;
+        }
+        line.append(buffer + buf_pos, buf_len - buf_pos);
+        buf_pos = buf_len;
+    }
+}
+
+// open GTF file handle
+GTF::GTF(std::string path) : reader(path) {
+    if (!reader.is_open()) {
         throw std::invalid_argument("cannot open GTF: " + path);
     }
 }
@@ -240,8 +271,11 @@ GTF::GTF(std::string path) {
 // @param info GTFLine to fill with the parsed line
 // @returns false once the end of the file is reached
 bool GTF::next(GTFLine &info) {
-    while (std::getline(stream(), line)) {
-        if (line.find_first_not_of(" \t\r") == std::string::npos || line[0] == '#') {
+    while (reader.getline(line)) {
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+        if (line.find_first_not_of(" \t") == std::string::npos || line[0] == '#') {
             continue;
         }
         info = parse_gtfline(line);

@@ -689,6 +689,23 @@ class TestGencode(unittest.TestCase):
             Path(gz_path).unlink()
         self.assertEqual([x[0] for x in data], ['TEST1', 'TEST2'])
     
+    def test__open_gencode_line_endings(self):
+        '''test CRLF line endings and a missing final newline, in plain and gzipped GTFs
+        '''
+        lines = 'chr1\tHAVANA\ttranscript\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\r\n' \
+                'chr1\tHAVANA\texon\t10\t20\t.\t-\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding"'
+        
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[0] for x in data], ['TEST1'])
+        self.assertEqual(data[0][1].exons, [{'start': 10, 'end': 20}])
+        
+        # gzipped files are detected by content, not by the file extension
+        with gzip.open(self.temp_gtf_path, 'wt') as output:
+            output.write(lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[0] for x in data], ['TEST1'])
+    
     def test__open_gencode_skips_bad_transcripts(self):
         '''test malformed transcripts are skipped, without stopping the GTF load
         '''
