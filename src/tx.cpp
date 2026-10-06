@@ -776,9 +776,9 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
         alt = "";
     }
 
-    size_t ref_len = ref.size();
-    size_t alt_len = alt.size();
-    bool inframe = ((ref_len - alt_len) % 3) == 0;
+    int ref_len = (int) ref.size();
+    int alt_len = (int) alt.size();
+    bool inframe = (std::abs(ref_len - alt_len) % 3) == 0;
     if (overlaps_intron & inframe & deletion) {
         // deletions which overlap the exon boundary, but only excise an inframe
         // length of the exon should be splice donor instead, since they are
