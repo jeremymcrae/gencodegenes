@@ -260,6 +260,18 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset, 
 // @param start position where the field starts
 // @param end position where the field ends (the following tab)
 static int parse_int(const std::string &line, size_t start, size_t end) {
+    // fast path for plain digits, which strtol is slow to handle
+    if (end > start && end - start <= 9) {
+        int value = 0;
+        size_t i = start;
+        for (; i < end && line[i] >= '0' && line[i] <= '9'; i++) {
+            value = value * 10 + (line[i] - '0');
+        }
+        if (i == end) {
+            return value;
+        }
+    }
+
     const char * first = line.c_str() + start;
     char * last;
     errno = 0;
