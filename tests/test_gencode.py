@@ -39,6 +39,7 @@ class TestGencode(unittest.TestCase):
         try:
             Path(self.temp_gtf_path).unlink()
             Path(self.temp_fasta_path).unlink()
+            Path(self.temp_fasta_path + '.fai').unlink(missing_ok=True)
         except:
             pass
 
@@ -72,6 +73,33 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(real['OR4F5'].canonical.genomic_sequence, seq)
         self.assertEqual(poly_a['OR4F5'].canonical.genomic_sequence, 'A' * 927)
         self.assertEqual(no_fasta['OR4F5'].canonical.genomic_sequence, '')
+    
+    def test_gencode_genome_chrom_edges(self):
+        ''' test transcripts near the ends of a chromosome get their sequence
+        '''
+        seq = 'ACGT' * 20
+        with open(self.temp_fasta_path, 'wt') as output:
+            output.write(f'>chr1\n{seq}\n')
+        lines = []
+        for tx_id, strand, start, end in [('START', '+', 2, 20), ('END', '-', 62, 80)]:
+            # 15 bp CDS, so the CDS isn't padded from the flanking sequence
+            for feature, x, y in [('transcript', start, end), ('exon', start, end),
+                    ('CDS', start + 2, start + 16)]:
+                lines.append(f'chr1\tHAVANA\t{feature}\t{x}\t{y}\t.\t{strand}\t.\t'
+                    f'transcript_id "{tx_id}"; gene_name "{tx_id}"; transcript_type "protein_coding";\n')
+        write_gtf(self.temp_gtf_path, lines)
+        
+        with Gencode(self.temp_gtf_path, self.temp_fasta_path) as gencode:
+            start = gencode['START'].transcripts[0]
+            end = gencode['END'].transcripts[0]
+        
+        self.assertEqual(start.genomic_offset, 1)
+        self.assertEqual(start.genomic_sequence, seq[0:20])
+        self.assertEqual(start.cds_sequence, seq[3:18])
+        
+        self.assertEqual(end.genomic_offset, 1)
+        self.assertEqual(end.genomic_sequence, seq[60:80])
+        self.assertEqual(end.cds_sequence, end.reverse_complement(seq[63:78]))
     
     def test_gene_alternate_ids(self):
         ''' test Gene accepts alternate IDs as str, list of str, or bytes

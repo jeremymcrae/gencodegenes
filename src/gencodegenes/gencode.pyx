@@ -173,6 +173,8 @@ cdef class Gene:
             chrom = tx.get_chrom().decode('utf8')
             start = tx.get_start()
             end = tx.get_end()
+            # shrink the flanks for transcripts near the ends of the chromosome
+            offset = max(0, min(offset, start - 1, len(self._genome[chrom]) - end + 1))
             seq = self._genome[chrom][start-1-offset:end-1+offset].seq.upper()
             if chr(tx.get_strand()) == '-':
                 seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
