@@ -724,6 +724,27 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(ValueError):
             _parse_gtfline(b'chr1\tHAVANA\tCDS\t70006\t70008\n')
     
+    def test_parse_gtf_attribute_keys(self):
+        '''test transcript_id and transcript_type only match whole attribute keys
+        '''
+        def parse(attributes):
+            obj = _parse_gtfline(f'chr1\t.\texon\t10\t20\t.\t+\t.\t{attributes}'.encode('utf8'))
+            return obj['tx_id'], obj['transcript_type']
+        
+        # key names inside values, or as part of other keys, are ignored
+        self.assertEqual(parse('note "transcript_type x"; havana_transcript_id "OTT1"; '
+            'transcript_id "T1"; transcript_type "lncRNA";'), (b'T1', b'lncRNA'))
+        # transcript_biotype is a fallback, even if it comes first
+        self.assertEqual(parse('transcript_biotype "misc_RNA"; transcript_id "T1"; '
+            'transcript_type "lncRNA";'), (b'T1', b'lncRNA'))
+        self.assertEqual(parse('transcript_id "T1"; transcript_biotype "misc_RNA";'),
+            (b'T1', b'misc_RNA'))
+        # pairs without a space after the separator, and missing keys
+        self.assertEqual(parse('gene_id "G1";transcript_id "T1";transcript_type "lncRNA"'),
+            (b'T1', b'lncRNA'))
+        self.assertEqual(parse('gene_id "G1";'), (b'', b''))
+        self.assertEqual(parse('transcript_id;'), (b'', b''))
+    
     def test_parse_gtf_positions(self):
         '''test start and end positions are parsed, and bad positions raise errors
         '''
