@@ -16,9 +16,6 @@
 
 namespace gencode {
 
-const std::string tx_id_key = "transcript_id";
-const std::string type_key = "transcript_type";
-const std::string biotype_key = "transcript_biotype";
 const std::string gene_id_key = "gene_id";
 const std::string gene_name_key = "gene_name";
 const std::string hgnc_id_key = "hgnc_id";
@@ -128,23 +125,72 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
     return attributes;
 }
 
-// find the value for an attribute key, matching whole keys only (so "transcript_id"
-// doesn't match "havana_transcript_id", or "transcript_type" inside a value)
-//
-// @param out string to assign the value to, or an empty string if the key is absent
-static void find_attribute(const std::string &line, const std::string &key, size_t offset,
-        std::string &out) {
+// check if a whole attribute key matches at a position, returning the position
+// after the key, or npos if it doesn't match
+static size_t match_key(const std::string &line, size_t pos, const char *key, size_t len) {
+    size_t end = pos + len;
+    if (end < line.size() && std::memcmp(line.data() + pos, key, len) == 0
+            && (line[end] == ' ' || line[end] == '=')) {
+        return end;
+    }
+    return std::string::npos;
+}
+
+// find the transcript_id and transcript_type values in one pass over the
+// attributes field, matching whole keys only (so "transcript_id" doesn't match
+// "havana_transcript_id", or "transcript_type" inside a value). The type falls
+// back to transcript_biotype (as in non-gencode GTFs) if transcript_type is
+// absent or empty. Fields are set to empty strings if their keys are absent.
+static void find_tx_fields(const std::string &line, size_t offset, GTFLine &info) {
+    const size_t npos = std::string::npos;
+    const char *data = line.data();
+    const size_t size = line.size();
+    const char prefix[] = "transcript_";
+    const size_t prefix_len = sizeof(prefix) - 1;
+    bool tx_found = false, type_found = false;
+    size_t biotype_end = npos;
+
     size_t pos = offset;
-    while ((pos = line.find(key, pos)) != std::string::npos) {
-        size_t end = pos + key.size();
-        bool at_start = pos == offset || line[pos - 1] == ' ' || line[pos - 1] == ';' || line[pos - 1] == '\t';
-        if (at_start && end < line.size() && (line[end] == ' ' || line[end] == '=')) {
-            trim(line, end, line.find(';', end), out);
+    while (pos < size) {
+        const char *p = static_cast<const char *>(std::memchr(data + pos, 't', size - pos));
+        if (p == nullptr) {
+            break;
+        }
+        pos = p - data;
+        bool at_start = pos == offset || data[pos - 1] == ' ' || data[pos - 1] == ';' || data[pos - 1] == '\t';
+        if (!at_start || pos + prefix_len >= size || data[pos + 1] != 'r'
+                || std::memcmp(p, prefix, prefix_len) != 0) {
+            pos += 1;
+            continue;
+        }
+        size_t key_pos = pos + prefix_len;
+        size_t end;
+        if (!tx_found && (end = match_key(line, key_pos, "id", 2)) != npos) {
+            trim(line, end, line.find(';', end), info.tx_id);
+            tx_found = true;
+        } else if (!type_found && (end = match_key(line, key_pos, "type", 4)) != npos) {
+            trim(line, end, line.find(';', end), info.transcript_type);
+            type_found = true;
+        } else if (biotype_end == npos && (end = match_key(line, key_pos, "biotype", 7)) != npos) {
+            biotype_end = end;
+        } else {
+            end = key_pos;
+        }
+        if (tx_found && type_found && !info.transcript_type.empty()) {
             return;
         }
         pos = end;
     }
-    out.clear();
+
+    if (!tx_found) {
+        info.tx_id.clear();
+    }
+    if (!type_found) {
+        info.transcript_type.clear();
+    }
+    if (info.transcript_type.empty() && biotype_end != npos) {
+        trim(line, biotype_end, line.find(';', biotype_end), info.transcript_type);
+    }
 }
 
 // parse the required fields from the attributes field
@@ -155,12 +201,7 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset, 
     // tx_id and transcript_type are read for every permitted GTF line in
     // load_transcripts (for transcript-boundary detection and the coding-only
     // filter respectively), so they must be extracted on every line.
-    find_attribute(line, tx_id_key, offset, info.tx_id);
-    find_attribute(line, type_key, offset, info.transcript_type);
-    if (info.transcript_type.empty()) {
-        // allow for alternate transcript_type key, as found in non-gencode GTF files
-        find_attribute(line, biotype_key, offset, info.transcript_type);
-    }
+    find_tx_fields(line, offset, info);
 
     // clear fields left over from a previous line, as GTFLine objects are reused
     info.symbol.clear();
