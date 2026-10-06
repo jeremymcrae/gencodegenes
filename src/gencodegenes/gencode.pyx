@@ -97,7 +97,7 @@ cdef class Gene:
             alt_ids = []
         elif isinstance(alt_ids, str):
             alt_ids = [alt_ids]
-        self.alternate_ids = [x.decode('utf8') for x in alt_ids]
+        self.alternate_ids = [x.decode('utf8') if isinstance(x, bytes) else x for x in alt_ids]
         self.start = 999999999
         self.end = -999999999
     

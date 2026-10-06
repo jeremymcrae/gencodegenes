@@ -50,6 +50,14 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(KeyError):
             gencode['ZZZZZZZ']
     
+    def test_gene_alternate_ids(self):
+        ''' test Gene accepts alternate IDs as str, list of str, or bytes
+        '''
+        self.assertEqual(Gene('TEST').alternate_ids, [])
+        self.assertEqual(Gene('TEST', 'ENSG1').alternate_ids, ['ENSG1'])
+        self.assertEqual(Gene('TEST', ['ENSG1', 'HGNC:1']).alternate_ids, ['ENSG1', 'HGNC:1'])
+        self.assertEqual(Gene('TEST', [b'ENSG1']).alternate_ids, ['ENSG1'])
+    
     def test_gencode_add_gene(self):
         ''' test adding genes doesn't duplicate genes in the region index
         '''
