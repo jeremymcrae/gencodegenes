@@ -200,24 +200,28 @@ GTFLine parse_gtfline(std::string & line) {
 
     GTFLine info;
 
-    // there are only a few fields we need from the GTF lines, and some fields
-    // are only a single character long, so it's quickest to search for the next
-    // tab along the line, then extract the substring to get the required fields.
-    // getline() with tab delimiter was 2X slower.
-    int chr_idx = 0;
-    int source_idx = line.find("\t", chr_idx);
-    int feature_idx = line.find("\t", source_idx + 6);
-    int start_idx = line.find("\t", feature_idx + 3);
-    int end_idx = line.find("\t", start_idx + 2);
-    int score_idx = line.find("\t", end_idx + (end_idx - start_idx));
+    // find the tabs ending each of the first 8 fields (chrom, source, feature,
+    // start, end, score, strand, frame). The attributes field runs from the
+    // final tab to the end of the line. Searching for tabs and extracting
+    // substrings is quicker than getline() with a tab delimiter (by 2X).
+    size_t tabs[8];
+    size_t pos = 0;
+    for (int i = 0; i < 8; i++) {
+        pos = line.find('\t', pos);
+        if (pos == std::string::npos) {
+            throw std::invalid_argument("GTF line has fewer than 9 fields: " + line);
+        }
+        tabs[i] = pos;
+        pos += 1;
+    }
 
-    info.chrom = line.substr(chr_idx, source_idx - chr_idx);
-    info.feature = line.substr(feature_idx + 1, start_idx - feature_idx - 1);
-    info.start = std::stoi(line.substr(start_idx + 1, end_idx - start_idx - 1));
-    info.end = std::stoi(line.substr(end_idx + 1, score_idx - end_idx - 1));
-    info.strand = line[score_idx + 3];
+    info.chrom = line.substr(0, tabs[0]);
+    info.feature = line.substr(tabs[1] + 1, tabs[2] - tabs[1] - 1);
+    info.start = std::stoi(line.substr(tabs[2] + 1, tabs[3] - tabs[2] - 1));
+    info.end = std::stoi(line.substr(tabs[3] + 1, tabs[4] - tabs[3] - 1));
+    info.strand = line.substr(tabs[5] + 1, tabs[6] - tabs[5] - 1);
 
-    get_attributes_fields(info, line, score_idx + 6);
+    get_attributes_fields(info, line, tabs[7] + 1);
 
     return info;
 }

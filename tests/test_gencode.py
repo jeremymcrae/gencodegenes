@@ -619,6 +619,28 @@ class TestGencode(unittest.TestCase):
             }
         self.assertEqual(obj, expected)
     
+    def test_parse_gtf_field_widths(self):
+        '''test GTF fields are found regardless of the width of each field
+        '''
+        line = 'chr1\t.\ttranscript\t70006\t70008\t1000\t-\t2\ttranscript_id "ENST_A"; gene_name "TEST";\n'
+        obj = _parse_gtfline(line.encode('utf8'))
+        expected = {'chrom': b'chr1',
+            'feature': b'transcript',
+            'start': 70006,
+            'end': 70008,
+            'strand': b'-',
+            'symbol': b'TEST',
+            'alternate_ids': [],
+            'tx_id': b'ENST_A',
+            'transcript_type': b'',
+            'is_canonical': 0,
+            'attributes': {b'transcript_id': b'ENST_A', b'gene_name': b'TEST'},
+            }
+        self.assertEqual(obj, expected)
+        
+        with self.assertRaises(ValueError):
+            _parse_gtfline(b'chr1\tHAVANA\tCDS\t70006\t70008\n')
+    
     def test__open_gencode_multi_gene(self):
         '''test we can parse a GTF with multiple genes
         '''

@@ -35,7 +35,7 @@ cdef extern from "gtf.h" namespace "gencode":
         int is_canonical
         map[string, string] attributes
         
-    GTFLine parse_gtfline(string line)
+    GTFLine parse_gtfline(string line) except +
 
 cdef extern from "gencode.h" namespace "gencode":
     cdef struct NamedTx:
