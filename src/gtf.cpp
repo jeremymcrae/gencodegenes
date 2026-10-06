@@ -2,15 +2,11 @@
 #include <algorithm>
 #include <cerrno>
 #include <climits>
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 #include <map>
-#include <sstream>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 #include "gtf.h"
 
@@ -19,21 +15,19 @@ namespace gencode {
 const std::string gene_id_key = "gene_id";
 const std::string gene_name_key = "gene_name";
 const std::string hgnc_id_key = "hgnc_id";
+const std::string tag_key = "tag";
 
 static inline bool is_trim_char(char c) {
     return c == ';' || c == '=' || c == ' ' || c == '"';
 }
 
-// trims separator, space and quote characters from either end of a range.
+// assign a range of a GTF line to a string, trimming separator, space and quote
+// characters from either end. Assigning to an existing string reuses its capacity.
 //
-// This operates on a selected range of a GTF line, in a portion where we have 
-// identified a value to extract. This avoids creating extra string objects and 
-// redundantly running substr.
-//
-// @param s string for a full GTF line (without line-ending though)
-// @param start position where the substring starts
-// @param end position where the substring ends (exclusive, may be npos)
-// @param out string to assign the trimmed range to, reusing its capacity
+// @param s string for a full GTF line
+// @param start position where the range starts
+// @param end position where the range ends (exclusive, may be npos)
+// @param out string to assign the trimmed range to
 static void trim(const std::string &s, size_t start, size_t end, std::string &out) {
     end = std::min(end, s.size());
     while (start < end && is_trim_char(s[start])) {
@@ -45,83 +39,60 @@ static void trim(const std::string &s, size_t start, size_t end, std::string &ou
     out.assign(s, start, end - start);
 }
 
-static std::string trim(const std::string &s, size_t start, size_t end) {
-    std::string out;
-    trim(s, start, end, out);
-    return out;
-}
-
 // parse the full attributes field into a key/value map
 //
 // The attributes field is the 9th (final) tab-delimited column of a GTF line. It
 // is a list of "key value" pairs, conventionally separated by "; " (though the
 // trailing space is not guaranteed). Values may be quoted. Some keys (e.g. "tag")
 // can be repeated; repeated values are joined with commas into a single value.
+// Bare keys without a value are kept with an empty value, so downstream code can
+// probe for the presence of such keys.
 //
-// @param line string for a full GTF line (without line-ending)
+// @param line string for a full GTF line
 // @param offset position where the attributes field starts
 static std::map<std::string, std::string> parse_attributes(const std::string &line, size_t offset) {
     std::map<std::string, std::string> attributes;
 
-    // the caller's offset can point at the tab preceding the attributes field,
-    // so advance past any leading tabs/spaces to the first attribute character
-    offset = line.find_first_not_of("\t ", offset);
-    if (offset == std::string::npos) {
-        return attributes;
+    // the field runs to a trailing tab (if any) or the end of the line, without
+    // any line-ending characters
+    offset = std::min(line.find_first_not_of("\t ", offset), line.size());
+    size_t field_end = std::min(line.find('\t', offset), line.size());
+    while (field_end > offset && (line[field_end - 1] == '\n' || line[field_end - 1] == '\r')) {
+        field_end--;
     }
 
-    // the attributes field is the final column, running to the end of the line
-    // (a trailing tab, if any, terminates it)
-    size_t line_end = line.find('\t', offset);
-    if (line_end == std::string::npos) {
-        line_end = line.size();
-    }
-    // drop any trailing line-ending characters from the field
-    while (line_end > offset &&
-            (line[line_end - 1] == '\n' || line[line_end - 1] == '\r')) {
-        line_end--;
-    }
-
-    size_t pos = offset;
-    while (pos < line_end) {
-        // each pair is terminated by a ';' (or the end of the field)
-        size_t sep = line.find(';', pos);
-        if (sep == std::string::npos || sep > line_end) {
-            sep = line_end;
+    std::string key, value;
+    for (size_t pos = offset; pos < field_end; ) {
+        size_t sep = std::min(line.find(';', pos), field_end);
+        size_t key_start = pos;
+        while (key_start < sep && line[key_start] == ' ') {
+            key_start++;
         }
+        size_t key_end = key_start;
+        while (key_end < sep && line[key_end] != ' ') {
+            key_end++;
+        }
+        pos = sep + 1;
 
-        // the key is the first whitespace-delimited token in [pos, sep)
-        size_t key_start = line.find_first_not_of(" ", pos);
-        if (key_start == std::string::npos || key_start >= sep) {
-            pos = sep + 1;
+        if (key_end < sep) {
+            key.assign(line, key_start, key_end - key_start);
+            trim(line, key_end, sep, value);
+        } else {
+            trim(line, key_start, sep, key);
+            value.clear();
+        }
+        if (key.empty()) {
             continue;
         }
-        size_t key_end = line.find(' ', key_start);
-        if (key_end == std::string::npos || key_end > sep) {
-            // a bare key with no value: keep it as a key with an empty value, so
-            // downstream code can probe for the presence of such keys
-            std::string bare_key = trim(line, key_start, sep);
-            if (!bare_key.empty()) {
-                attributes.emplace(std::move(bare_key), "");
-            }
-            pos = sep + 1;
-            continue;
-        }
-
-        std::string key = line.substr(key_start, key_end - key_start);
-        std::string value = trim(line, key_end, sep);
 
         auto it = attributes.find(key);
         if (it == attributes.end()) {
-            attributes.emplace(std::move(key), std::move(value));
+            attributes.emplace(key, value);
         } else if (!value.empty()) {
-            // handle repeated keys (e.g. tag) by joining values with commas
-            it->second += "," + value;
+            it->second += ',';
+            it->second += value;
         }
-
-        pos = sep + 1;
     }
-
     return attributes;
 }
 
@@ -141,17 +112,22 @@ static size_t match_key(const std::string &line, size_t pos, const char *key, si
 // "havana_transcript_id", or "transcript_type" inside a value). The type falls
 // back to transcript_biotype (as in non-gencode GTFs) if transcript_type is
 // absent or empty. Fields are set to empty strings if their keys are absent.
+//
+// These are needed on every line (for transcript boundaries and the coding-only
+// filter), so this avoids parsing the full attributes field.
 static void find_tx_fields(const std::string &line, size_t offset, GTFLine &info) {
     const size_t npos = std::string::npos;
-    const char *data = line.data();
-    const size_t size = line.size();
     const char prefix[] = "transcript_";
     const size_t prefix_len = sizeof(prefix) - 1;
+    const char *data = line.data();
+    const size_t size = line.size();
+
+    info.tx_id.clear();
+    info.transcript_type.clear();
     bool tx_found = false, type_found = false;
     size_t biotype_end = npos;
 
-    size_t pos = offset;
-    while (pos < size) {
+    for (size_t pos = offset; pos < size; ) {
         const char *p = static_cast<const char *>(std::memchr(data + pos, 't', size - pos));
         if (p == nullptr) {
             break;
@@ -163,94 +139,65 @@ static void find_tx_fields(const std::string &line, size_t offset, GTFLine &info
             pos += 1;
             continue;
         }
-        size_t key_pos = pos + prefix_len;
+        pos += prefix_len;
         size_t end;
-        if (!tx_found && (end = match_key(line, key_pos, "id", 2)) != npos) {
+        if (!tx_found && (end = match_key(line, pos, "id", 2)) != npos) {
             trim(line, end, line.find(';', end), info.tx_id);
             tx_found = true;
-        } else if (!type_found && (end = match_key(line, key_pos, "type", 4)) != npos) {
+        } else if (!type_found && (end = match_key(line, pos, "type", 4)) != npos) {
             trim(line, end, line.find(';', end), info.transcript_type);
             type_found = true;
-        } else if (biotype_end == npos && (end = match_key(line, key_pos, "biotype", 7)) != npos) {
+        } else if (biotype_end == npos && (end = match_key(line, pos, "biotype", 7)) != npos) {
             biotype_end = end;
         } else {
-            end = key_pos;
+            continue;
         }
-        if (tx_found && type_found && !info.transcript_type.empty()) {
+        if (tx_found && !info.transcript_type.empty()) {
             return;
         }
         pos = end;
     }
 
-    if (!tx_found) {
-        info.tx_id.clear();
-    }
-    if (!type_found) {
-        info.transcript_type.clear();
-    }
     if (info.transcript_type.empty() && biotype_end != npos) {
         trim(line, biotype_end, line.find(';', biotype_end), info.transcript_type);
     }
 }
 
-// parse the required fields from the attributes field
+// parse the attributes map, and the gene fields derived from it
 //
-// @param all_fields whether to parse the gene fields and attributes map on lines
-//     other than "transcript" lines
-static void get_attributes_fields(GTFLine &info, std::string &line, int offset, bool all_fields) {
-    // tx_id and transcript_type are read for every permitted GTF line in
-    // load_transcripts (for transcript-boundary detection and the coding-only
-    // filter respectively), so they must be extracted on every line.
-    find_tx_fields(line, offset, info);
+// These are only used from the first line of each transcript (usually the
+// "transcript" line), so are skipped on other lines.
+static void parse_gene_fields(const std::string &line, size_t offset, GTFLine &info) {
+    info.attributes = parse_attributes(line, offset);
+    auto get = [&info](const std::string &key) -> const std::string & {
+        static const std::string missing;
+        auto it = info.attributes.find(key);
+        return it == info.attributes.end() ? missing : it->second;
+    };
 
-    // clear fields left over from a previous line, as GTFLine objects are reused
-    info.symbol.clear();
-    info.alternate_ids.clear();
-    info.is_canonical = 0;
-    info.attributes.clear();
-
-    // The remaining fields (gene symbol, gene_id, hgnc_id and canonical status)
-    // are only consumed by load_transcripts from the "transcript" feature line
-    // (or the first line of a transcript, for GTFs without transcript lines),
-    // so we defer that work to those lines to avoid redundant string scanning on
-    // the many other feature lines. They are derived from the parsed attribute
-    // map, rather than re-scanning the line, to avoid extracting fields twice.
-    if (all_fields || info.feature == "transcript") {
-        info.attributes = parse_attributes(line, offset);
-
-        auto gene_name_it = info.attributes.find(gene_name_key);
-        if (gene_name_it != info.attributes.end()) {
-            info.symbol = gene_name_it->second;
+    // fall back to the gene_id if there is no gene symbol. This means the
+    // gene.symbol in the python code can hold non-HGNC data, but it's better than
+    // grouping all transcripts lacking a symbol into one blank-named gene.
+    info.symbol = get(gene_name_key);
+    const std::string &gene_id = get(gene_id_key);
+    if (!gene_id.empty()) {
+        if (info.symbol.empty()) {
+            info.symbol = gene_id;
+        } else {
+            info.alternate_ids.push_back(gene_id);
         }
+    }
+    const std::string &hgnc_id = get(hgnc_id_key);
+    if (!hgnc_id.empty()) {
+        info.alternate_ids.push_back(hgnc_id);
+    }
 
-        auto gene_id_it = info.attributes.find(gene_id_key);
-        if (gene_id_it != info.attributes.end() && gene_id_it->second.size() > 0) {
-            if (info.symbol.size() == 0) {
-                // if we don't have a gene symbol available, use the gene_id field.
-                // This means the gene.symbol in the python code can hold non-HGNC
-                // data, but it's better than the transcript having a blank name and
-                // being used in a gene object with all other blank name transcripts
-                info.symbol = gene_id_it->second;
-            } else {
-                info.alternate_ids.push_back(gene_id_it->second);
-            }
-        }
-
-        auto hgnc_id_it = info.attributes.find(hgnc_id_key);
-        if (hgnc_id_it != info.attributes.end() && hgnc_id_it->second.size() > 0) {
-            info.alternate_ids.push_back(hgnc_id_it->second);
-        }
-
-        // canonical status is flagged via the "tag" attribute (repeated tag
-        // values are joined into a single comma-separated string by parse_attributes)
-        auto tag_it = info.attributes.find("tag");
-        if (tag_it != info.attributes.end()) {
-            if (tag_it->second.find("Ensembl_canonical") != std::string::npos) {
-                info.is_canonical = 10;
-            } else if (tag_it->second.find("appris_principal") != std::string::npos) {
-                info.is_canonical = 5;
-            }
-        }
+    // canonical status is flagged in the (comma-joined) tag values
+    const std::string &tags = get(tag_key);
+    if (tags.find("Ensembl_canonical") != std::string::npos) {
+        info.is_canonical = 10;
+    } else if (tags.find("appris_principal") != std::string::npos) {
+        info.is_canonical = 5;
     }
 }
 
@@ -288,14 +235,13 @@ static int parse_int(const std::string &line, size_t start, size_t end) {
 // parse required fields from a GTF line
 //
 // @param line GTF line (without line ending)
+// @param info GTFLine to fill, reusing the capacity of its strings
 // @param all_fields whether to parse the gene fields and attributes map, even
 //     if the line isn't a "transcript" line
-// @param info GTFLine to fill, reusing the capacity of its strings
 void parse_gtfline(std::string & line, GTFLine & info, bool all_fields) {
     // find the tabs ending each of the first 8 fields (chrom, source, feature,
     // start, end, score, strand, frame). The attributes field runs from the
-    // final tab to the end of the line. Searching for tabs and extracting
-    // substrings is quicker than getline() with a tab delimiter (by 2X).
+    // final tab to the end of the line.
     size_t tabs[8];
     size_t pos = 0;
     for (int i = 0; i < 8; i++) {
@@ -312,8 +258,16 @@ void parse_gtfline(std::string & line, GTFLine & info, bool all_fields) {
     info.start = parse_int(line, tabs[2] + 1, tabs[3]);
     info.end = parse_int(line, tabs[3] + 1, tabs[4]);
     info.strand.assign(line, tabs[5] + 1, tabs[6] - tabs[5] - 1);
+    find_tx_fields(line, tabs[7] + 1, info);
 
-    get_attributes_fields(info, line, tabs[7] + 1, all_fields);
+    // clear fields left over from a previous line
+    info.symbol.clear();
+    info.alternate_ids.clear();
+    info.is_canonical = 0;
+    info.attributes.clear();
+    if (all_fields || info.feature == "transcript") {
+        parse_gene_fields(line, tabs[7] + 1, info);
+    }
 }
 
 GTFLine parse_gtfline(std::string & line, bool all_fields) {
