@@ -1,10 +1,12 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <deque>
 #include <string>
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <unordered_map>
 #include <vector>
 
 #include <iostream>
@@ -109,19 +111,47 @@ static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
     }
 }
 
+// features collected for a transcript, while loading the GTF
+struct TxEntry {
+    TxInfo info;
+    std::map<std::string, int> cds_range = {{"max", 0}, {"min", 999999999}};
+    std::string symbol;
+    std::vector<std::string> alt_ids;
+};
+
+// build transcripts in the order they first appeared, freeing each entry once
+// its transcript is built
+//
+// @param pos start of the current GTF line. Transcripts are only built once this
+//     passes their end, as no further lines for them can follow in a
+//     position-sorted GTF. Use -1 to build all transcripts.
+static void build_transcripts(std::vector<NamedTx> & transcripts,
+        std::deque<TxEntry> & entries, std::unordered_map<std::string, TxEntry *> & index,
+        int pos=-1) {
+    while (!entries.empty()) {
+        TxEntry & x = entries.front();
+        if (pos != -1 && (x.info.end == 0 || pos <= x.info.end)) {
+            break;
+        }
+        index.erase(x.info.name);
+        add_transcript(transcripts, x.info, x.cds_range, x.symbol, x.alt_ids);
+        entries.pop_front();
+    }
+}
+
 // collect all features for a transcript into a single object
 //
 // When we load lines from gencode GTF files, each line represents a single exon
-// or CDS, and we need to combine these based on transcript ID
+// or CDS, and we need to combine these based on transcript ID. Lines for a
+// transcript are usually contiguous, but position-sorted GTFs interleave
+// transcripts, so features are collected by transcript ID until the chromosome
+// changes (GTFs are grouped by chromosome), or the GTF moves past the transcript.
 static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool coding=true) {
     std::set<std::string> permit = {"exon", "CDS", "UTR", "transcript", 
         "stop_codon", "start_codon"};
-    std::map<std::string, int> cds_range = {{"max", 0}, {"min", 999999999}};
-    std::string tx_id = "";
-    std::string symbol = "";
-    std::vector<std::string> alt_ids;
-    std::string current;
-    TxInfo info;
+    std::deque<TxEntry> entries;
+    std::unordered_map<std::string, TxEntry *> index;
+    TxEntry * entry = nullptr;
 
     GTFLine gtf;
 
@@ -132,40 +162,39 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
             continue;
         }
 
-        current = gtf.tx_id;
-        if (tx_id == "") {
-            tx_id = current;
-            symbol = gtf.symbol;
-            alt_ids = gtf.alternate_ids;
-        }
-
-        if (tx_id != current) {
-            add_transcript(transcripts, info, cds_range, symbol, alt_ids);
-            info = {};
-            tx_id = current;
-            cds_range["max"] = 0;
-            cds_range["min"] = 999999999;
-            symbol = gtf.symbol;
-            alt_ids = gtf.alternate_ids;
-            info.is_canonical = false;
-        }
-
-        if (info.name == "") {
-            info.name = tx_id;
-            info.chrom = gtf.chrom;
-            info.strand = gtf.strand;
-            info.is_canonical = gtf.is_canonical;
-            info.transcript_type = gtf.transcript_type;
-            if (gtf.feature != "transcript") {
-                // without a transcript line, use the first line's attributes,
-                // minus the fields specific to that feature
-                info.attributes = gtf.attributes;
-                for (auto key : {"exon_number", "exon_id", "exon_version"}) {
-                    info.attributes.erase(key);
+        // only look up the transcript when it differs from the previous line's
+        if (entry == nullptr || gtf.tx_id != entry->info.name || gtf.chrom != entry->info.chrom) {
+            int pos = (entry != nullptr && gtf.chrom != entry->info.chrom) ? -1 : gtf.start;
+            build_transcripts(transcripts, entries, index, pos);
+            auto it = index.find(gtf.tx_id);
+            if (it != index.end()) {
+                entry = it->second;
+            } else {
+                entries.emplace_back();
+                entry = &entries.back();
+                index[gtf.tx_id] = entry;
+                
+                TxInfo & info = entry->info;
+                info.name = gtf.tx_id;
+                info.chrom = gtf.chrom;
+                info.strand = gtf.strand;
+                info.is_canonical = gtf.is_canonical;
+                info.transcript_type = gtf.transcript_type;
+                entry->symbol = gtf.symbol;
+                entry->alt_ids = gtf.alternate_ids;
+                if (gtf.feature != "transcript") {
+                    // without a transcript line, use the first line's attributes,
+                    // minus the fields specific to that feature
+                    info.attributes = gtf.attributes;
+                    for (auto field : {"exon_number", "exon_id", "exon_version"}) {
+                        info.attributes.erase(field);
+                    }
                 }
             }
         }
 
+        TxInfo & info = entry->info;
+        std::map<std::string, int> & cds_range = entry->cds_range;
         if (gtf.feature == "transcript") {
             info.start = gtf.start;
             info.end = gtf.end;
@@ -182,10 +211,7 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
         }
     }
 
-    // also include the final transcript (if it transcript exists)
-    if (info.name != "") {
-        add_transcript(transcripts, info, cds_range, symbol, alt_ids);
-    }
+    build_transcripts(transcripts, entries, index);
 }
 
 std::vector<NamedTx> open_gencode(std::string path, bool coding) {

@@ -798,6 +798,33 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(gencode['GENEA'].alternate_ids, ['ENSG1'])
         self.assertEqual([x.symbol for x in gencode.in_region('chr1', 50, 150)], ['GENEA'])
     
+    def test__open_gencode_position_sorted(self):
+        '''test transcripts are combined when their lines are interleaved
+        '''
+        def line(chrom, feature, start, end, tx_id):
+            return f'{chrom}\tHAVANA\t{feature}\t{start}\t{end}\t.\t+\t.\tgene_id "G1"; ' \
+                f'transcript_id "{tx_id}"; gene_name "A"; transcript_type "protein_coding";\n'
+        
+        lines = [line('chr1', 'transcript', 10, 40, 'T1'),
+                line('chr1', 'exon', 10, 20, 'T1'),
+                line('chr1', 'transcript', 15, 25, 'T2'),
+                line('chr1', 'exon', 15, 25, 'T2'),
+                line('chr1', 'exon', 30, 40, 'T1'),
+                line('chr1', 'transcript', 50, 60, 'T3'),
+                line('chr1', 'exon', 50, 60, 'T3'),
+                # the same transcript ID on another chromosome (e.g. PAR genes)
+                line('chrX', 'exon', 100, 200, 'T1'),
+                line('chrX', 'exon', 300, 400, 'T1'),
+                line('chrY', 'exon', 500, 600, 'T1')]
+        
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([(x[1].name, x[1].chrom, x[1].start, x[1].end) for x in data],
+            [('T1', 'chr1', 10, 40), ('T2', 'chr1', 15, 25), ('T3', 'chr1', 50, 60),
+             ('T1', 'chrX', 100, 400), ('T1', 'chrY', 500, 600)])
+        self.assertEqual(data[0][1].exons, [{'start': 10, 'end': 20}, {'start': 30, 'end': 40}])
+        self.assertEqual(data[3][1].exons, [{'start': 100, 'end': 200}, {'start': 300, 'end': 400}])
+    
     def test__open_gencode_line_endings(self):
         '''test CRLF line endings and a missing final newline, in plain and gzipped GTFs
         '''
