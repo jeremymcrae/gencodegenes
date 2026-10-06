@@ -261,6 +261,8 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.gene.get_codon_sequence(-1)
         with self.assertRaises(ValueError):
+            self.gene.get_codon_sequence(2)
+        with self.assertRaises(ValueError):
             self.gene.get_codon_sequence(3)
     
     def test_get_codon_sequence_minus_strand(self):

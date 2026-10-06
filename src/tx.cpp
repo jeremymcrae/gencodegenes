@@ -574,7 +574,7 @@ std::string Tx::get_codon_sequence(int codon) {
     if (codon < 0) {
         throw std::invalid_argument( "codon position < 0" );
     }
-    if (codon > (int)cds_sequence.size() / 3) {
+    if (codon >= (int)cds_sequence.size() / 3) {
         throw std::invalid_argument( "codon position not in gene range" );
     }
     
@@ -621,7 +621,7 @@ Codon Tx::get_codon_info(int bp) {
     bool in_coding = in_coding_region(bp);
     CDS_coords site = get_coding_distance(bp);
     
-    if ((site.position < 0) | (site.position > cds_length)) {
+    if ((site.position < 0) | (site.position >= cds_length)) {
         throw std::invalid_argument( "position not inside CDS region" );
     }
     

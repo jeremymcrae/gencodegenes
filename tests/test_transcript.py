@@ -447,6 +447,11 @@ class TestTranscriptPy(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.gene.get_codon_info(1050)
         
+        # the first base after the CDS end (CDS position 202 of 202) is outside
+        # the CDS too
+        with self.assertRaises(ValueError):
+            self.gene.get_codon_info(1901)
+        
         # check the first base of the CDS
         self.assertEqual(self.gene.get_codon_info(1100),
             {'cds_pos': 0, 'codon_seq': 'ATG', 'intra_codon': 0,
