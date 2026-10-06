@@ -348,6 +348,25 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(gencode.nearest('chr1', 700000).symbol, 'LATE')
         del gencode
     
+    def test_gencode_nearest_adjacent_gene(self):
+        ''' test nearest picks the gene containing a site over an adjacent gene
+        '''
+        lines = ['##format: gtf\n',
+                'chr1\tHAVANA\ttranscript\t1000\t5000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "LONG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t1000\t5000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "LONG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t1000\t5000\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "LONG"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\ttranscript\t5001\t6000\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SHORT"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\texon\t5001\t6000\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SHORT"; transcript_type "protein_coding";\n',
+                'chr1\tHAVANA\tCDS\t5500\t5600\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "SHORT"; transcript_type "protein_coding";\n']
+        
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path)
+        
+        # the site is in the UTR of SHORT, next to the end of LONG, which has
+        # a longer CDS
+        self.assertEqual(gencode.nearest('chr1', 5001).symbol, 'SHORT')
+        self.assertEqual(gencode.nearest('chr1', 5000).symbol, 'LONG')
+    
     def test_parse_gtf_gene_line(self):
         ''' test we can parse a GTF line for a gene feature
         '''

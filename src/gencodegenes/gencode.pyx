@@ -392,7 +392,7 @@ cdef class Gencode:
         chrom = _chrom.decode('utf8')
         
         # first, account for any overlapping genes
-        overlaps = self.in_region(chrom, pos-1, pos+1)  # NOTE: possibly fix?
+        overlaps = self.in_region(chrom, pos, pos)
         if len(overlaps) > 0:
             # if we have > 0 prioritise if the position is in the CDS
             cds_overlaps = [x for x in overlaps if x.in_any_tx_cds(pos)]
