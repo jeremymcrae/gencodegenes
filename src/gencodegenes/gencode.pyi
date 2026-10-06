@@ -1,4 +1,5 @@
 from os import PathLike
+from types import TracebackType
 from typing import Iterator
 
 from gencodegenes.transcript import Transcript
@@ -84,6 +85,12 @@ class Gencode:
         """find genes within a genomic region"""
         ...
 
-    def __exit__(self) -> None:
-        """cleanup at exit"""
+    def __enter__(self) -> Gencode: ...
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None = ...,
+        exc_value: BaseException | None = ...,
+        traceback: TracebackType | None = ...,
+    ) -> None:
+        """close the genome fasta (if one was opened)"""
         ...

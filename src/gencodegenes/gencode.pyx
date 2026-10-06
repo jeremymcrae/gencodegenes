@@ -79,8 +79,6 @@ cpdef _open_gencode(gtf_path, coding_only=True):
         transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.is_canonical))
     return transcripts
 
-__genome_ = None
-
 cdef class Gene:
     cdef string _symbol
     cdef vector[Tx] _transcripts
@@ -88,6 +86,7 @@ cdef class Gene:
     cdef str _chrom
     cdef int _start, _end
     cdef vector[string] _alternate_ids
+    cdef object _genome  # pyfaidx Fasta shared with the parent Gencode, or None
     def __cinit__(self, symbol, alt_ids=None):
         if isinstance(symbol, str):
             symbol = symbol.encode('utf8')
@@ -169,12 +168,12 @@ cdef class Gene:
         
         # if the transcript lacks a genomic sequence, pull one from the genome
         # fasta (if available), matching the transcript's strand orientation
-        if tx.get_genomic_sequence().size() == 0 and __genome_ is not None:
+        if tx.get_genomic_sequence().size() == 0 and self._genome is not None:
             offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
             chrom = tx.get_chrom().decode('utf8')
             start = tx.get_start()
             end = tx.get_end()
-            seq = __genome_[chrom][start-1-offset:end-1+offset].seq.upper()
+            seq = self._genome[chrom][start-1-offset:end-1+offset].seq.upper()
             if chr(tx.get_strand()) == '-':
                 seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
             transcript.genomic_offset = offset
@@ -286,6 +285,7 @@ cdef class Gene:
 cdef class Gencode:
     cdef dict genes
     cdef map[string, vector[GenePoint]] starts, ends
+    cdef object _genome
     def __cinit__(self, gencode=None, fasta=None, coding_only=True):
         ''' initialise Gencode
         
@@ -299,10 +299,10 @@ cdef class Gencode:
         if fasta is not None and not Path(fasta).exists():
             raise ValueError(f'cannot find fasta at: {fasta}')
         self.genes = {}
+        self._genome = None
         if fasta:
             logging.info(f'opening genome fasta: {fasta}')
-            global __genome_
-            __genome_ = Fasta(str(fasta))
+            self._genome = Fasta(str(fasta))
         logging.info(f'opening gencode annotations: {gencode}')
         cdef vector[NamedTx] transcripts
         cdef Gene curr
@@ -311,7 +311,9 @@ cdef class Gencode:
             for x in transcripts:
                 symbol = x.symbol.decode('utf8')
                 if symbol not in self.genes:
-                    self.genes[symbol] = Gene(symbol.encode('utf8'), x.alternate_ids)
+                    curr = Gene(symbol.encode('utf8'), x.alternate_ids)
+                    curr._genome = self._genome
+                    self.genes[symbol] = curr
                 curr = self.genes[symbol]
                 curr.add_tx(x.tx, x.is_canonical)
                 self.genes[symbol] = curr
@@ -352,12 +354,14 @@ cdef class Gencode:
         for x in self.genes:
             yield x
     
-    def add_gene(self, gene):
+    def add_gene(self, Gene gene):
         ''' add another gene to the Gencode object
         '''
         if gene.chrom is None:
             raise ValueError(f'cannot add gene without transcripts: {gene.symbol}')
         if gene.symbol not in self.genes:
+            if gene._genome is None:
+                gene._genome = self._genome
             self.genes[gene.symbol] = gene
         self._sort()
     
@@ -417,9 +421,11 @@ cdef class Gencode:
             self.ends, max_window)
         return [self[x.decode('utf8')] for x in symbols]
     
-    def __exit__(self):
-        ''' cleanup at exit
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type=None, exc_value=None, traceback=None):
+        ''' close the genome fasta (if one was opened)
         '''
-        global __genome_
-        __genome_.close()
-        __genome_ = None
+        if self._genome is not None:
+            self._genome.close()

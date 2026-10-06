@@ -50,6 +50,28 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(KeyError):
             gencode['ZZZZZZZ']
     
+    def test_gencode_genome(self):
+        ''' test each Gencode uses its own genome fasta, and closes it on exit
+        '''
+        with Gencode(self.gtf_path, self.fasta_path) as gencode:
+            seq = gencode['OR4F5'].canonical.genomic_sequence
+        self.assertEqual(len(seq), 927)
+        
+        # exiting without a fasta is fine
+        with Gencode(self.gtf_path) as gencode:
+            pass
+        gencode.__exit__()
+        
+        # genomes aren't shared between Gencode objects
+        with open(self.temp_fasta_path, 'wt') as output:
+            output.write('>chr1\n' + ('A' * 60 + '\n') * 1200)
+        real = Gencode(self.gtf_path, self.fasta_path)
+        poly_a = Gencode(self.gtf_path, self.temp_fasta_path)
+        no_fasta = Gencode(self.gtf_path)
+        self.assertEqual(real['OR4F5'].canonical.genomic_sequence, seq)
+        self.assertEqual(poly_a['OR4F5'].canonical.genomic_sequence, 'A' * 927)
+        self.assertEqual(no_fasta['OR4F5'].canonical.genomic_sequence, '')
+    
     def test_gene_alternate_ids(self):
         ''' test Gene accepts alternate IDs as str, list of str, or bytes
         '''
