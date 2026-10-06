@@ -282,7 +282,7 @@ bool GTF::next(GTFLine &info) {
         if (!line.empty() && line.back() == '\r') {
             line.pop_back();
         }
-        if (line.find_first_not_of(" \t") == std::string::npos || line[0] == '#') {
+        if (line.find_first_not_of(" \t\r") == std::string::npos || line[0] == '#') {
             continue;
         }
         info = parse_gtfline(line);

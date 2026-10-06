@@ -754,6 +754,7 @@ class TestGencode(unittest.TestCase):
                 '\n' \
                 '# a comment\n' \
                 '\r\n' \
+                '\r\r\n' \
                 'chr1\tHAVANA\ttranscript\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
                 'chr1\tHAVANA\texon\t10\t30\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
                 '\n'
