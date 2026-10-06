@@ -45,9 +45,9 @@ cdef extern from "tx.h" namespace "gencode":
         int get_cds_start()
         int get_cds_end()
         
-        bool is_exonic(int)
+        bool is_exonic(int) except +
         int closest_exon_num(int)
-        Region get_closest_exon(int)
+        Region get_closest_exon(int) except +
         bool in_coding_region(int)
         CDS_coords to_closest_exon(int, Region)
         CDS_coords get_coding_distance(int) except +

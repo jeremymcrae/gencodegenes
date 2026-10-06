@@ -270,6 +270,15 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_closest_exon(2001), exon_2)
         self.assertEqual(self.gene.get_closest_exon(10000), exon_2)
     
+    def test_exon_lookups_without_exons(self):
+        """ check exon lookups raise ValueError if the transcript lacks exons
+        """
+        tx = Transcript('TEST', '1', 1000, 2000, '+')
+        with self.assertRaises(ValueError):
+            tx.in_exons(1100)
+        with self.assertRaises(ValueError):
+            tx.get_closest_exon(1100)
+    
     def test_in_coding_region(self):
         """ test that in_coding_region() works correctly
         """
