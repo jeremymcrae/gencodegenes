@@ -57,13 +57,14 @@ cdef class Transcript:
                 _attributes[key.encode('utf8')] = value.encode('utf8')
         self.thisptr = new Tx(name, chrom, start, end, ord(strand), transcript_type, _attributes)
         
-        if exons is not None and cds is not None:
+        if exons is not None:
             self.exons = exons
+        if cds is not None:
             self.cds = cds
-            
-            self.genomic_offset = offset
-            if sequence is not None:
-                self.genomic_sequence = sequence
+        
+        self.genomic_offset = offset
+        if sequence is not None:
+            self.genomic_sequence = sequence
     
     def __dealloc__(self):
         del self.thisptr

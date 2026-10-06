@@ -270,6 +270,20 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_closest_exon(2001), exon_2)
         self.assertEqual(self.gene.get_closest_exon(10000), exon_2)
     
+    def test_construct_without_cds(self):
+        """ check exons, offset and sequence are kept when constructed without CDS
+        """
+        tx = Transcript('TEST', '1', 1, 10, '+', exons=[(1, 10)],
+            sequence='AACCGGTTAACCGG', offset=2)
+        self.assertEqual(tx.exons, [{'start': 1, 'end': 10}])
+        self.assertEqual(tx.cds, [])
+        self.assertEqual(tx.genomic_offset, 2)
+        self.assertEqual(tx.genomic_sequence, 'AACCGGTTAACCGG')
+        
+        # a lone CDS still needs exons, unless the CDS fits within the transcript
+        with self.assertRaises(ValueError):
+            Transcript('TEST', '1', 1, 10, '+', cds=[(1, 5), (7, 10)])
+    
     def test_exon_lookups_without_exons(self):
         """ check exon lookups raise ValueError if the transcript lacks exons
         """
