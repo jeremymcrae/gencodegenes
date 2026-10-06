@@ -1,6 +1,9 @@
 
 #include <algorithm>
+#include <cerrno>
+#include <climits>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -193,6 +196,25 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset, 
     }
 }
 
+// parse an integer field from a GTF line, without allocating a substring
+//
+// @param line GTF line
+// @param start position where the field starts
+// @param end position where the field ends (the following tab)
+static int parse_int(const std::string &line, size_t start, size_t end) {
+    const char * first = line.c_str() + start;
+    char * last;
+    errno = 0;
+    long value = std::strtol(first, &last, 10);
+    if (last == first || last > line.c_str() + end) {
+        throw std::invalid_argument("invalid position in GTF line: " + line);
+    }
+    if (errno == ERANGE || value > INT_MAX || value < INT_MIN) {
+        throw std::out_of_range("position out of range in GTF line: " + line);
+    }
+    return (int) value;
+}
+
 // parse required fields from a GTF line
 //
 // @param line GTF line (without line ending)
@@ -218,8 +240,8 @@ GTFLine parse_gtfline(std::string & line, bool all_fields) {
 
     info.chrom = line.substr(0, tabs[0]);
     info.feature = line.substr(tabs[1] + 1, tabs[2] - tabs[1] - 1);
-    info.start = std::stoi(line.substr(tabs[2] + 1, tabs[3] - tabs[2] - 1));
-    info.end = std::stoi(line.substr(tabs[3] + 1, tabs[4] - tabs[3] - 1));
+    info.start = parse_int(line, tabs[2] + 1, tabs[3]);
+    info.end = parse_int(line, tabs[3] + 1, tabs[4]);
     info.strand = line.substr(tabs[5] + 1, tabs[6] - tabs[5] - 1);
 
     get_attributes_fields(info, line, tabs[7] + 1, all_fields);

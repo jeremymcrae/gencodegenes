@@ -724,6 +724,22 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(ValueError):
             _parse_gtfline(b'chr1\tHAVANA\tCDS\t70006\t70008\n')
     
+    def test_parse_gtf_positions(self):
+        '''test start and end positions are parsed, and bad positions raise errors
+        '''
+        def parse(start, end):
+            line = f'chr1\t.\texon\t{start}\t{end}\t.\t+\t.\ttranscript_id "ENST_A";'
+            obj = _parse_gtfline(line.encode('utf8'))
+            return obj['start'], obj['end']
+        
+        self.assertEqual(parse('1', '2147483647'), (1, 2147483647))
+        self.assertEqual(parse(' 10', '20'), (10, 20))
+        for start, end in [('', '20'), ('10', ''), ('abc', '20'), ('10', 'x')]:
+            with self.assertRaises(ValueError):
+                parse(start, end)
+        with self.assertRaises(IndexError):
+            parse('10', '2147483648')
+    
     def test__open_gencode_multi_gene(self):
         '''test we can parse a GTF with multiple genes
         '''
