@@ -436,12 +436,12 @@ void Tx::add_genomic_sequence(std::string gdna) {
     }
     
     // don't check the CDS matches expectations if the CDS sequence isn't set
-    if (cds_sequence == "") { cds_sequence = cds_seq; return ; }
-    
-    // do a sanity check to check that we've got the right cds sequence, this
-    // fails for at least one gene (CCDC18), which begins with a N, and
-    // throws the coordinates off
-    if (cds_seq != cds_sequence) {
+    if (cds_sequence == "") {
+        cds_sequence = cds_seq;
+    } else if (cds_seq != cds_sequence) {
+        // do a sanity check to check that we've got the right cds sequence, this
+        // fails for at least one gene (CCDC18), which begins with a N, and
+        // throws the coordinates off
         std::string msg = "Coding sequence from gene coordinates doesn't match "
             "coding sequence obtained from Ensembl.\nTranscript:" + get_name() +
             "\n" + cds_seq + "\n\nshould be\n" + cds_sequence + "\n";
@@ -467,23 +467,33 @@ void Tx::add_genomic_sequence(std::string gdna) {
 //
 // We simply extend the coding sequence 1-2 bases to make a complete codon.
 void Tx::_fix_cds_length() {
+    if (cds.empty()) {
+        return;
+    }
     int diff = cds_sequence.size() % 3;
     int end = get_cds_end();
 
     size_t last = cds.size() - 1;
 
+    // genomic_sequence is stored in + strand orientation, so the extra bases
+    // come from just past the 3' CDS end on the + strand, or just before it
+    // (then reverse complemented) on the - strand
     if (diff != 0) {
         diff = 3 - diff;
         
-        char fwd = '+';
-        if (get_strand() == fwd) {
+        bool fwd = get_strand() == '+';
+        int start_bp = (fwd ? end + 1 : end - diff) - get_start() + gdna_offset;
+        if (start_bp < 0 || start_bp + diff > (int) genomic_sequence.size()) {
+            // the genomic sequence doesn't extend far enough to complete the codon
+            return;
+        }
+        
+        if (fwd) {
             cds[last] = Region {cds[last].start, cds[last].end + diff};
-            int start_bp = std::abs(end - get_start()) + gdna_offset;
             cds_sequence += genomic_sequence.substr(start_bp, diff);
         } else {
             cds[0] = Region {cds[0].start - diff, cds[0].end};
-            int start_bp = std::abs(get_end() - end) + gdna_offset;
-            cds_sequence += genomic_sequence.substr(start_bp, diff);
+            cds_sequence += reverse_complement(genomic_sequence.substr(start_bp, diff));
         }
     }
     

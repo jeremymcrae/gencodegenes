@@ -133,6 +133,29 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.gene.genomic_sequence = gdna
         self.assertEqual(self.gene.cds_sequence, "AGGCTT")
     
+    def test_genomic_sequence_incomplete_cds(self):
+        """ check a CDS that isn't a multiple of 3 is extended to a full codon
+        """
+        # 10 bp CDS on the + strand gains the 2 bases after the CDS end
+        self.gene = self.construct_gene(start=1, end=20, exons=[(1, 20)], cds=[(3, 12)])
+        self.gene.genomic_sequence = 'ACGTTGCAGGATCCAATGCA'
+        self.assertEqual(self.gene.cds_sequence, 'GTTGCAGGATCC')
+        self.assertEqual(self.gene.cds, [{'start': 3, 'end': 14}])
+        
+        # setting the same sequence again matches the extended CDS
+        self.gene.genomic_sequence = 'ACGTTGCAGGATCCAATGCA'
+        self.assertEqual(self.gene.cds_sequence, 'GTTGCAGGATCC')
+        
+        # 10 bp CDS on the - strand gains the 2 bases before the CDS end
+        self.gene = self.construct_gene(start=1, end=20, exons=[(1, 20)],
+            cds=[(9, 18)], strand='-')
+        self.gene.genomic_sequence = 'TGCATTGGATCCTGCAACGT'
+        self.assertEqual(self.gene.cds_sequence, 'CATTGGATCCTG')
+        self.assertEqual(self.gene.cds, [{'start': 7, 'end': 18}])
+        
+        self.gene.genomic_sequence = 'TGCATTGGATCCTGCAACGT'
+        self.assertEqual(self.gene.cds_sequence, 'CATTGGATCCTG')
+    
     def test_get_centered_sequence(self):
         """ test that get_centered_sequence() works correctly
         """
