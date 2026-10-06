@@ -16,32 +16,36 @@
 
 namespace gencode {
 
-// trims characters from either end of a string.
-//
-// This operates on a selected range of a GTF line, in a portion where we have 
-// identified a value to extract. This avoids creating extra string objects and 
-// redundantly running substr.
-//
-// @param s string for a full GTF line (without line-ending though)
-// @param vals string of characters to drop from either end
-// @param start position where the substring starts
-// @param end position where the substring ends
-std::string trim(const std::string &s, const std::string &vals, size_t start, size_t end) {
-    start = s.find_first_not_of(vals, start);
-    if (start >= end) {
-        return "";
-    }
-    end = s.find_last_not_of(vals, end);
-    return s.substr(start, (end + 1) - start);
-}
-
 const std::string tx_id_key = "transcript_id";
 const std::string type_key = "transcript_type";
 const std::string biotype_key = "transcript_biotype";
 const std::string gene_id_key = "gene_id";
 const std::string gene_name_key = "gene_name";
 const std::string hgnc_id_key = "hgnc_id";
-const std::string trim_chars = ";= \"";
+
+static inline bool is_trim_char(char c) {
+    return c == ';' || c == '=' || c == ' ' || c == '"';
+}
+
+// trims separator, space and quote characters from either end of a range.
+//
+// This operates on a selected range of a GTF line, in a portion where we have 
+// identified a value to extract. This avoids creating extra string objects and 
+// redundantly running substr.
+//
+// @param s string for a full GTF line (without line-ending though)
+// @param start position where the substring starts
+// @param end position where the substring ends (exclusive, may be npos)
+static std::string trim(const std::string &s, size_t start, size_t end) {
+    end = std::min(end, s.size());
+    while (start < end && is_trim_char(s[start])) {
+        start++;
+    }
+    while (end > start && is_trim_char(s[end - 1])) {
+        end--;
+    }
+    return s.substr(start, end - start);
+}
 
 // parse the full attributes field into a key/value map
 //
@@ -92,7 +96,7 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
         if (key_end == std::string::npos || key_end > sep) {
             // a bare key with no value: keep it as a key with an empty value, so
             // downstream code can probe for the presence of such keys
-            std::string bare_key = trim(line, trim_chars, key_start, sep);
+            std::string bare_key = trim(line, key_start, sep);
             if (!bare_key.empty()) {
                 attributes.emplace(std::move(bare_key), "");
             }
@@ -101,7 +105,7 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
         }
 
         std::string key = line.substr(key_start, key_end - key_start);
-        std::string value = trim(line, trim_chars, key_end, sep);
+        std::string value = trim(line, key_end, sep);
 
         auto it = attributes.find(key);
         if (it == attributes.end()) {
@@ -117,10 +121,6 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
     return attributes;
 }
 
-// parse the required fields from the attributes field
-//
-// @param all_fields whether to parse the gene fields and attributes map on lines
-//     other than "transcript" lines
 // find the value for an attribute key, matching whole keys only (so "transcript_id"
 // doesn't match "havana_transcript_id", or "transcript_type" inside a value)
 //
@@ -131,13 +131,17 @@ static std::string find_attribute(const std::string &line, const std::string &ke
         size_t end = pos + key.size();
         bool at_start = pos == offset || line[pos - 1] == ' ' || line[pos - 1] == ';' || line[pos - 1] == '\t';
         if (at_start && end < line.size() && (line[end] == ' ' || line[end] == '=')) {
-            return trim(line, trim_chars, end, line.find(';', end));
+            return trim(line, end, line.find(';', end));
         }
         pos = end;
     }
     return "";
 }
 
+// parse the required fields from the attributes field
+//
+// @param all_fields whether to parse the gene fields and attributes map on lines
+//     other than "transcript" lines
 static void get_attributes_fields(GTFLine &info, std::string &line, int offset, bool all_fields) {
     // tx_id and transcript_type are read for every permitted GTF line in
     // load_transcripts (for transcript-boundary detection and the coding-only
