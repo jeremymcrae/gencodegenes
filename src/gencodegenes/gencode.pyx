@@ -318,6 +318,8 @@ cdef class Gencode:
     def _sort(self):
         ''' index by starts and ends, to speed finding genes in a region
         '''
+        self.starts.clear()
+        self.ends.clear()
         for symbol in self.genes:
             gene = self.genes[symbol]
             chrom = gene.chrom.encode('utf8')
@@ -351,6 +353,8 @@ cdef class Gencode:
     def add_gene(self, gene):
         ''' add another gene to the Gencode object
         '''
+        if gene.chrom is None:
+            raise ValueError(f'cannot add gene without transcripts: {gene.symbol}')
         if gene.symbol not in self.genes:
             self.genes[gene.symbol] = gene
         self._sort()

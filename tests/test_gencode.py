@@ -3,7 +3,8 @@ from pathlib import Path
 import unittest
 import tempfile
 
-from gencodegenes.gencode import Gencode, _parse_gtfline, _open_gencode
+from gencodegenes.gencode import Gencode, Gene, _parse_gtfline, _open_gencode
+from gencodegenes.transcript import Transcript
 
 def write_gtf(path, lines):
     with open(path, 'wt') as output:
@@ -48,6 +49,23 @@ class TestGencode(unittest.TestCase):
         gene = gencode['OR4F5']
         with self.assertRaises(KeyError):
             gencode['ZZZZZZZ']
+    
+    def test_gencode_add_gene(self):
+        ''' test adding genes doesn't duplicate genes in the region index
+        '''
+        gencode = Gencode(self.gtf_path)
+        gene = Gene('NEW')
+        gene.add_transcript(Transcript('ENST_NEW', 'chr1', 500000, 501000, '+',
+            exons=[(500000, 501000)], cds=[(500000, 501000)]))
+        gencode.add_gene(gene)
+        gencode.add_gene(gene)
+        
+        self.assertEqual([x.symbol for x in gencode.in_region('chr1', 69000, 70100)], ['OR4F5'])
+        self.assertEqual([x.symbol for x in gencode.in_region('chr1', 500500, 500600)], ['NEW'])
+        
+        # genes without transcripts lack coordinates, so can't be indexed
+        with self.assertRaises(ValueError):
+            gencode.add_gene(Gene('EMPTY'))
     
     def test_gencode_in_region(self):
         ''' test that in_region pulls out the correct genes
