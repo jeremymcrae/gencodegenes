@@ -183,10 +183,10 @@ static void get_attributes_fields(GTFLine &info, std::string &line, int offset) 
         // values are joined into a single comma-separated string by parse_attributes)
         auto tag_it = info.attributes.find("tag");
         if (tag_it != info.attributes.end()) {
-            if (tag_it->second.find("appris_principal") != std::string::npos) {
-                info.is_canonical = 5;
-            } else if (tag_it->second.find("Ensembl_canonical") != std::string::npos) {
+            if (tag_it->second.find("Ensembl_canonical") != std::string::npos) {
                 info.is_canonical = 10;
+            } else if (tag_it->second.find("appris_principal") != std::string::npos) {
+                info.is_canonical = 5;
             }
         }
     }
