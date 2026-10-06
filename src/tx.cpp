@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <iostream>
 #include <unordered_map>
+#include <utility>
 
 #include "tx.h"
 
@@ -50,23 +51,39 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
     attributes = _attributes;
 }
 
+static bool compare_regions(const Region & a, const Region & b) {
+    return a.start < b.start || (a.start == b.start && a.end < b.end);
+}
+
+static std::vector<Region> to_regions(const std::vector<std::vector<int>> & ranges) {
+    std::vector<Region> regions;
+    regions.reserve(ranges.size());
+    for (auto & range : ranges) {
+        regions.push_back(Region {range[0], range[1]});
+    }
+    return regions;
+}
+
 // set exon ranges to the class object
 //
 // @param exon_ranges list of lists e.g. [[5, 10], [20, 30]]
 void Tx::set_exons(std::vector<std::vector<int>> exon_ranges) {
-    exons.clear();
-    std::sort(exon_ranges.begin(), exon_ranges.end());
-    
-    for (auto range : exon_ranges) {
-        Region region {range[0], range[1]};
-        exons.push_back(region);
-    }
+    set_exons(to_regions(exon_ranges));
+}
+
+void Tx::set_exons(std::vector<Region> exon_ranges) {
+    std::sort(exon_ranges.begin(), exon_ranges.end(), compare_regions);
+    exons = std::move(exon_ranges);
 }
 
 // set CDS ranges to the class object
 //
 // @param cds_ranges nested vector of ints e.g. [[5, 10], [20, 30]]
 void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
+    set_cds(to_regions(cds_ranges));
+}
+
+void Tx::set_cds(std::vector<Region> cds_ranges) {
    cds.clear();
    
    if (cds_ranges.size() == 0) {
@@ -78,9 +95,9 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
     // single exon, using the transcript start and end. This prevents issues
     // when adding the CDS coordinates for the transcript.
     if ( exons.empty() ) {
-        std::vector<int> exon = cds_ranges[0];
-        if (cds_ranges.size() == 1 && std::min(exon[0], exon[1]) >= tx_start \
-                && std::max(exon[0], exon[1]) <= tx_end) {
+        Region exon = cds_ranges[0];
+        if (cds_ranges.size() == 1 && std::min(exon.start, exon.end) >= tx_start \
+                && std::max(exon.start, exon.end) <= tx_end) {
             Region region {tx_start, tx_end};
             exons.push_back(region);
         } else {
@@ -89,12 +106,8 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
         }
     }
     
-    std::sort(cds_ranges.begin(), cds_ranges.end());
-    
-    for (auto range : cds_ranges) {
-        Region region {range[0], range[1]};
-        cds.push_back(region);
-    }
+    std::sort(cds_ranges.begin(), cds_ranges.end(), compare_regions);
+    cds = std::move(cds_ranges);
     
     if (cds.size() == 0) {
         // no subsequent adjustments for transcripts without CDS

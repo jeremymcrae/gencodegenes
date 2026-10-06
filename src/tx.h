@@ -63,7 +63,9 @@ class Tx {
         std::map<std::string, std::string> _attributes);
     Tx() {}
     void set_exons(std::vector<std::vector<int>> exon_ranges);
+    void set_exons(std::vector<Region> exon_ranges);
     void set_cds(std::vector<std::vector<int>> cds_ranges);
+    void set_cds(std::vector<Region> cds_ranges);
     Region fix_cds_boundary(int position);
     
     std::vector<Region> get_exons() { return exons; }

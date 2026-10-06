@@ -19,18 +19,18 @@
 namespace gencode {
 
 // check which exon is first, by start position
-static bool compareExons(const std::vector<int> & e1, const std::vector<int> & e2) {
-    return (e1[0] < e2[0]);
+static bool compareExons(const Region & e1, const Region & e2) {
+    return (e1.start < e2.start);
 }
 
-static void sort_exons(std::vector<std::vector<int> > & exons) {
+static void sort_exons(std::vector<Region> & exons) {
     std::sort(exons.begin(), exons.end(), compareExons);
 }
 
 // find the index of the exon containing a given chromosome position
-static std::uint32_t get_exon_num(const std::vector<std::vector<int> > & exons, int pos) {
+static std::uint32_t get_exon_num(const std::vector<Region> & exons, int pos) {
     for (std::uint32_t i=0; i<exons.size(); i++) {
-        if ((pos >= exons[i][0]) && (pos <= exons[i][1])) {
+        if ((pos >= exons[i].start) && (pos <= exons[i].end)) {
             return i;
         }
     }
@@ -54,26 +54,23 @@ static void include_end_codons(const std::map<std::string, int> & cds_range, TxI
     int cds_max = cds_range.at("max");
 
     // handle left (5') boundary
-    std::uint32_t first_idx = get_exon_num(info.exons, info.cds[0][0]);
+    std::uint32_t first_idx = get_exon_num(info.exons, info.cds[0].start);
     std::uint32_t min_idx = get_exon_num(info.exons, cds_min);
     if (min_idx == first_idx) {
-        info.cds[0][0] = cds_min;
+        info.cds[0].start = cds_min;
     } else {
-        info.cds[0][0] = info.exons[first_idx][0];  // extend existing CDS
-        std::vector<int> extra_cds = {cds_min, info.exons[min_idx][1]};
-        auto it = info.cds.begin();
-        info.cds.insert(it, extra_cds);
+        info.cds[0].start = info.exons[first_idx].start;  // extend existing CDS
+        info.cds.insert(info.cds.begin(), Region {cds_min, info.exons[min_idx].end});
     }
 
     // handle right (3') boundary
-    std::uint32_t last_idx = get_exon_num(info.exons, info.cds.back()[1]);
+    std::uint32_t last_idx = get_exon_num(info.exons, info.cds.back().end);
     std::uint32_t max_idx = get_exon_num(info.exons, cds_max);
     if (max_idx == last_idx) {
-        info.cds.back()[1] = cds_max;
+        info.cds.back().end = cds_max;
     } else {
-        info.cds.back()[1] = info.exons[last_idx][1];  // extend existing CDS
-        std::vector<int> extra_cds = {info.exons[max_idx][0], cds_max};
-        info.cds.push_back(extra_cds);
+        info.cds.back().end = info.exons[last_idx].end;  // extend existing CDS
+        info.cds.push_back(Region {info.exons[max_idx].start, cds_max});
     }
 }
 
@@ -85,8 +82,8 @@ static void set_span(TxInfo & info) {
     bool first = true;
     for (auto regions : {&info.exons, &info.cds}) {
         for (auto & x : *regions) {
-            info.start = first ? x[0] : std::min(info.start, x[0]);
-            info.end = first ? x[1] : std::max(info.end, x[1]);
+            info.start = first ? x.start : std::min(info.start, x.start);
+            info.end = first ? x.end : std::max(info.end, x.end);
             first = false;
         }
     }
@@ -106,8 +103,8 @@ static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
         set_span(info);
         Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0],
             info.transcript_type, info.attributes);
-        tx.set_exons(info.exons);
-        tx.set_cds(info.cds);
+        tx.set_exons(std::move(info.exons));
+        tx.set_cds(std::move(info.cds));
         transcripts.push_back({std::move(symbol), std::move(alt_ids), std::move(tx), info.is_canonical});
     } catch (const std::invalid_argument & e) {
         std::cerr << "skipping transcript " << info.name << ": " << e.what() << std::endl;
@@ -203,11 +200,11 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, 
             info.end = gtf.end;
             info.attributes = std::move(gtf.attributes);
         } else if (gtf.feature == "CDS") {
-            info.cds.push_back(std::vector<int> {gtf.start, gtf.end});
+            info.cds.push_back(Region {gtf.start, gtf.end});
             cds_range["max"] = std::max(std::max(cds_range["max"], gtf.start), gtf.end);
             cds_range["min"] = std::min(std::min(cds_range["min"], gtf.start), gtf.end);
         } else if (gtf.feature == "exon") {
-            info.exons.push_back(std::vector<int> {gtf.start, gtf.end});
+            info.exons.push_back(Region {gtf.start, gtf.end});
         } else if ((gtf.feature == "stop_codon") || (gtf.feature == "start_codon")) {
             cds_range["max"] = std::max(std::max(cds_range["max"], gtf.start), gtf.end);
             cds_range["min"] = std::min(std::min(cds_range["min"], gtf.start), gtf.end);

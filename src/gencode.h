@@ -21,8 +21,8 @@ struct TxInfo {
     int end = 0;
     std::string strand;
     std::string transcript_type;
-    std::vector<std::vector<int> > exons;
-    std::vector<std::vector<int> > cds;
+    std::vector<Region> exons;
+    std::vector<Region> cds;
     int offset = 0;
     int is_canonical = 0;
     std::map<std::string, std::string> attributes;
