@@ -192,6 +192,32 @@ class TestGencode(unittest.TestCase):
         
         del gencode
     
+    def test_gencode_chrom_prefix(self):
+        ''' test region lookups work whether or not chromosomes have a chr prefix
+        '''
+        lines = ['##format: gtf\n',
+                '1\tHAVANA\ttranscript\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                '1\tHAVANA\texon\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                '1\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
+                'chr2\tHAVANA\ttranscript\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n',
+                'chr2\tHAVANA\texon\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n',
+                'chr2\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n']
+        
+        write_gtf(self.temp_gtf_path, lines)
+        gencode = Gencode(self.temp_gtf_path)
+        
+        for chrom in ['1', 'chr1']:
+            self.assertEqual([x.symbol for x in gencode.in_region(chrom, 5, 15)], ['TEST1'])
+            self.assertEqual(gencode.nearest(chrom, 100).symbol, 'TEST1')
+        for chrom in ['2', 'chr2']:
+            self.assertEqual([x.symbol for x in gencode.in_region(chrom, 5, 15)], ['TEST2'])
+            self.assertEqual(gencode.nearest(chrom, 100).symbol, 'TEST2')
+        
+        with self.assertRaises(ValueError):
+            gencode.in_region('3', 5, 15)
+        with self.assertRaises(ValueError):
+            gencode.nearest('chr3', 100)
+    
     def test_gencode_canonical(self):
         ''' test we find the correct canonical transcript
         '''

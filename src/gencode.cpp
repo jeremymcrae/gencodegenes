@@ -177,10 +177,6 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
         std::map<std::string, std::vector<GenePoint>> & ends,
         int max_window=2500000) {
     
-    if (chrom.size() < 3 || chrom.substr(0, 3) != "chr") {
-        chrom.insert(0, "chr");
-    }
-    
     if (starts.count(chrom) == 0) {
         throw std::invalid_argument("unknown_chrom: " + chrom);
     }

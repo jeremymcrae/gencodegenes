@@ -368,8 +368,8 @@ cdef class Gencode:
     def nearest(self, str chrom, int pos):
         ''' find the nearest gene to a genomic chrom, pos coordinate
         '''
-        chrom = f'chr{chrom}' if not chrom.startswith('chr') else chrom
-        _chrom = chrom.encode('utf8')
+        _chrom = self._match_chrom(chrom)
+        chrom = _chrom.decode('utf8')
         
         # first, account for any overlapping genes
         overlaps = self.in_region(chrom, pos-1, pos+1)  # NOTE: possibly fix?
@@ -417,9 +417,20 @@ cdef class Gencode:
         Returns:
             list of Gene objects
         '''
-        symbols = _in_region(_chrom.encode('utf8'), start, end, self.starts,
+        symbols = _in_region(self._match_chrom(_chrom), start, end, self.starts,
             self.ends, max_window)
         return [self[x.decode('utf8')] for x in symbols]
+    
+    cdef bytes _match_chrom(self, str chrom):
+        ''' find the chromosome name used in the annotations, allowing for
+        differences in the 'chr' prefix (e.g. 'chr1' vs '1')
+        '''
+        alternate = chrom[3:] if chrom.startswith('chr') else f'chr{chrom}'
+        for name in [chrom, alternate]:
+            key = name.encode('utf8')
+            if self.starts.count(key) > 0:
+                return key
+        raise ValueError(f'unknown_chrom: {chrom}')
     
     def __enter__(self):
         return self
