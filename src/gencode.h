@@ -1,32 +1,13 @@
 #ifndef GENCODEGENES_GENCODE_H_
 #define GENCODEGENES_GENCODE_H_
 
-#include <cstdint>
-#include <fstream>
 #include <string>
 #include <map>
 #include <vector>
-#include <set>
 
-#include "gtf.h"
 #include "tx.h"
 
 namespace gencode {
-
-// collects info for a transcript, so we can later construct a Tx object
-struct TxInfo {
-    std::string name = "";
-    std::string chrom;
-    int start = 0;
-    int end = 0;
-    std::string strand;
-    std::string transcript_type;
-    std::vector<Region> exons;
-    std::vector<Region> cds;
-    int offset = 0;
-    int is_canonical = 0;
-    std::map<std::string, std::string> attributes;
-};
 
 // stores HGNC symbol with the transcript, so we can collect transcripts by gene
 struct NamedTx {
@@ -53,4 +34,3 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
 } // namespace
 
 #endif // GENCODEGENES_GENCODE_H_
-

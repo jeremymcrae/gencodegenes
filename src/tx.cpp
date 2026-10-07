@@ -37,9 +37,9 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
     int start_pos, int end_pos, char strand, std::string _transcript_type="protein_coding",
     std::map<std::string, std::string> _attributes={}) {
     
-    name = transcript_id;
+    name = std::move(transcript_id);
     
-    chrom = chromosome;
+    chrom = std::move(chromosome);
     tx_start = start_pos;
     tx_end = end_pos;
     
@@ -47,8 +47,8 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
         throw std::invalid_argument( "unknown strand type" );
     }
     tx_strand = strand;
-    transcript_type = _transcript_type;
-    attributes = _attributes;
+    transcript_type = std::move(_transcript_type);
+    attributes = std::move(_attributes);
 }
 
 static bool compare_regions(const Region & a, const Region & b) {

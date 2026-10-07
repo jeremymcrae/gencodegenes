@@ -1,16 +1,16 @@
 
 #include <algorithm>
-#include <cstdint>
+#include <climits>
+#include <cstdlib>
 #include <deque>
-#include <string>
+#include <iostream>
 #include <map>
-#include <set>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
-
-#include <iostream>
 
 #include "gtf.h"
 #include "tx.h"
@@ -18,18 +18,28 @@
 
 namespace gencode {
 
-// check which exon is first, by start position
-static bool compareExons(const Region & e1, const Region & e2) {
-    return (e1.start < e2.start);
-}
-
-static void sort_exons(std::vector<Region> & exons) {
-    std::sort(exons.begin(), exons.end(), compareExons);
-}
+// features collected for a transcript while loading the GTF, to construct a Tx
+struct TxInfo {
+    std::string name;
+    std::string chrom;
+    int start = 0;
+    int end = 0;
+    char strand;
+    std::string transcript_type;
+    std::vector<Region> exons;
+    std::vector<Region> cds;
+    // CDS range, including the start and stop codons
+    int cds_min = INT_MAX;
+    int cds_max = 0;
+    int is_canonical = 0;
+    std::string symbol;
+    std::vector<std::string> alt_ids;
+    std::map<std::string, std::string> attributes;
+};
 
 // find the index of the exon containing a given chromosome position
-static std::uint32_t get_exon_num(const std::vector<Region> & exons, int pos) {
-    for (std::uint32_t i=0; i<exons.size(); i++) {
+static size_t get_exon_num(const std::vector<Region> & exons, int pos) {
+    for (size_t i = 0; i < exons.size(); i++) {
         if ((pos >= exons[i].start) && (pos <= exons[i].end)) {
             return i;
         }
@@ -40,37 +50,36 @@ static std::uint32_t get_exon_num(const std::vector<Region> & exons, int pos) {
 // adjust CDS coords for any end codon positions
 // 
 // the CDS might exclude the start codon and end codon from the CDS range
-// we have collected the start and end codon ends in cds_range. We can't
-// just set the first CDS coord and last CDS coord to their values though,
+// we have collected the start and end codon ends in cds_min and cds_max. We
+// can't just set the first CDS coord and last CDS coord to their values though,
 // as at least one stop codon spans an intron boundary, which messes up the
 // CDS if included as is.
-static void include_end_codons(const std::map<std::string, int> & cds_range, TxInfo & info) {
-    if (info.cds.size() == 0) {
+static void include_end_codons(TxInfo & info) {
+    if (info.cds.empty()) {
         return;
     }
-    sort_exons(info.cds);
-    sort_exons(info.exons);
-    int cds_min = cds_range.at("min");
-    int cds_max = cds_range.at("max");
+    auto by_start = [](const Region & a, const Region & b) { return a.start < b.start; };
+    std::sort(info.cds.begin(), info.cds.end(), by_start);
+    std::sort(info.exons.begin(), info.exons.end(), by_start);
 
     // handle left (5') boundary
-    std::uint32_t first_idx = get_exon_num(info.exons, info.cds[0].start);
-    std::uint32_t min_idx = get_exon_num(info.exons, cds_min);
+    size_t first_idx = get_exon_num(info.exons, info.cds[0].start);
+    size_t min_idx = get_exon_num(info.exons, info.cds_min);
     if (min_idx == first_idx) {
-        info.cds[0].start = cds_min;
+        info.cds[0].start = info.cds_min;
     } else {
         info.cds[0].start = info.exons[first_idx].start;  // extend existing CDS
-        info.cds.insert(info.cds.begin(), Region {cds_min, info.exons[min_idx].end});
+        info.cds.insert(info.cds.begin(), Region {info.cds_min, info.exons[min_idx].end});
     }
 
     // handle right (3') boundary
-    std::uint32_t last_idx = get_exon_num(info.exons, info.cds.back().end);
-    std::uint32_t max_idx = get_exon_num(info.exons, cds_max);
+    size_t last_idx = get_exon_num(info.exons, info.cds.back().end);
+    size_t max_idx = get_exon_num(info.exons, info.cds_max);
     if (max_idx == last_idx) {
-        info.cds.back().end = cds_max;
+        info.cds.back().end = info.cds_max;
     } else {
         info.cds.back().end = info.exons[last_idx].end;  // extend existing CDS
-        info.cds.push_back(Region {info.exons[max_idx].start, cds_max});
+        info.cds.push_back(Region {info.exons[max_idx].start, info.cds_max});
     }
 }
 
@@ -94,30 +103,20 @@ static void set_span(TxInfo & info) {
 // Transcripts with inconsistent coordinates (e.g. a stop codon outside the
 // exons) are skipped with a warning, so one malformed transcript doesn't stop
 // the rest of the GTF from loading.
-static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info,
-        std::map<std::string, int> & cds_range, std::string & symbol,
-        std::vector<std::string> & alt_ids) {
+static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info) {
     try {
-        // adjust CDS for start and stop codon coords
-        include_end_codons(cds_range, info);
+        include_end_codons(info);
         set_span(info);
-        Tx tx = Tx(info.name, info.chrom, info.start, info.end, info.strand[0],
-            info.transcript_type, info.attributes);
+        Tx tx(info.name, info.chrom, info.start, info.end, info.strand,
+            info.transcript_type, std::move(info.attributes));
         tx.set_exons(std::move(info.exons));
         tx.set_cds(std::move(info.cds));
-        transcripts.push_back({std::move(symbol), std::move(alt_ids), std::move(tx), info.is_canonical});
+        transcripts.push_back({std::move(info.symbol), std::move(info.alt_ids),
+            std::move(tx), info.is_canonical});
     } catch (const std::invalid_argument & e) {
         std::cerr << "skipping transcript " << info.name << ": " << e.what() << std::endl;
     }
 }
-
-// features collected for a transcript, while loading the GTF
-struct TxEntry {
-    TxInfo info;
-    std::map<std::string, int> cds_range = {{"max", 0}, {"min", 999999999}};
-    std::string symbol;
-    std::vector<std::string> alt_ids;
-};
 
 // build transcripts in the order they first appeared, freeing each entry once
 // its transcript is built
@@ -126,17 +125,57 @@ struct TxEntry {
 //     passes their end, as no further lines for them can follow in a
 //     position-sorted GTF. Use -1 to build all transcripts.
 static void build_transcripts(std::vector<NamedTx> & transcripts,
-        std::deque<TxEntry> & entries, std::unordered_map<std::string, TxEntry *> & index,
+        std::deque<TxInfo> & entries, std::unordered_map<std::string, TxInfo *> & index,
         int pos=-1) {
     while (!entries.empty()) {
-        TxEntry & x = entries.front();
-        if (pos != -1 && (x.info.end == 0 || pos <= x.info.end)) {
+        TxInfo & info = entries.front();
+        if (pos != -1 && (info.end == 0 || pos <= info.end)) {
             break;
         }
-        index.erase(x.info.name);
-        add_transcript(transcripts, x.info, x.cds_range, x.symbol, x.alt_ids);
+        index.erase(info.name);
+        add_transcript(transcripts, info);
         entries.pop_front();
     }
+}
+
+// find the entry for a GTF line's transcript, or start a new one from the line
+static TxInfo * get_entry(std::deque<TxInfo> & entries,
+        std::unordered_map<std::string, TxInfo *> & index, GTFLine & gtf) {
+    auto it = index.find(gtf.tx_id);
+    if (it != index.end()) {
+        return it->second;
+    }
+    entries.emplace_back();
+    TxInfo * info = &entries.back();
+    index[gtf.tx_id] = info;
+
+    info->name = gtf.tx_id;
+    info->chrom = gtf.chrom;
+    info->strand = gtf.strand[0];
+    info->is_canonical = gtf.is_canonical;
+    info->transcript_type = gtf.transcript_type;
+    info->symbol = gtf.symbol;
+    info->alt_ids = gtf.alternate_ids;
+    if (gtf.feature != "transcript") {
+        // without a transcript line, use the first line's attributes, minus the
+        // fields specific to that feature
+        info->attributes = std::move(gtf.attributes);
+        for (auto field : {"exon_number", "exon_id", "exon_version"}) {
+            info->attributes.erase(field);
+        }
+    }
+    return info;
+}
+
+enum class Feature { other, transcript, exon, cds, codon, utr };
+
+static Feature get_feature(const std::string & feature) {
+    if (feature == "exon") { return Feature::exon; }
+    if (feature == "CDS") { return Feature::cds; }
+    if (feature == "UTR") { return Feature::utr; }
+    if (feature == "transcript") { return Feature::transcript; }
+    if (feature == "start_codon" || feature == "stop_codon") { return Feature::codon; }
+    return Feature::other;
 }
 
 // collect all features for a transcript into a single object
@@ -146,68 +185,37 @@ static void build_transcripts(std::vector<NamedTx> & transcripts,
 // transcript are usually contiguous, but position-sorted GTFs interleave
 // transcripts, so features are collected by transcript ID until the chromosome
 // changes (GTFs are grouped by chromosome), or the GTF moves past the transcript.
-static void load_transcripts(std::vector<NamedTx> & transcripts, GTF &gtf_file, bool coding=true) {
-    std::set<std::string> permit = {"exon", "CDS", "UTR", "transcript", 
-        "stop_codon", "start_codon"};
-    std::deque<TxEntry> entries;
-    std::unordered_map<std::string, TxEntry *> index;
-    TxEntry * entry = nullptr;
-
+static void load_transcripts(std::vector<NamedTx> & transcripts, GTF & gtf_file, bool coding) {
+    std::deque<TxInfo> entries;
+    std::unordered_map<std::string, TxInfo *> index;
+    TxInfo * info = nullptr;
     GTFLine gtf;
 
     while (gtf_file.next(gtf)) {
-        if (permit.count(gtf.feature) == 0) {
-            continue;
-        } else if (coding && (gtf.transcript_type != "protein_coding")) {
+        Feature feature = get_feature(gtf.feature);
+        if (feature == Feature::other || (coding && gtf.transcript_type != "protein_coding")) {
             continue;
         }
 
         // only look up the transcript when it differs from the previous line's
-        if (entry == nullptr || gtf.tx_id != entry->info.name || gtf.chrom != entry->info.chrom) {
-            int pos = (entry != nullptr && gtf.chrom != entry->info.chrom) ? -1 : gtf.start;
-            build_transcripts(transcripts, entries, index, pos);
-            auto it = index.find(gtf.tx_id);
-            if (it != index.end()) {
-                entry = it->second;
-            } else {
-                entries.emplace_back();
-                entry = &entries.back();
-                index[gtf.tx_id] = entry;
-                
-                TxInfo & info = entry->info;
-                info.name = gtf.tx_id;
-                info.chrom = gtf.chrom;
-                info.strand = gtf.strand;
-                info.is_canonical = gtf.is_canonical;
-                info.transcript_type = gtf.transcript_type;
-                entry->symbol = gtf.symbol;
-                entry->alt_ids = gtf.alternate_ids;
-                if (gtf.feature != "transcript") {
-                    // without a transcript line, use the first line's attributes,
-                    // minus the fields specific to that feature
-                    info.attributes = gtf.attributes;
-                    for (auto field : {"exon_number", "exon_id", "exon_version"}) {
-                        info.attributes.erase(field);
-                    }
-                }
-            }
+        if (info == nullptr || gtf.tx_id != info->name || gtf.chrom != info->chrom) {
+            bool new_chrom = info != nullptr && gtf.chrom != info->chrom;
+            build_transcripts(transcripts, entries, index, new_chrom ? -1 : gtf.start);
+            info = get_entry(entries, index, gtf);
         }
 
-        TxInfo & info = entry->info;
-        std::map<std::string, int> & cds_range = entry->cds_range;
-        if (gtf.feature == "transcript") {
-            info.start = gtf.start;
-            info.end = gtf.end;
-            info.attributes = std::move(gtf.attributes);
-        } else if (gtf.feature == "CDS") {
-            info.cds.push_back(Region {gtf.start, gtf.end});
-            cds_range["max"] = std::max(std::max(cds_range["max"], gtf.start), gtf.end);
-            cds_range["min"] = std::min(std::min(cds_range["min"], gtf.start), gtf.end);
-        } else if (gtf.feature == "exon") {
-            info.exons.push_back(Region {gtf.start, gtf.end});
-        } else if ((gtf.feature == "stop_codon") || (gtf.feature == "start_codon")) {
-            cds_range["max"] = std::max(std::max(cds_range["max"], gtf.start), gtf.end);
-            cds_range["min"] = std::min(std::min(cds_range["min"], gtf.start), gtf.end);
+        if (feature == Feature::transcript) {
+            info->start = gtf.start;
+            info->end = gtf.end;
+            info->attributes = std::move(gtf.attributes);
+        } else if (feature == Feature::exon) {
+            info->exons.push_back(Region {gtf.start, gtf.end});
+        } else if (feature == Feature::cds) {
+            info->cds.push_back(Region {gtf.start, gtf.end});
+        }
+        if (feature == Feature::cds || feature == Feature::codon) {
+            info->cds_min = std::min({info->cds_min, gtf.start, gtf.end});
+            info->cds_max = std::max({info->cds_max, gtf.start, gtf.end});
         }
     }
 
@@ -226,74 +234,59 @@ bool CompFunc(const GenePoint &l, const GenePoint &r) {
     return l.pos < r.pos;
 }
 
+// find genes overlapping a region
+//
+// @param starts gene start positions per chromosome, sorted by position
+// @param ends gene end positions per chromosome, sorted by position
+// @param max_window maximum gene length, which limits how far beyond the region
+//     we search for genes that span the whole region
+// @returns keys for the genes overlapping the region
 std::vector<std::string> _in_region(std::string chrom, int start, int end, 
         std::map<std::string, std::vector<GenePoint>> & starts, 
         std::map<std::string, std::vector<GenePoint>> & ends,
-        int max_window=2500000) {
-    
-    if (starts.count(chrom) == 0) {
+        int max_window) {
+    auto starts_it = starts.find(chrom);
+    if (starts_it == starts.end()) {
         throw std::invalid_argument("unknown_chrom: " + chrom);
     }
-    
-    std::vector<GenePoint> & chrom_starts = starts[chrom];
-    std::vector<GenePoint> & chrom_ends = ends[chrom];
-    std::set<std::size_t> inside;
+    const std::vector<GenePoint> & chrom_starts = starts_it->second;
+    const std::vector<GenePoint> & chrom_ends = ends.at(chrom);
+    const int n_starts = (int) chrom_starts.size();
+    const int n_ends = (int) chrom_ends.size();
+    std::hash<std::string> hash;
     std::vector<std::string> symbols;
-    symbols.reserve(std::max((end - start) / 50000, 1));  // expect 1 gene / 50 kb 
-    
-    // find indices to genes with a start inside the region
-    int left_idx, right_idx;
-    int idx = std::lower_bound(chrom_starts.begin(), chrom_starts.end(), GenePoint {start, "A"}, CompFunc) - chrom_starts.begin();
-    left_idx = idx - 1;
-    while (idx < (int) chrom_starts.size()) {
-        GenePoint & edge = chrom_starts[idx];
-        if (edge.pos > end) {
-            break;
-        } else {
-            inside.insert(std::hash<std::string>{}(edge.symbol));
-            symbols.push_back(edge.symbol);
-        }
-        idx += 1;
+
+    // find genes with a start inside the region
+    std::unordered_set<std::size_t> inside;
+    int first_start = std::lower_bound(chrom_starts.begin(), chrom_starts.end(),
+        GenePoint {start, ""}, CompFunc) - chrom_starts.begin();
+    for (int i = first_start; i < n_starts && chrom_starts[i].pos <= end; i++) {
+        inside.insert(hash(chrom_starts[i].symbol));
+        symbols.push_back(chrom_starts[i].symbol);
     }
 
-    // find indices to genes with a end inside the region
-    idx = (std::upper_bound(chrom_ends.begin(), chrom_ends.end(), GenePoint {end, "A"}, CompFunc) - chrom_ends.begin());
-    right_idx = idx;
-    idx = std::min(idx - 1, (int) chrom_ends.size() - 1);
-    while (idx >= 0) {
-        GenePoint & edge = chrom_ends[idx];
-        if (edge.pos < start) {
-            break;
-        } else if (inside.count(std::hash<std::string>{}(edge.symbol)) == 0) {
-            symbols.push_back(edge.symbol);
+    // find genes with an end inside the region (that don't also start inside it)
+    int after_end = std::upper_bound(chrom_ends.begin(), chrom_ends.end(),
+        GenePoint {end, ""}, CompFunc) - chrom_ends.begin();
+    for (int i = after_end - 1; i >= 0 && chrom_ends[i].pos >= start; i--) {
+        if (inside.count(hash(chrom_ends[i].symbol)) == 0) {
+            symbols.push_back(chrom_ends[i].symbol);
         }
-        idx -= 1;
     }
 
-    if (abs(end - start) > max_window) {
+    if (std::abs(end - start) > max_window) {
         // if the window is too wide to permit a gene to span it, just return
         return symbols;
     }
-    // for genes that encapsulate the region, first find genes that start upstream
-    static std::set<std::size_t> starts_before;
-    starts_before.clear();
-    for (; left_idx>=0; left_idx--) {
-        GenePoint & edge = chrom_starts[left_idx];
-        if (abs(edge.pos - end) > max_window) { // halt if distant from the region
-            break;
-        }
-        starts_before.insert(std::hash<std::string>{}(edge.symbol));
-    }
 
-    // find genes that end downstream of the gene
-    int length = (int) chrom_ends.size();
-    for (; right_idx<length; right_idx++) {
-        GenePoint & edge = chrom_ends[right_idx];
-        if (abs(edge.pos - start) > max_window) { // halt if distant from the region
-            break;
-        }
-        if (starts_before.count(std::hash<std::string>{}(edge.symbol)) != 0) {
-            symbols.push_back(edge.symbol);
+    // find genes that span the region, i.e. start upstream and end downstream
+    std::unordered_set<std::size_t> starts_before;
+    for (int i = first_start - 1; i >= 0 && std::abs(chrom_starts[i].pos - end) <= max_window; i--) {
+        starts_before.insert(hash(chrom_starts[i].symbol));
+    }
+    for (int i = after_end; i < n_ends && std::abs(chrom_ends[i].pos - start) <= max_window; i++) {
+        if (starts_before.count(hash(chrom_ends[i].symbol)) != 0) {
+            symbols.push_back(chrom_ends[i].symbol);
         }
     }
 
@@ -301,13 +294,3 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
 }
 
 } // namespace
-
-// int main() {
-//     std::string path = "/illumina/scratch/deep_learning/public_data/refdata/hg38/genes/gencode.v24.annotation.gtf";
-//     gencode::open_gencode(path);
-// }
-// 
-// g++ -std=c++11 gencode.cpp gtf.cpp tx.cpp -lz
-
-
-
