@@ -1,12 +1,10 @@
 #include <array>
 #include <string>
 #include <vector>
-#include <cmath>
 #include <cstdlib>
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
-#include <iostream>
 #include <unordered_map>
 #include <utility>
 
@@ -34,8 +32,8 @@ static std::unordered_map<std::string, char> aa_code = {
 
 // Constructor for Tx class
 Tx::Tx(std::string transcript_id, std::string chromosome,
-    int start_pos, int end_pos, char strand, std::string _transcript_type="protein_coding",
-    std::map<std::string, std::string> _attributes={}) {
+    int start_pos, int end_pos, char strand, std::string _transcript_type,
+    std::map<std::string, std::string> _attributes) {
     
     name = std::move(transcript_id);
     
@@ -84,13 +82,13 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
 }
 
 void Tx::set_cds(std::vector<Region> cds_ranges) {
-   cds.clear();
-   
-   if (cds_ranges.size() == 0) {
-    return;
-   }
-   
-   // If the transcript lacks exon coordinates and only has a single CDS
+    cds.clear();
+    if (cds_ranges.empty()) {
+        // no subsequent adjustments for transcripts without CDS
+        return;
+    }
+    
+    // If the transcript lacks exon coordinates and only has a single CDS
     // region, then if the CDS region fits within the gene range, make a
     // single exon, using the transcript start and end. This prevents issues
     // when adding the CDS coordinates for the transcript.
@@ -108,11 +106,6 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     
     std::sort(cds_ranges.begin(), cds_ranges.end(), compare_regions);
     cds = std::move(cds_ranges);
-    
-    if (cds.size() == 0) {
-        // no subsequent adjustments for transcripts without CDS
-        return;
-    }
     
     cds_min = cds[0].start;
     cds_max = cds.back().end;
@@ -409,7 +402,8 @@ int Tx::get_position_on_chrom(int cds_position, int offset) {
 
 // figure out the codon position for a position
 int Tx::get_codon_number_for_cds_position(int cds_position) {
-    return (int)floor((float)cds_position / 3);
+    // floor division, so negative (upstream) positions round down
+    return (cds_position >= 0) ? cds_position / 3 : (cds_position - 2) / 3;
 }
 
 // get the position within a codon (in 0 based format eg 0, 1, 2)
@@ -568,7 +562,7 @@ std::string Tx::get_centered_sequence(int pos, int length) {
         throw std::invalid_argument( "length is not an odd number") ;
     }
     
-    int start = pos - (int)floor(length/2);
+    int start = pos - length / 2;
     int end = start + length;
     return get_seq_in_region(start, end);
 }
