@@ -36,7 +36,7 @@ cdef extern from "gtf.h" namespace "gencode":
         int is_canonical
         map[string, string] attributes
         
-    GTFLine parse_gtfline(string line) except +
+    void parse_gtfline(string & line, GTFLine & info, bool all_fields) except +
 
 cdef extern from "gencode.h" namespace "gencode":
     cdef struct NamedTx:
@@ -58,7 +58,9 @@ cdef extern from "gencode.h" namespace "gencode":
 cpdef _parse_gtfline(string line):
     ''' python function for unit testing GTF parsing
     '''
-    return parse_gtfline(line)
+    cdef GTFLine info
+    parse_gtfline(line, info, False)
+    return info
 
 cdef _convert_exons(vector[Region] exons):
     ''' convert vector of exon Regions to list of lists

@@ -41,7 +41,6 @@ struct GTFLine {
     std::map<std::string, std::string> attributes;
 };
 
-GTFLine parse_gtfline(std::string &line, bool all_fields=false);
 void parse_gtfline(std::string &line, GTFLine &info, bool all_fields);
 
 class GTF

@@ -270,12 +270,6 @@ void parse_gtfline(std::string & line, GTFLine & info, bool all_fields) {
     }
 }
 
-GTFLine parse_gtfline(std::string & line, bool all_fields) {
-    GTFLine info;
-    parse_gtfline(line, info, all_fields);
-    return info;
-}
-
 GzReader::GzReader(const std::string &path) : file(zng_gzopen(path.c_str(), "rb")), path(path) {}
 
 GzReader::~GzReader() {
