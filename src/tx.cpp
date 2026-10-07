@@ -834,7 +834,7 @@ static std::string codon_cq(char initial_aa, char mutated_aa, int codon_number, 
     
     if (codon_number == 0) {
         return "start_retained_variant";
-    } else if (codon_number == last_codon) {
+    } else if (codon_number == last_codon && initial_aa == '*') {
         return "stop_retained_variant";
     }
     return "synonymous_variant";

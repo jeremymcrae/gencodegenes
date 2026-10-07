@@ -639,6 +639,14 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10050, 'A', 'G'), 'stop_retained_variant') # TAA>TGA
         self.assertEqual(tx.consequence(10051, 'A', 'G'), 'stop_retained_variant') # TAA>TAG
     
+    def test_consequence_last_codon_not_stop(self):
+        ''' check synonymous changes in the last codon are only stop_retained
+        if that codon is a stop codon, e.g. not for a 3' incomplete CDS
+        '''
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 15)])
+        tx.genomic_sequence = 'CCCATGGCCAAAGCCGGGGG'  # ATG GCC AAA GCC, no stop
+        self.assertEqual(tx.consequence(15, 'C', 'T'), 'synonymous_variant')
+    
     def test_consequence_start_retained(self):
         ''' check synonymous changes in a (non-AUG) start codon retain the start
         '''
