@@ -783,16 +783,20 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
         throw (std::invalid_argument("cannot find matching exon for indel"));
     }
     
+    bool fwd = get_strand() == '+';
     bool deletion = ref.size() > alt.size();
     bool overlaps_intron = false;
+    std::string splice_cq;
     if (deletion & (start < exon.start)) {
         overlaps_intron = true;
+        splice_cq = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
         int offset = exon.start - start;
         int length = (int) ref.size() - offset;
         ref = ref.substr(offset, length);
         alt = "";
     } else if (deletion & (end > exon.end)) {
         overlaps_intron = true;
+        splice_cq = fwd ? "splice_donor_variant" : "splice_acceptor_variant";
         int offset = 0;
         int length = (exon.end - start) + 1;
         ref = ref.substr(offset, length);
@@ -804,9 +808,9 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     bool inframe = (std::abs(ref_len - alt_len) % 3) == 0;
     if (overlaps_intron & inframe & deletion) {
         // deletions which overlap the exon boundary, but only excise an inframe
-        // length of the exon should be splice donor instead, since they are
-        // more severe than inframe.
-        return "splice_donor_variant";
+        // length of the exon should be splice acceptor/donor instead, since
+        // they are more severe than inframe.
+        return splice_cq;
     }
     
     if (!inframe) {

@@ -647,6 +647,27 @@ class TestTranscriptPy(unittest.TestCase):
             self.assertEqual(tx.consequence(pos, 'A', 'G'), 'coding_sequence_variant',
                 msg=f'pos={pos}')
     
+    def test_consequence_deletion_across_splice_site(self):
+        ''' check deletions spanning an exon boundary, which remove an inframe
+        length of exon, are classed by the splice site they disrupt
+        '''
+        # deletes 10018-10020 (end of exon 1) and 10021-10022 (intron)
+        exon_end = (10017, 'AAAGGT', 'A')
+        # deletes 10039-10040 (intron) and 10041-10043 (start of exon 2)
+        exon_start = (10038, 'TAGGCT', 'T')
+        
+        tx = self.construct_cq_gene('+')
+        self.assertEqual(tx.consequence(*exon_end), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(*exon_start), 'splice_acceptor_variant')
+        
+        tx = self.construct_cq_gene('-')
+        self.assertEqual(tx.consequence(*exon_end), 'splice_acceptor_variant')
+        self.assertEqual(tx.consequence(*exon_start), 'splice_donor_variant')
+        
+        # removing a non-inframe length of exon is a frameshift instead
+        tx = self.construct_cq_gene('+')
+        self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'frameshift_variant')
+    
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change
         """
