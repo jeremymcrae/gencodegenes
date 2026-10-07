@@ -905,8 +905,8 @@ void Tx::trim_alleles(int& start, int&end, std::string& ref, std::string& alt) {
 std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     int start = pos;
     int end = pos + (int)ref.size() - 1;
-    if (start > end) {
-        throw std::invalid_argument("start position is less than end position");
+    if (ref.empty()) {
+        throw std::invalid_argument("reference allele is empty");
     }
     
     // TODO: need to realign alt against ref sequence, and strip down to alternate bases

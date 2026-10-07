@@ -639,6 +639,13 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10050, 'A', 'G'), 'stop_retained_variant') # TAA>TGA
         self.assertEqual(tx.consequence(10051, 'A', 'G'), 'stop_retained_variant') # TAA>TAG
     
+    def test_consequence_empty_ref(self):
+        ''' check an empty reference allele raises an error
+        '''
+        tx = self.construct_cq_gene()
+        with self.assertRaisesRegex(ValueError, 'reference allele is empty'):
+            tx.consequence(10015, '', 'A')
+    
     def test_consequence_last_codon_not_stop(self):
         ''' check synonymous changes in the last codon are only stop_retained
         if that codon is a stop codon, e.g. not for a 3' incomplete CDS
