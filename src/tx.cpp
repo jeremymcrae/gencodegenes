@@ -72,6 +72,7 @@ void Tx::set_exons(std::vector<std::vector<int>> exon_ranges) {
 void Tx::set_exons(std::vector<Region> exon_ranges) {
     std::sort(exon_ranges.begin(), exon_ranges.end(), compare_regions);
     exons = std::move(exon_ranges);
+    exon_to_cds.clear();
 }
 
 // set CDS ranges to the class object
@@ -83,6 +84,7 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
 
 void Tx::set_cds(std::vector<Region> cds_ranges) {
     cds.clear();
+    exon_to_cds.clear();
     if (cds_ranges.empty()) {
         // no subsequent adjustments for transcripts without CDS
         return;
@@ -475,6 +477,7 @@ void Tx::_fix_cds_length() {
     if (cds.empty()) {
         return;
     }
+    exon_to_cds.clear();
     int diff = cds_sequence.size() % 3;
     int end = get_cds_end();
 

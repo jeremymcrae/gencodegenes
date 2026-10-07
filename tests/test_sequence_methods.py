@@ -63,6 +63,21 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
                 converted = self.gene.get_position_on_chrom(cds['pos'])
                 self.assertEqual(pos, converted)
     
+    def test_get_position_on_chrom_after_cds_changes(self):
+        """ check get_position_on_chrom() uses the current CDS, after it changes
+        """
+        self.assertEqual(self.gene.get_position_on_chrom(0), 110)
+        self.gene.cds = [(115, 120), (180, 195)]
+        self.assertEqual(self.gene.get_position_on_chrom(0), 115)
+        self.assertEqual(self.gene.get_position_on_chrom(21), 195)
+        
+        # adding the genomic sequence extends the 22 bp CDS to complete the final codon
+        self.gene = self.construct_gene()
+        self.assertEqual(self.gene.get_position_on_chrom(21), 190)
+        self.gene.genomic_sequence = 'A' * 101
+        self.assertEqual(self.gene.cds[-1], {'start': 180, 'end': 192})
+        self.assertEqual(self.gene.get_position_on_chrom(23), 192)
+    
     def test_get_codon_number_for_cds_position(self):
         """ test that get_codon_number_for_cds_position() works correctly
         """
