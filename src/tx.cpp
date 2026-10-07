@@ -678,23 +678,26 @@ static bool overlap(const int & start1, const int & end1, const int & start2, co
     return (end1 >= start2) && (end2 >= start1);
 }
 
-// checks if a genomic range overlaps any exon range
-bool Tx::overlaps_cds(int start, int end) {
-    if (cds.empty()) {
-        return false;
+// find the index of a region overlapping a genomic range, checking the region
+// closest to the range start, then its neighbours. Returns -1 if none overlap.
+int Tx::overlapping_region_num(int start, int end, std::vector<Region> & group) {
+    if (group.empty()) {
+        return -1;
     }
-    int idx = closest_exon_num(start, cds);
+    int idx = closest_exon_num(start, group);
     int prev = std::max(0, idx - 1);
-    int post = std::min((int) cds.size() - 1, idx + 1);
-    
-    if (overlap(start, end, cds[idx].start, cds[idx].end)) {
-        return true;
-    } else if (overlap(start, end, cds[prev].start, cds[prev].end)) {
-        return true;
-    } else if (overlap(start, end, cds[post].start, cds[post].end)) {
-        return true;
+    int post = std::min((int) group.size() - 1, idx + 1);
+    for (int i : {idx, prev, post}) {
+        if (overlap(start, end, group[i].start, group[i].end)) {
+            return i;
+        }
     }
-    return false;
+    return -1;
+}
+
+// checks if a genomic range overlaps any CDS range
+bool Tx::overlaps_cds(int start, int end) {
+    return overlapping_region_num(start, end, cds) >= 0;
 }
 
 std::string Tx::outside_gene_cq(int start, int end) {
@@ -768,20 +771,11 @@ std::string Tx::intronic_cq(int start, int end) {
 // check consequences for an indel with some CDS overlap
 std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     // find the overlapped exon, then check how much of the indel lies in that
-    int idx = closest_exon_num(start);
-    int prev = std::max(0, idx - 1);
-    int post = std::min((int) exons.size() - 1, idx + 1);
-    
-    Region exon;
-    if (overlap(start, end, exons[idx].start, exons[idx].end)) {
-        exon = exons[idx];
-    } else if (overlap(start, end, exons[prev].start, exons[prev].end)) {
-        exon = exons[prev];
-    } else if (overlap(start, end, exons[post].start, exons[post].end)) {
-        exon = exons[post];
-    } else {
+    int idx = overlapping_region_num(start, end, exons);
+    if (idx < 0) {
         throw (std::invalid_argument("cannot find matching exon for indel"));
     }
+    Region exon = exons[idx];
     
     bool fwd = get_strand() == '+';
     bool deletion = ref.size() > alt.size();
