@@ -696,6 +696,37 @@ class TestTranscriptPy(unittest.TestCase):
         tx = self.construct_cq_gene('+')
         self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'frameshift_variant')
     
+    def test_consequence_splice_site_outside_cds(self):
+        ''' check variants spanning an exon/intron boundary outside the CDS are
+        classed by the splice site they disrupt
+        
+        Layout: exon 1 at 1001-1020 (all 5' UTR on + strand), intron at
+        1021-1040, exon 2 at 1041-1100 with CDS at 1050-1070.
+        '''
+        # deletes 1019-1020 (end of exon 1) and 1021-1022 (intron)
+        exon_end = (1018, 'AAAGT', 'A')
+        # deletes 1038-1040 (intron) and 1041 (start of exon 2, before the CDS)
+        exon_start = (1037, 'TTAGG', 'T')
+        
+        for cds in ([(1050, 1070)], []):
+            tx = Transcript('TEST', '1', 1001, 1100, '+',
+                exons=[(1001, 1020), (1041, 1100)], cds=cds)
+            self.assertEqual(tx.consequence(*exon_end), 'splice_donor_variant')
+            self.assertEqual(tx.consequence(*exon_start), 'splice_acceptor_variant')
+            
+            tx = Transcript('TEST', '1', 1001, 1100, '-',
+                exons=[(1001, 1020), (1041, 1100)], cds=cds)
+            self.assertEqual(tx.consequence(*exon_end), 'splice_acceptor_variant')
+            self.assertEqual(tx.consequence(*exon_start), 'splice_donor_variant')
+        
+        # deletions crossing the transcript start have no splice site to disrupt
+        tx = Transcript('TEST', '1', 1001, 1100, '+',
+            exons=[(1001, 1020), (1041, 1100)], cds=[(1050, 1070)])
+        self.assertEqual(tx.consequence(998, 'AAAAC', 'A'), '5_prime_UTR_variant')
+        
+        # deletions within the exon are unaffected
+        self.assertEqual(tx.consequence(1015, 'AAAA', 'A'), '5_prime_UTR_variant')
+    
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change
         """

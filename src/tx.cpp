@@ -743,6 +743,14 @@ std::string Tx::intronic_cq(int start, int end) {
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
     
+    // variants running from an exon into an intron disrupt that splice site
+    bool fwd = get_strand() == '+';
+    if ((start_coord.offset == 0) & (end_coord.offset != 0) & (end < exons.back().end)) {
+        return fwd ? "splice_donor_variant" : "splice_acceptor_variant";
+    } else if ((start_coord.offset != 0) & (end_coord.offset == 0) & (start > exons[0].start)) {
+        return fwd ? "splice_acceptor_variant" : "splice_donor_variant";
+    }
+    
     bool intronic = (start_coord.offset != 0) & (end_coord.offset != 0);
     if (!intronic) {
         if (cds.empty()) {
