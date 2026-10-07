@@ -631,7 +631,9 @@ class TestTranscriptPy(unittest.TestCase):
         
         # the codon split across the intron, GGC (G)
         self.assertEqual(tx.consequence(10020, 'G', 'T'), 'missense_variant')   # GGC>TGC
-        self.assertEqual(tx.consequence(10042, 'C', 'A'), 'synonymous_variant') # GGC>GGA
+        # GGC>GGA is synonymous, but within 3 bp of the exon start, so it's a
+        # splice region variant, which is more severe
+        self.assertEqual(tx.consequence(10042, 'C', 'A'), 'splice_region_variant')
         
         self.assertEqual(tx.consequence(10044, 'G', 'A'), 'stop_gained')        # TGG>TAG
         self.assertEqual(tx.consequence(10045, 'G', 'A'), 'stop_gained')        # TGG>TGA
@@ -676,8 +678,8 @@ class TestTranscriptPy(unittest.TestCase):
                 msg=f'pos={pos}')
     
     def test_consequence_deletion_across_splice_site(self):
-        ''' check deletions spanning an exon boundary, which remove an inframe
-        length of exon, are classed by the splice site they disrupt
+        ''' check deletions spanning an exon boundary are classed by the splice
+        site they disrupt, whether or not they remove an inframe length of exon
         '''
         # deletes 10018-10020 (end of exon 1) and 10021-10022 (intron)
         exon_end = (10017, 'AAAGGT', 'A')
@@ -692,9 +694,13 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(*exon_end), 'splice_acceptor_variant')
         self.assertEqual(tx.consequence(*exon_start), 'splice_donor_variant')
         
-        # removing a non-inframe length of exon is a frameshift instead
+        # removing a non-inframe length of exon is still a splice variant, since
+        # that is more severe than a frameshift
         tx = self.construct_cq_gene('+')
-        self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'frameshift_variant')
+        # deletes 10039-10040 (intron) and 10041-10042 (start of exon 2)
+        self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'splice_acceptor_variant')
+        # deletes 10019-10020 (end of exon 1) and 10021 (intron)
+        self.assertEqual(tx.consequence(10018, 'AAGG', 'A'), 'splice_donor_variant')
     
     def test_consequence_inframe_indel_codons(self):
         ''' check inframe indels which gain a stop, or lose the start or stop
@@ -772,8 +778,51 @@ class TestTranscriptPy(unittest.TestCase):
             exons=[(1001, 1020), (1041, 1100)], cds=[(1050, 1070)])
         self.assertEqual(tx.consequence(998, 'AAAAC', 'A'), '5_prime_UTR_variant')
         
-        # deletions within the exon are unaffected
-        self.assertEqual(tx.consequence(1015, 'AAAA', 'A'), '5_prime_UTR_variant')
+        # deletions within the exon, away from its ends, are unaffected
+        self.assertEqual(tx.consequence(1005, 'AAAA', 'A'), '5_prime_UTR_variant')
+    
+    def test_consequence_exonic_splice_region(self):
+        ''' check low impact variants in the 3 exonic bases next to an intron
+        are splice region variants
+        
+        Layout: exon 1 at 1001-1020 (all 5' UTR on + strand), intron at
+        1021-1040, exon 2 at 1041-1100 with CDS at 1050-1070.
+        '''
+        for strand in '+-':
+            tx = Transcript('TEST', '1', 1001, 1100, strand,
+                exons=[(1001, 1020), (1041, 1100)], cds=[(1050, 1070)])
+            utr = '5_prime_UTR_variant' if strand == '+' else '3_prime_UTR_variant'
+            self.assertEqual(tx.consequence(1017, 'A', 'G'), utr)
+            for pos in (1018, 1020, 1041, 1043):
+                self.assertEqual(tx.consequence(pos, 'A', 'G'), 'splice_region_variant',
+                    msg=f'strand={strand}, pos={pos}')
+            self.assertEqual(tx.consequence(1044, 'A', 'G'), utr)
+            # the transcript start isn't next to an intron
+            self.assertEqual(tx.consequence(1001, 'A', 'G'), utr)
+        
+        tx = Transcript('TEST', '1', 1001, 1100, '+',
+            exons=[(1001, 1020), (1041, 1100)])
+        self.assertEqual(tx.consequence(1010, 'A', 'G'), 'non_coding_transcript_exon_variant')
+        self.assertEqual(tx.consequence(1020, 'A', 'G'), 'splice_region_variant')
+        
+        # exonic bases next to introns under 10 bp aren't splice region
+        tx = Transcript('TEST', '1', 1, 40, '+', exons=[(1, 20), (26, 40)])
+        self.assertEqual(tx.consequence(19, 'A', 'G'), 'non_coding_transcript_exon_variant')
+    
+    def test_consequence_short_intron_outside_cds(self):
+        ''' check variants in very short introns follow the surrounding exons,
+        when the intron is in the UTR, or the transcript is non-coding
+        '''
+        for strand, utr in (('+', '5_prime_UTR_variant'), ('-', '3_prime_UTR_variant')):
+            tx = Transcript('TEST', '1', 1, 40, strand, exons=[(1, 20), (26, 40)],
+                cds=[(30, 38)])
+            for pos in range(21, 26):
+                self.assertEqual(tx.consequence(pos, 'A', 'G'), utr, msg=f'pos={pos}')
+        
+        tx = Transcript('TEST', '1', 1, 40, '+', exons=[(1, 20), (26, 40)])
+        for pos in range(21, 26):
+            self.assertEqual(tx.consequence(pos, 'A', 'G'),
+                'non_coding_transcript_exon_variant', msg=f'pos={pos}')
     
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change

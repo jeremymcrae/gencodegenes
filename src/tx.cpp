@@ -704,6 +704,25 @@ bool Tx::overlaps_cds(int start, int end) {
     return overlapping_region_num(start, end, cds) >= 0;
 }
 
+// checks if a genomic range overlaps the 3 exonic bases next to an intron.
+// Introns under 10 bp are treated as exonic, so don't have a splice region.
+bool Tx::in_exonic_splice_region(int start, int end) {
+    int idx = overlapping_region_num(start, end, exons);
+    if (idx < 0) {
+        return false;
+    }
+    Region exon = exons[idx];
+    if ((idx > 0) && (exon.start - exons[idx - 1].end >= 10)
+            && overlap(start, end, exon.start, exon.start + 2)) {
+        return true;
+    }
+    if ((idx < (int) exons.size() - 1) && (exons[idx + 1].start - exon.end >= 10)
+            && overlap(start, end, exon.end - 2, exon.end)) {
+        return true;
+    }
+    return false;
+}
+
 std::string Tx::outside_gene_cq(int start, int end) {
     bool fwd = get_strand() == '+';
     if ((end < tx_start) & ((tx_start - end) <= 5000)) {
@@ -735,7 +754,17 @@ std::string Tx::intronic_cq(int start, int end) {
         auto other = exons[idx - 1];
         intron_length = exon.start - other.end;
     }
+    bool fwd = get_strand() == '+';
     if (intron_length < 10) {
+        // introns this short are likely annotation artefacts, so treat the
+        // site as exonic
+        if (cds.empty()) {
+            return "non_coding_transcript_exon_variant";
+        } else if (end < cds_min) {
+            return fwd ? "5_prime_UTR_variant" : "3_prime_UTR_variant";
+        } else if (start > cds_max) {
+            return fwd ? "3_prime_UTR_variant" : "5_prime_UTR_variant";
+        }
         return "coding_sequence_variant";
     }
     
@@ -744,7 +773,6 @@ std::string Tx::intronic_cq(int start, int end) {
     CDS_coords end_coord = get_coding_distance(end);
     
     // variants running from an exon into an intron disrupt that splice site
-    bool fwd = get_strand() == '+';
     if ((start_coord.offset == 0) & (end_coord.offset != 0) & (end < exons.back().end)) {
         return fwd ? "splice_donor_variant" : "splice_acceptor_variant";
     } else if ((start_coord.offset != 0) & (end_coord.offset == 0) & (start > exons[0].start)) {
@@ -753,12 +781,16 @@ std::string Tx::intronic_cq(int start, int end) {
     
     bool intronic = (start_coord.offset != 0) & (end_coord.offset != 0);
     if (!intronic) {
+        std::string cq;
         if (cds.empty()) {
-            return "non_coding_transcript_exon_variant";
+            cq = "non_coding_transcript_exon_variant";
         } else if (end_coord.position <= 0) {
-            return "5_prime_UTR_variant";
+            cq = "5_prime_UTR_variant";
         } else if (start_coord.position >= cds_length) {
-            return "3_prime_UTR_variant";
+            cq = "3_prime_UTR_variant";
+        }
+        if (!cq.empty()) {
+            return in_exonic_splice_region(start, end) ? "splice_region_variant" : cq;
         }
     }
     
@@ -862,36 +894,30 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     }
     Region exon = exons[idx];
     
+    // deletions running into an intron disrupt the splice site, which is more
+    // severe than any frameshift or inframe change. Deletions running past
+    // the transcript ends are trimmed to the exonic part instead.
     bool fwd = get_strand() == '+';
     bool deletion = ref.size() > alt.size();
-    bool overlaps_intron = false;
-    std::string splice_cq;
     if (deletion & (start < exon.start)) {
-        overlaps_intron = true;
-        splice_cq = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
-        int offset = exon.start - start;
-        int length = (int) ref.size() - offset;
-        ref = ref.substr(offset, length);
+        if (idx > 0) {
+            return fwd ? "splice_acceptor_variant" : "splice_donor_variant";
+        }
+        ref = ref.substr(exon.start - start);
         alt = "";
+        start = exon.start;
     } else if (deletion & (end > exon.end)) {
-        overlaps_intron = true;
-        splice_cq = fwd ? "splice_donor_variant" : "splice_acceptor_variant";
-        int offset = 0;
-        int length = (exon.end - start) + 1;
-        ref = ref.substr(offset, length);
+        if (idx < (int) exons.size() - 1) {
+            return fwd ? "splice_donor_variant" : "splice_acceptor_variant";
+        }
+        ref = ref.substr(0, (exon.end - start) + 1);
         alt = "";
+        end = exon.end;
     }
 
     int ref_len = (int) ref.size();
     int alt_len = (int) alt.size();
     bool inframe = (std::abs(ref_len - alt_len) % 3) == 0;
-    if (overlaps_intron & inframe & deletion) {
-        // deletions which overlap the exon boundary, but only excise an inframe
-        // length of the exon should be splice acceptor/donor instead, since
-        // they are more severe than inframe.
-        return splice_cq;
-    }
-    
     if (!inframe) {
         return "frameshift_variant";
     }
@@ -952,16 +978,21 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     }
     
     static const std::vector<std::string> severity = {"stop_gained", "stop_lost",
-        "start_lost", "missense_variant", "start_retained_variant",
-        "stop_retained_variant", "synonymous_variant"};
+        "start_lost", "missense_variant", "splice_region_variant",
+        "start_retained_variant", "stop_retained_variant", "synonymous_variant"};
+    auto rank = [](const std::string & cq) {
+        return (size_t) (std::find(severity.begin(), severity.end(), cq) - severity.begin());
+    };
     int last_codon = get_codon_number_for_cds_position(cds_length - 1);
     size_t worst = severity.size() - 1;
     for (auto &item : codons) {
         Codon & codon = item.second;
         char mutated_aa = translate_codon(codon.codon_seq);
         std::string cq = codon_cq(codon.initial_aa, mutated_aa, codon.codon_number, last_codon);
-        size_t rank = std::find(severity.begin(), severity.end(), cq) - severity.begin();
-        worst = std::min(worst, rank);
+        worst = std::min(worst, rank(cq));
+    }
+    if (in_exonic_splice_region(start, end)) {
+        worst = std::min(worst, rank("splice_region_variant"));
     }
     return severity[worst];
 }
