@@ -161,16 +161,19 @@ Region Tx::fix_cds_boundary(int position) {
     int start_dist = std::abs(position - region.start);
     int end_dist = std::abs(position - region.end);
     
+    // if we are closer to the start, then we go back an exon, otherwise forward
+    int i = (start_dist < end_dist) ? closest_exon_num(region.start) - 1
+        : closest_exon_num(region.end) + 1;
+    if (i < 0 || i >= (int) exons.size()) {
+        throw std::invalid_argument(get_name() + " CDS lies outside the exons");
+    }
+    
     int start;
     int end;
     if (start_dist < end_dist) {
-        // if we are closer to the start, then we go back an exon
-        int i = closest_exon_num(region.start) - 1;
         end = exons[i].end;
         start = end - start_dist;
     } else {
-        // if we are closer to the end, then we go forward an exon
-        int i = closest_exon_num(region.end) + 1;
         start = exons[i].start;
         end = start + end_dist;
     }

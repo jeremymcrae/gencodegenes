@@ -110,6 +110,19 @@ class TestTranscriptPy(unittest.TestCase):
         # raise an error if the position is within the exons
         with self.assertRaises(ValueError):
             self.gene._fix_cds_boundary(1105)
+        
+        # raise an error if there is no exon to shift the position into
+        with self.assertRaises(ValueError):
+            tx._fix_cds_boundary(1095)
+        with self.assertRaises(ValueError):
+            tx._fix_cds_boundary(1905)
+        
+        # and if the CDS is set to start before the first exon, or end after
+        # the last exon
+        with self.assertRaises(ValueError):
+            tx.cds = [(1095, 1150)]
+        with self.assertRaises(ValueError):
+            tx.cds = [(1850, 1905)]
     
     def test_cdsange(self):
         """ unit test checking the CDS end points by strand
