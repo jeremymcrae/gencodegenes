@@ -97,6 +97,13 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.assertEqual(self.gene.get_position_within_codon(1), 1)
         self.assertEqual(self.gene.get_position_within_codon(2), 2)
         self.assertEqual(self.gene.get_position_within_codon(3), 0)
+        
+        # positions upstream of the CDS fall in negative codons, but still have
+        # a position of 0, 1 or 2 within that codon
+        for pos, codon, intra in [(-1, -1, 2), (-2, -1, 1), (-3, -1, 0), (-4, -2, 2)]:
+            self.assertEqual(self.gene.get_codon_number_for_cds_position(pos), codon)
+            self.assertEqual(self.gene.get_position_within_codon(pos), intra)
+            self.assertEqual(codon * 3 + intra, pos)
     
     def test_genomic_sequence(self):
         """ test that we can set genomic_sequence correctly

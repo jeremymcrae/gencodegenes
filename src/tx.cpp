@@ -413,7 +413,8 @@ int Tx::get_codon_number_for_cds_position(int cds_position) {
 
 // get the position within a codon (in 0 based format eg 0, 1, 2)
 int Tx::get_position_within_codon(int cds_position) {
-    return cds_position % 3;
+    // matches the floor division in get_codon_number_for_cds_position
+    return ((cds_position % 3) + 3) % 3;
 }
 
 // add the CDS sequence
