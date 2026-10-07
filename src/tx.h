@@ -27,7 +27,7 @@ struct Codon {
     int offset;
 };
 
-int min_len(std::string a, std::string b);
+int min_len(const std::string & a, const std::string & b);
 
 class Tx {
     std::string name;
@@ -54,7 +54,7 @@ class Tx {
     bool overlaps_cds(int start, int end);
     std::string outside_gene_cq(int start, int end);
     std::string intronic_cq(int start, int end);
-    std::string coding_cq(int start, int end, std::string alt);
+    std::string coding_cq(int start, int end, const std::string & alt);
     std::string indel_cq(int start, int end, std::string ref, std::string alt);
 
  public:
@@ -68,11 +68,11 @@ class Tx {
     void set_cds(std::vector<Region> cds_ranges);
     Region fix_cds_boundary(int position);
     
-    std::vector<Region> get_exons() { return exons; }
-    std::vector<Region> get_cds() { return cds; }
-    std::string get_name() { return name; }
-    std::string get_chrom() { return chrom; }
-    std::string get_type() { return transcript_type; }
+    const std::vector<Region> & get_exons() { return exons; }
+    const std::vector<Region> & get_cds() { return cds; }
+    const std::string & get_name() { return name; }
+    const std::string & get_chrom() { return chrom; }
+    const std::string & get_type() { return transcript_type; }
     int get_start() { return tx_start; }
     int get_end() { return tx_end; }
     char get_strand() { return tx_strand; }
@@ -93,21 +93,21 @@ class Tx {
     int get_position_within_codon(int cds_position);
     void add_cds_sequence(std::string cds_dna);
     void add_genomic_sequence(std::string gdna);
-    std::string get_cds_sequence() { return cds_sequence; }
-    std::string get_genomic_sequence() { return genomic_sequence; }
+    const std::string & get_cds_sequence() { return cds_sequence; }
+    const std::string & get_genomic_sequence() { return genomic_sequence; }
     void set_genomic_offset(int offset) { gdna_offset=offset; }
     int get_genomic_offset() { return gdna_offset; }
     
-    void set_attribute(std::string key, std::string value) { attributes[key] = value; }
-    std::map<std::string, std::string> get_attributes() { return attributes; }
-    bool has_attribute(std::string key) { return attributes.count(key) > 0; }
-    std::string get_attribute(std::string key) { return attributes.at(key); }
+    void set_attribute(const std::string & key, const std::string & value) { attributes[key] = value; }
+    const std::map<std::string, std::string> & get_attributes() { return attributes; }
+    bool has_attribute(const std::string & key) { return attributes.count(key) > 0; }
+    const std::string & get_attribute(const std::string & key) { return attributes.at(key); }
     
-    std::string reverse_complement(std::string seq);
+    std::string reverse_complement(const std::string & seq);
     std::string get_centered_sequence(int pos, int length=3);
     std::string get_seq_in_region(int start, int end);
     std::string get_codon_sequence(int codon_number);
-    char translate_codon(std::string seq);
+    char translate_codon(const std::string & seq);
     std::string translate(std::string seq);
     
     Codon get_codon_info(int bp);

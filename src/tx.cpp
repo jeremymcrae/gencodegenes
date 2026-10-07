@@ -419,7 +419,7 @@ int Tx::get_position_within_codon(int cds_position) {
 
 // add the CDS sequence
 void Tx::add_cds_sequence(std::string cds_dna) {
-    cds_sequence = cds_dna;
+    cds_sequence = std::move(cds_dna);
 }
 
 // add and process the genomic sequence into a CDS sequence
@@ -434,7 +434,7 @@ void Tx::add_genomic_sequence(std::string gdna) {
         gdna = reverse_complement(gdna);
     }
     
-    genomic_sequence = gdna;
+    genomic_sequence = std::move(gdna);
     
     std::string cds_seq;
     for (auto &region : cds) {
@@ -541,7 +541,7 @@ static std::array<char, 256> make_complements() {
 }
 
 // reverse complement a DNA or RNA sequence
-std::string Tx::reverse_complement(std::string seq) {
+std::string Tx::reverse_complement(const std::string & seq) {
     static const std::array<char, 256> complements = make_complements();
     std::string complement(seq.rbegin(), seq.rend());
     for (auto &base : complement) {
@@ -597,7 +597,7 @@ std::string Tx::get_codon_sequence(int codon) {
 // translate a single codon to amino acid
 // @param seq codon sequence
 // @returns translated amino acid sequence as single char
-char Tx::translate_codon(std::string codon) {
+char Tx::translate_codon(const std::string & codon) {
     if (codon.size() != 3) {
         throw std::invalid_argument("translate_codon() needs a 3 bp sequence");
     }
@@ -845,7 +845,7 @@ static std::string codon_cq(char initial_aa, char mutated_aa, int codon_number, 
 // Each substituted base within the CDS is applied to its codon, and the most
 // severe consequence across the altered codons is returned. Bases outside the
 // CDS are skipped.
-std::string Tx::coding_cq(int start, int end, std::string alt) {
+std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     bool fwd = get_strand() == '+';
     std::map<int, Codon> codons;
     for (int pos = start; pos <= end; pos++) {
@@ -880,7 +880,7 @@ std::string Tx::coding_cq(int start, int end, std::string alt) {
     return severity[worst];
 }
 
-int min_len(std::string a, std::string b) {
+int min_len(const std::string & a, const std::string & b) {
     return (int)std::min(a.size(), b.size());
 }
 
