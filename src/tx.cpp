@@ -537,14 +537,19 @@ static std::array<char, 256> make_complements() {
     return table;
 }
 
+// complement a single base
+static char complement(char base) {
+    static const std::array<char, 256> complements = make_complements();
+    return complements[(uint8_t) base];
+}
+
 // reverse complement a DNA or RNA sequence
 std::string Tx::reverse_complement(const std::string & seq) {
-    static const std::array<char, 256> complements = make_complements();
-    std::string complement(seq.rbegin(), seq.rend());
-    for (auto &base : complement) {
-        base = complements[(uint8_t) base];
+    std::string revcomp(seq.rbegin(), seq.rend());
+    for (auto &base : revcomp) {
+        base = complement(base);
     }
-    return complement;
+    return revcomp;
 }
 
 // obtains the sequence around a position
@@ -853,7 +858,7 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
         auto it = codons.emplace(codon.codon_number, codon).first;
         char base = alt[pos - start];
         if (!fwd) {
-            base = reverse_complement(std::string(1, base))[0];
+            base = complement(base);
         }
         it->second.codon_seq[codon.intra_codon] = base;
     }
