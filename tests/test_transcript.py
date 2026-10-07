@@ -530,6 +530,123 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(8, 'AC', 'GT'), 'stop_gained')
         self.assertEqual(tx.consequence(8, 'A', 'G'), 'stop_lost')
     
+    def construct_cq_gene(self, strand='+'):
+        ''' build a small two exon transcript for checking variant consequences
+        
+        Layout (+ strand coordinates):
+            exon 1: 10001-10020 (5' UTR at 10001-10010, CDS at 10011-10020)
+            intron: 10021-10040 (GT at 10021-10022, AG at 10039-10040)
+            exon 2: 10041-10060 (CDS at 10041-10051, 3' UTR at 10052-10060)
+        The 21 bp CDS is ATG GCC AAA G|GC TGG CTG TAA (M A K G W L *), with
+        codon 3 split across the intron.
+        '''
+        seq = 'C' * 10 + 'ATGGCCAAAG' + 'GTAAGT' + 'T' * 12 + 'AG' + 'GCTGGCTGTAA' + 'G' * 9
+        tx = Transcript('TEST', '1', 10001, 10060, strand,
+            exons=[(10001, 10020), (10041, 10060)],
+            cds=[(10011, 10020), (10041, 10051)])
+        if strand == '+':
+            tx.genomic_sequence = seq
+        return tx
+    
+    def test_consequence_outside_transcript(self):
+        ''' check variants outside the transcript, up to 5 kb away
+        '''
+        tx = self.construct_cq_gene()
+        self.assertEqual(tx.consequence(10000, 'A', 'G'), 'upstream_gene_variant')
+        self.assertEqual(tx.consequence(5001, 'A', 'G'), 'upstream_gene_variant')
+        self.assertEqual(tx.consequence(5000, 'A', 'G'), 'intergenic_variant')
+        self.assertEqual(tx.consequence(10061, 'A', 'G'), 'downstream_gene_variant')
+        self.assertEqual(tx.consequence(15060, 'A', 'G'), 'downstream_gene_variant')
+        self.assertEqual(tx.consequence(15061, 'A', 'G'), 'intergenic_variant')
+        
+        # upstream and downstream swap for transcripts on the - strand
+        tx = self.construct_cq_gene(strand='-')
+        self.assertEqual(tx.consequence(10000, 'A', 'G'), 'downstream_gene_variant')
+        self.assertEqual(tx.consequence(10061, 'A', 'G'), 'upstream_gene_variant')
+    
+    def test_consequence_utr(self):
+        ''' check variants in exons outside the CDS are UTR variants
+        '''
+        tx = self.construct_cq_gene()
+        self.assertEqual(tx.consequence(10001, 'C', 'T'), '5_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10010, 'C', 'T'), '5_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10052, 'G', 'A'), '3_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10060, 'G', 'A'), '3_prime_UTR_variant')
+        
+        # on the - strand, the 5' UTR is at the higher coordinates
+        tx = self.construct_cq_gene(strand='-')
+        self.assertEqual(tx.consequence(10052, 'G', 'A'), '5_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10060, 'G', 'A'), '5_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10001, 'C', 'T'), '3_prime_UTR_variant')
+        self.assertEqual(tx.consequence(10010, 'C', 'T'), '3_prime_UTR_variant')
+    
+    def test_consequence_splice_and_intron(self):
+        ''' check intronic variants by distance to the nearest exon
+        
+        Splice donor and acceptor variants are in the first or last 2 bp of the
+        intron, and splice region variants are 3-8 bp into the intron.
+        '''
+        tx = self.construct_cq_gene()
+        expected = {10021: 'splice_donor_variant', 10022: 'splice_donor_variant',
+            10023: 'splice_region_variant', 10028: 'splice_region_variant',
+            10029: 'intron_variant', 10030: 'intron_variant',
+            10031: 'intron_variant', 10032: 'intron_variant',
+            10033: 'splice_region_variant', 10038: 'splice_region_variant',
+            10039: 'splice_acceptor_variant', 10040: 'splice_acceptor_variant'}
+        for pos, cq in expected.items():
+            self.assertEqual(tx.consequence(pos, 'T', 'C'), cq, msg=f'pos={pos}')
+        
+        # on the - strand, the donor is at the 3' end of the intron (in + strand
+        # coordinates), next to the exon which is first in transcript order
+        tx = self.construct_cq_gene(strand='-')
+        expected = {10040: 'splice_donor_variant', 10039: 'splice_donor_variant',
+            10038: 'splice_region_variant', 10033: 'splice_region_variant',
+            10032: 'intron_variant', 10029: 'intron_variant',
+            10028: 'splice_region_variant', 10023: 'splice_region_variant',
+            10022: 'splice_acceptor_variant', 10021: 'splice_acceptor_variant'}
+        for pos, cq in expected.items():
+            self.assertEqual(tx.consequence(pos, 'T', 'C'), cq, msg=f'pos={pos}')
+    
+    def test_consequence_coding_snvs(self):
+        ''' check SNVs in the CDS of ATG GCC AAA G|GC TGG CTG TAA (M A K G W L *)
+        '''
+        tx = self.construct_cq_gene()
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAAGGCTGGCTGTAA')
+        self.assertEqual(tx.consequence(10012, 'T', 'C'), 'start_lost')         # ATG>ACG
+        self.assertEqual(tx.consequence(10016, 'C', 'T'), 'synonymous_variant') # GCC>GCT
+        self.assertEqual(tx.consequence(10017, 'A', 'G'), 'missense_variant')   # AAA>GAA
+        
+        # the codon split across the intron, GGC (G)
+        self.assertEqual(tx.consequence(10020, 'G', 'T'), 'missense_variant')   # GGC>TGC
+        self.assertEqual(tx.consequence(10042, 'C', 'A'), 'synonymous_variant') # GGC>GGA
+        
+        self.assertEqual(tx.consequence(10044, 'G', 'A'), 'stop_gained')        # TGG>TAG
+        self.assertEqual(tx.consequence(10045, 'G', 'A'), 'stop_gained')        # TGG>TGA
+        self.assertEqual(tx.consequence(10049, 'T', 'C'), 'stop_lost')          # TAA>CAA
+        self.assertEqual(tx.consequence(10050, 'A', 'G'), 'stop_retained_variant') # TAA>TGA
+        self.assertEqual(tx.consequence(10051, 'A', 'G'), 'stop_retained_variant') # TAA>TAG
+    
+    def test_consequence_start_retained(self):
+        ''' check synonymous changes in a (non-AUG) start codon retain the start
+        '''
+        # CDS is CTG GCC TGG TAA (L A W *) at positions 4-15
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 15)],
+            sequence='CCCCTGGCCTGGTAAGGGGG')
+        self.assertEqual(tx.consequence(6, 'G', 'A'), 'start_retained_variant') # CTG>CTA
+        self.assertEqual(tx.consequence(5, 'T', 'A'), 'start_lost')             # CTG>CAG
+    
+    def test_consequence_short_intron(self):
+        ''' check variants in very short introns (< 10 bp) count as coding
+        
+        Introns this short are likely annotation artefacts, rather than spliced
+        out, so variants in them aren't classed as intronic or splice variants.
+        '''
+        tx = Transcript('TEST', '1', 1, 40, '+', exons=[(1, 20), (26, 40)],
+            cds=[(5, 20), (26, 30)])
+        for pos in range(21, 26):
+            self.assertEqual(tx.consequence(pos, 'A', 'G'), 'coding_sequence_variant',
+                msg=f'pos={pos}')
+    
     def test_consequence_indel_frame(self):
         """ check indels are classed as inframe or frameshift by length change
         """
