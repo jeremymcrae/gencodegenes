@@ -440,13 +440,10 @@ void Tx::add_genomic_sequence(std::string gdna) {
     for (auto &region : cds) {
         int x = std::abs(region.start - get_start()) + gdna_offset;
         int len = (region.end - region.start) + 1;
-        std::string bases = genomic_sequence.substr(x, len);
-        
-        if (get_strand() == fwd) {
-            cds_seq += bases;
-        } else {
-            cds_seq = reverse_complement(bases) + cds_seq;
-        }
+        cds_seq += genomic_sequence.substr(x, len);
+    }
+    if (get_strand() != fwd) {
+        cds_seq = reverse_complement(cds_seq);
     }
     
     // don't check the CDS matches expectations if the CDS sequence isn't set
