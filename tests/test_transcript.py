@@ -696,6 +696,54 @@ class TestTranscriptPy(unittest.TestCase):
         tx = self.construct_cq_gene('+')
         self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'frameshift_variant')
     
+    def test_consequence_inframe_indel_codons(self):
+        ''' check inframe indels which gain a stop, or lose the start or stop
+        codon, using the + strand CDS ATG GCC AAA G|GC TGG CTG TAA, with
+        3' UTR GGGGGGGGG.
+        '''
+        tx = self.construct_cq_gene('+')
+        # deletes TGG (10012-10014): ATG GCC -> ACC
+        self.assertEqual(tx.consequence(10011, 'ATGG', 'A'), 'start_lost')
+        # deletes CAT (10010-10012), running from the 5' UTR into the start codon
+        self.assertEqual(tx.consequence(10009, 'CCAT', 'C'), 'start_lost')
+        # deletes the whole GCC codon (10014-10016)
+        self.assertEqual(tx.consequence(10013, 'GGCC', 'G'), 'inframe_deletion')
+        # inserts TAA after GCC: GCC -> GCC TAA
+        self.assertEqual(tx.consequence(10016, 'C', 'CTAA'), 'stop_gained')
+        # inserts CCC after GCC
+        self.assertEqual(tx.consequence(10016, 'C', 'CCCC'), 'inframe_insertion')
+        # deletes GTA (10048-10050): CTG TAA -> CTA
+        self.assertEqual(tx.consequence(10047, 'TGTA', 'T'), 'stop_lost')
+        # deletes the whole stop codon (10049-10051)
+        self.assertEqual(tx.consequence(10048, 'GTAA', 'G'), 'stop_lost')
+        # deletes AAG (10050-10052), into the 3' UTR: TAA GGG -> TGG
+        self.assertEqual(tx.consequence(10049, 'TAAG', 'T'), 'stop_lost')
+        # deletes AGG (10051-10053), into the 3' UTR: TAA GGG -> TAG, still a stop
+        self.assertEqual(tx.consequence(10050, 'AAGG', 'A'), 'inframe_deletion')
+        
+        # without sequence, inframe indels can't be checked further
+        tx = self.construct_cq_gene('-')
+        self.assertEqual(tx.consequence(10048, 'GTAA', 'G'), 'inframe_deletion')
+        
+        # - strand transcript at 1-30, CDS at 4-18. In transcript orientation
+        # this is 12 bp of 5' UTR, ATG GCC AAA GCC TAA, then GGG of 3' UTR.
+        tx = Transcript('TEST', '1', 1, 30, '-', exons=[(1, 30)], cds=[(4, 18)])
+        tx.genomic_sequence = 'C' * 12 + 'ATGGCCAAAGCCTAA' + 'GGG'
+        # + strand: CCC TTAGGCTTTGGCCAT GGGGGGGGGGGG
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAAGCCTAA')
+        # inserts TTA after genomic 12, i.e. TAA before AAA in transcript
+        # orientation: AAA -> TAA AAA
+        self.assertEqual(tx.consequence(12, 'T', 'TTTA'), 'stop_gained')
+        # deletes the stop codon (genomic 4-6, TTA)
+        self.assertEqual(tx.consequence(3, 'CTTA', 'C'), 'stop_lost')
+        # deletes genomic 3-5 (CTT), i.e. AAG in transcript orientation, into
+        # the 3' UTR: TAA GGG -> TGG
+        self.assertEqual(tx.consequence(2, 'CCTT', 'C'), 'stop_lost')
+        # deletes genomic 15-17 (CCA), i.e. TGG in transcript orientation
+        self.assertEqual(tx.consequence(14, 'GCCA', 'G'), 'start_lost')
+        # inserts CCC before the start codon, which leaves it intact
+        self.assertEqual(tx.consequence(18, 'T', 'TGGG'), 'inframe_insertion')
+    
     def test_consequence_splice_site_outside_cds(self):
         ''' check variants spanning an exon/intron boundary outside the CDS are
         classed by the splice site they disrupt

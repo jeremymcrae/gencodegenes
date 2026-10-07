@@ -55,6 +55,7 @@ class Tx {
     std::string outside_gene_cq(int start, int end);
     std::string intronic_cq(int start, int end);
     std::string coding_cq(int start, int end, const std::string & alt);
+    std::string inframe_codon_cq(int start, int end, const std::string & ref, const std::string & alt);
     std::string indel_cq(int start, int end, std::string ref, std::string alt);
 
  public:

@@ -780,6 +780,79 @@ std::string Tx::intronic_cq(int start, int end) {
     return "intron_variant";
 }
 
+// check if an inframe indel within a single exon gains a stop, or loses the
+// stop or start codon, by translating the affected codons before and after.
+//
+// @returns consequence, or an empty string if none of those apply, or the
+//    sequence isn't available
+std::string Tx::inframe_codon_cq(int start, int end, const std::string & ref, const std::string & alt) {
+    if (cds_sequence.empty() || (int) cds_sequence.size() != cds_length) {
+        return "";
+    }
+    CDS_coords start_coord = get_coding_distance(start);
+    CDS_coords end_coord = get_coding_distance(end);
+    int lo = std::min(start_coord.position, end_coord.position);
+    int hi = std::max(start_coord.position, end_coord.position);
+    if (start_coord.offset != 0 || end_coord.offset != 0 || (hi - lo + 1) != (int) ref.size()) {
+        return "";
+    }
+    if (lo < 0) {
+        return "start_lost";
+    }
+    
+    bool fwd = get_strand() == '+';
+    std::string ref_t = fwd ? ref : reverse_complement(ref);
+    std::string alt_t = fwd ? alt : reverse_complement(alt);
+    bool inserted_before = (alt_t.size() > ref_t.size()) &&
+        (alt_t.compare(alt_t.size() - ref_t.size(), ref_t.size(), ref_t) == 0);
+    if ((lo == 0) && inserted_before) {
+        // bases inserted immediately before the start codon are in the 5' UTR
+        return "";
+    }
+    
+    std::string seq = cds_sequence;
+    if (hi >= cds_length) {
+        // extend into the 3' UTR, to check if the stop codon is re-formed
+        int cds_end = get_cds_end();
+        Region exon = get_closest_exon(cds_end);
+        int n = std::min(fwd ? exon.end - cds_end : cds_end - exon.start, hi - cds_length + 3);
+        int pos = (fwd ? cds_end + 1 : cds_end - n) - get_start() + gdna_offset;
+        if (pos < 0 || pos + n > (int) genomic_sequence.size()) {
+            return "";
+        }
+        std::string flank = genomic_sequence.substr(pos, n);
+        seq += fwd ? flank : reverse_complement(flank);
+    }
+    
+    int first = lo - lo % 3;
+    int length = hi - hi % 3 + 3 - first;
+    if (first + length > (int) seq.size()) {
+        return "";
+    }
+    std::string ref_seq = seq.substr(first, length);
+    std::string alt_seq = ref_seq;
+    alt_seq.replace(lo - first, ref.size(), alt_t);
+    
+    std::string ref_aa;
+    std::string alt_aa;
+    try {
+        ref_aa = translate(ref_seq);
+        alt_aa = translate(alt_seq);
+    } catch (const std::invalid_argument &) {
+        return "";
+    }
+    bool ref_stop = ref_aa.find('*') != std::string::npos;
+    bool alt_stop = alt_aa.find('*') != std::string::npos;
+    if (!ref_stop && alt_stop) {
+        return "stop_gained";
+    } else if (ref_stop && !alt_stop) {
+        return "stop_lost";
+    } else if ((first == 0) && (alt_aa.empty() || alt_aa[0] != ref_aa[0])) {
+        return "start_lost";
+    }
+    return "";
+}
+
 // check consequences for an indel with some CDS overlap
 std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     // find the overlapped exon, then check how much of the indel lies in that
@@ -821,8 +894,12 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     
     if (!inframe) {
         return "frameshift_variant";
+    }
+    std::string codon_change = inframe_codon_cq(start, end, ref, alt);
+    if (!codon_change.empty()) {
+        return codon_change;
     } else if (deletion) {
-        // TODO: account for new stop sites, or altered splice boundaries
+        // TODO: account for altered splice boundaries
         return "inframe_deletion";
     } else {
         return "inframe_insertion";
