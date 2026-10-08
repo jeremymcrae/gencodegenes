@@ -669,6 +669,17 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10030, 'A', 'G'), 'splice_polypyrimidine_tract_variant')
         self.assertEqual(tx.consequence(10005, 'A', 'G'), '3_prime_UTR_variant')
     
+    def test_without_exons(self):
+        ''' check methods needing exons raise an error, rather than crashing
+        '''
+        tx = Transcript('TEST', '1', 100, 200, '+')
+        for func in (lambda: tx.get_coding_distance(150),
+                     lambda: tx.get_codon_info(150),
+                     lambda: tx.consequence(150, 'A', 'G'),
+                     lambda: tx.consequence(150, 'AT', 'A')):
+            with self.assertRaisesRegex(ValueError, 'no exons assigned'):
+                func()
+    
     def test_consequence_last_codon_not_stop(self):
         ''' check synonymous changes in the last codon are only stop_retained
         if that codon is a stop codon, e.g. not for a 3' incomplete CDS

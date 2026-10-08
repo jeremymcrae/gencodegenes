@@ -306,6 +306,9 @@ CDS_coords Tx::to_closest_exon(int pos, Region exon) {
 //    pairs between two positions and an offset for distance into the
 //    intron
 CDS_coords Tx::get_coding_distance(int pos) {
+    if (exons.size() == 0) {
+        throw std::invalid_argument("no exons assigned to this transcript");
+    }
     int cds_start = get_cds_start();
     
     int first = closest_exon_num(cds_start);
@@ -1244,6 +1247,10 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     
     if ((end < tx_start) | (start > tx_end)) {
         return outside_gene_cq(start, end);
+    }
+    
+    if (exons.size() == 0) {
+        throw std::invalid_argument("no exons assigned to this transcript");
     }
     
     if (!overlaps_cds(start, end)) {
