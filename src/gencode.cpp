@@ -253,15 +253,14 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
     const std::vector<GenePoint> & chrom_ends = ends.at(chrom);
     const int n_starts = (int) chrom_starts.size();
     const int n_ends = (int) chrom_ends.size();
-    std::hash<std::string> hash;
     std::vector<std::string> symbols;
 
     // find genes with a start inside the region
-    std::unordered_set<std::size_t> inside;
+    std::unordered_set<std::string> inside;
     int first_start = std::lower_bound(chrom_starts.begin(), chrom_starts.end(),
         GenePoint {start, ""}, CompFunc) - chrom_starts.begin();
     for (int i = first_start; i < n_starts && chrom_starts[i].pos <= end; i++) {
-        inside.insert(hash(chrom_starts[i].symbol));
+        inside.insert(chrom_starts[i].symbol);
         symbols.push_back(chrom_starts[i].symbol);
     }
 
@@ -269,7 +268,7 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
     int after_end = std::upper_bound(chrom_ends.begin(), chrom_ends.end(),
         GenePoint {end, ""}, CompFunc) - chrom_ends.begin();
     for (int i = after_end - 1; i >= 0 && chrom_ends[i].pos >= start; i--) {
-        if (inside.count(hash(chrom_ends[i].symbol)) == 0) {
+        if (inside.count(chrom_ends[i].symbol) == 0) {
             symbols.push_back(chrom_ends[i].symbol);
         }
     }
@@ -280,12 +279,12 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
     }
 
     // find genes that span the region, i.e. start upstream and end downstream
-    std::unordered_set<std::size_t> starts_before;
+    std::unordered_set<std::string> starts_before;
     for (int i = first_start - 1; i >= 0 && std::abs(chrom_starts[i].pos - end) <= max_window; i--) {
-        starts_before.insert(hash(chrom_starts[i].symbol));
+        starts_before.insert(chrom_starts[i].symbol);
     }
     for (int i = after_end; i < n_ends && std::abs(chrom_ends[i].pos - start) <= max_window; i++) {
-        if (starts_before.count(hash(chrom_ends[i].symbol)) != 0) {
+        if (starts_before.count(chrom_ends[i].symbol) != 0) {
             symbols.push_back(chrom_ends[i].symbol);
         }
     }
