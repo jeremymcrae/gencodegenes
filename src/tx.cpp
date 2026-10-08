@@ -439,6 +439,12 @@ void Tx::add_cds_sequence(std::string cds_dna) {
 //    then the DNA sequence will be for the - strand, so we need to
 //    reorient the DNA to the + strand.
 void Tx::add_genomic_sequence(std::string gdna) {
+    int expected = (tx_end - tx_start) + 1 + 2 * gdna_offset;
+    if ((int) gdna.size() != expected) {
+        throw std::invalid_argument(get_name() + " genomic sequence is "
+            + std::to_string(gdna.size()) + " bp, but should be " + std::to_string(expected)
+            + " bp (the transcript span, plus the offset on each side)");
+    }
     to_upper(gdna);
     char fwd = '+';
     if (get_strand() != fwd) {

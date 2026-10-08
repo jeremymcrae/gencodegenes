@@ -148,12 +148,24 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         cds = [(2, 4), (6, 8)]
         self.gene = self.construct_gene(start=start, end=end, exons=exons, cds=cds)
         
-        gdna = "AAAGGCCTTT"
+        gdna = "AAAGGCCTTTT"
         self.gene.cds_sequence = "AGGCTT"
         
         self.gene.genomic_offset = 1
         self.gene.genomic_sequence = gdna
         self.assertEqual(self.gene.cds_sequence, "AGGCTT")
+    
+    def test_genomic_sequence_wrong_length(self):
+        """ check a sequence not matching the transcript span plus offsets raises
+        """
+        # positions 1-9, plus a 1 bp offset each side, needs 11 bp
+        self.gene = self.construct_gene(start=1, end=9, exons=[(1, 4), (6, 9)],
+            cds=[(2, 4), (6, 8)])
+        self.gene.genomic_offset = 1
+        for gdna in ["AAAGGCCTTT", "AAAGGCCTTTTT"]:
+            with self.assertRaisesRegex(ValueError, 'should be 11 bp'):
+                self.gene.genomic_sequence = gdna
+        self.gene.genomic_sequence = "AAAGGCCTTTT"
     
     def test_reverse_complement(self):
         """ check reverse complementing DNA, RNA and ambiguity codes
@@ -201,7 +213,7 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         cds = [(2, 4), (6, 8)]
         self.gene = self.construct_gene(start=start, end=end, exons=exons, cds=cds)
         
-        gdna = "AAAGGCCTTT"
+        gdna = "AAAGGCCTTTT"
         self.gene.cds_sequence = "AGGCTT"
         self.gene.genomic_sequence = gdna
         
@@ -250,7 +262,7 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         cds = [(2, 4), (6, 8)]
         self.gene = self.construct_gene(start=start, end=end, exons=exons, cds=cds)
         
-        gdna = "AAAGGCCTTT"
+        gdna = "AAAGGCCTTTT"
         self.gene.cds_sequence = "AGGCTT"
         self.gene.genomic_sequence = gdna
         
@@ -272,7 +284,7 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.gene = self.construct_gene(start=start, end=end, exons=exons,
             cds=cds)
         
-        gdna = "AAAGGCCTTT"
+        gdna = "AAAGGCCTTTT"
         self.gene.cds_sequence = "AGGCTT"
         self.gene.genomic_sequence = gdna
         
