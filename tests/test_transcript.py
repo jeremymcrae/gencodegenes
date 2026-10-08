@@ -198,6 +198,18 @@ class TestTranscriptPy(unittest.TestCase):
         
         self.assertEqual(len((a + b).genomic_sequence), 71)
     
+    def test___add__one_without_sequence(self):
+        ''' check transcripts combine when only one has a genomic sequence, without
+        merging sequences
+        '''
+        a = Transcript("a", "1", 10, 20, "+", exons=[(10, 20)], cds=[(10, 15)],
+            sequence='A' * 11)
+        b = Transcript("b", "1", 30, 40, "+", exons=[(30, 40)], cds=[(30, 35)])
+        expected = [{'start': 10, 'end': 15}, {'start': 30, 'end': 35}]
+        for c in (a + b, b + a):
+            self.assertEqual(c.cds, expected)
+            self.assertEqual(c.genomic_sequence, '')
+    
     def test___add__not_overlapping_with_offset(self):
         ''' check the gap between non-overlapping transcripts is filled with Ns,
         so the second transcript's sequence stays at the right positions

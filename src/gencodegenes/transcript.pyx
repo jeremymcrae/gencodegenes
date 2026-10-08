@@ -266,7 +266,7 @@ cdef class Transcript:
         altered.exons = exons
         altered.cds = cds
         
-        if self.genomic_sequence != "":
+        if self.genomic_sequence != "" and other.genomic_sequence != "":
             altered.genomic_offset = self.genomic_offset
             altered.genomic_sequence = self._merge_genomic_seq(other)
         
