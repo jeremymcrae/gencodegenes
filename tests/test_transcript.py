@@ -697,6 +697,30 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10030, 'A', 'G'), 'splice_polypyrimidine_tract_variant')
         self.assertEqual(tx.consequence(10005, 'A', 'G'), '3_prime_UTR_variant')
     
+    def test_consequence_mnv_into_intron(self):
+        ''' check multi-base substitutions running from the CDS into an intron
+        disrupt the splice site, as SNVs and deletions there do
+        '''
+        # + strand, exon 1 ends at 10020 (last two bases GG) and the intron
+        # starts with GT, so the donor is 10021-10022. Exon 2 starts at 10041,
+        # and the intron ends with AG, so the acceptor is 10039-10040.
+        tx = self.construct_cq_gene()
+        self.assertEqual(tx.consequence(10020, 'GG', 'CC'), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(10019, 'AGG', 'CCC'), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(10040, 'GG', 'CC'), 'splice_acceptor_variant')
+        self.assertEqual(tx.consequence(10040, 'GGC', 'CCC'), 'splice_acceptor_variant')
+        # entirely within the exon, the splice region is less severe than missense
+        self.assertEqual(tx.consequence(10018, 'AA', 'GG'), 'missense_variant')
+        
+        # on the - strand the donor and acceptor swap, as the donor is at the
+        # higher coordinates
+        plus = self.construct_cq_gene()
+        tx = self.construct_cq_gene(strand='-')
+        tx.genomic_sequence = tx.reverse_complement(plus.genomic_sequence)
+        self.assertEqual(tx.consequence(10020, 'GG', 'CC'), 'splice_acceptor_variant')
+        self.assertEqual(tx.consequence(10040, 'GG', 'CC'), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(10040, 'GGC', 'CCC'), 'splice_donor_variant')
+    
     def test_consequence_ref_mismatch(self):
         ''' check ref alleles must match the genomic sequence, where available
         '''

@@ -1218,6 +1218,18 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     if (in_exonic_splice_region(start, end)) {
         worst = most_severe(worst, "splice_region_variant");
     }
+    
+    // changes running from the exon into an intron disrupt the splice site.
+    // Single base changes in the CDS can't leave the exon.
+    if (end > start) {
+        int idx = overlapping_region_num(start, end, exons);
+        if (idx > 0 && start < exons[idx].start) {
+            worst = most_severe(worst, fwd ? "splice_acceptor_variant" : "splice_donor_variant");
+        }
+        if (idx >= 0 && idx < (int) exons.size() - 1 && end > exons[idx].end) {
+            worst = most_severe(worst, fwd ? "splice_donor_variant" : "splice_acceptor_variant");
+        }
+    }
     return worst;
 }
 
