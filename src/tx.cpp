@@ -1167,6 +1167,10 @@ static std::string codon_cq(char initial_aa, char mutated_aa, int codon_number, 
 // severe consequence across the altered codons is returned. Bases outside the
 // CDS are skipped.
 std::string Tx::coding_cq(int start, int end, const std::string & alt) {
+    if (cds_sequence.empty()) {
+        throw std::invalid_argument(get_name() + " lacks genomic sequence (e.g. "
+            "from a genome fasta), which is needed for coding consequences");
+    }
     bool fwd = get_strand() == '+';
     std::map<int, Codon> codons;
     for (int pos = start; pos <= end; pos++) {

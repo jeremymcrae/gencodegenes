@@ -659,6 +659,16 @@ class TestTranscriptPy(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'reference allele is empty'):
             tx.consequence(10015, '', 'A')
     
+    def test_consequence_without_sequence(self):
+        ''' check coding SNVs need the genomic sequence, but other sites don't
+        '''
+        tx = self.construct_cq_gene('-')
+        with self.assertRaisesRegex(ValueError, 'TEST lacks genomic sequence'):
+            tx.consequence(10015, 'A', 'G')
+        # 10 bp from the acceptor, which is at the lower end on the - strand
+        self.assertEqual(tx.consequence(10030, 'A', 'G'), 'splice_polypyrimidine_tract_variant')
+        self.assertEqual(tx.consequence(10005, 'A', 'G'), '3_prime_UTR_variant')
+    
     def test_consequence_last_codon_not_stop(self):
         ''' check synonymous changes in the last codon are only stop_retained
         if that codon is a stop codon, e.g. not for a 3' incomplete CDS
