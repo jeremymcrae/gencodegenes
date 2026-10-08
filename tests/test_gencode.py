@@ -791,7 +791,9 @@ class TestGencode(unittest.TestCase):
         
         self.assertEqual(parse('1', '2147483647'), (1, 2147483647))
         self.assertEqual(parse(' 10', '20'), (10, 20))
-        for start, end in [('', '20'), ('10', ''), ('abc', '20'), ('10', 'x')]:
+        self.assertEqual(parse('10 ', '20'), (10, 20))
+        for start, end in [('', '20'), ('10', ''), ('abc', '20'), ('10', 'x'),
+                ('12x', '20'), ('10', '20.5'), ('-5', '20'), ('10', '-1'), (' ', '20')]:
             with self.assertRaises(ValueError):
                 parse(start, end)
         with self.assertRaises(IndexError):

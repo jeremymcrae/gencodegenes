@@ -223,7 +223,10 @@ static int parse_int(const std::string &line, size_t start, size_t end) {
     char * last;
     errno = 0;
     long value = std::strtol(first, &last, 10);
-    if (last == first || last > line.c_str() + end) {
+    while (last < line.c_str() + end && *last == ' ') {
+        last++;
+    }
+    if (last == first || last != line.c_str() + end || value < 0) {
         throw std::invalid_argument("invalid position in GTF line: " + line);
     }
     if (errno == ERANGE || value > INT_MAX || value < INT_MIN) {
