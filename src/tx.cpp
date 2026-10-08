@@ -1,4 +1,5 @@
 #include <array>
+#include <cctype>
 #include <string>
 #include <vector>
 #include <cstdlib>
@@ -29,6 +30,12 @@ static std::unordered_map<std::string, char> aa_code = {
     {"TCA", 'S'}, {"TCC", 'S'}, {"TCG", 'S'}, {"TCT", 'S'},
     {"TGA", '*'}, {"TGC", 'C'}, {"TGG", 'W'}, {"TGT", 'C'},
     {"TTA", 'L'}, {"TTC", 'F'}, {"TTG", 'L'}, {"TTT", 'F'}};
+
+static void to_upper(std::string & seq) {
+    for (auto & base : seq) {
+        base = (char) std::toupper((unsigned char) base);
+    }
+}
 
 // Constructor for Tx class
 Tx::Tx(std::string transcript_id, std::string chromosome,
@@ -422,6 +429,7 @@ int Tx::get_position_within_codon(int cds_position) {
 
 // add the CDS sequence
 void Tx::add_cds_sequence(std::string cds_dna) {
+    to_upper(cds_dna);
     cds_sequence = std::move(cds_dna);
 }
 
@@ -431,6 +439,7 @@ void Tx::add_cds_sequence(std::string cds_dna) {
 //    then the DNA sequence will be for the - strand, so we need to
 //    reorient the DNA to the + strand.
 void Tx::add_genomic_sequence(std::string gdna) {
+    to_upper(gdna);
     char fwd = '+';
     if (get_strand() != fwd) {
         // orient the DNA sequence to the + strand.
@@ -583,9 +592,7 @@ std::string Tx::get_seq_in_region(int start, int end) {
     }
     int pos = start - get_start() + gdna_offset;
     int length = end - start;
-    std::string seq = genomic_sequence.substr(pos, length);
-    std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
-    return seq;
+    return genomic_sequence.substr(pos, length);
 }
 
 // get the codon sequence for a given codon_number
@@ -619,7 +626,7 @@ char Tx::translate_codon(const std::string & codon) {
 // @param seq codon sequence, or longer DNA sequences.
 // @returns translated amino acid sequence as single character codes.
 std::string Tx::translate(std::string seq) {
-    std::transform(seq.begin(), seq.end(), seq.begin(), ::toupper);
+    to_upper(seq);
     
     std::string protein;
     protein.resize(seq.size() / 3);
@@ -1233,6 +1240,8 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     if (ref.empty()) {
         throw std::invalid_argument("reference allele is empty");
     }
+    to_upper(ref);
+    to_upper(alt);
     
     // TODO: need to realign alt against ref sequence, and strip down to alternate bases
     trim_alleles(start, end, ref, alt);

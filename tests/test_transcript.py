@@ -684,6 +684,18 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10030, 'A', 'G'), 'splice_polypyrimidine_tract_variant')
         self.assertEqual(tx.consequence(10005, 'A', 'G'), '3_prime_UTR_variant')
     
+    def test_consequence_lowercase(self):
+        ''' check lowercase (e.g. soft-masked) sequence and alleles are handled
+        '''
+        tx = Transcript('TEST', '1', 1, 9, '+', exons=[(1, 9)], cds=[(1, 9)],
+            sequence='atggcctaa')
+        self.assertEqual(tx.genomic_sequence, 'ATGGCCTAA')
+        self.assertEqual(tx.cds_sequence, 'ATGGCCTAA')
+        # GCC (Ala) -> ACC (Thr), and GCC -> GCT (Ala)
+        self.assertEqual(tx.consequence(4, 'G', 'A'), 'missense_variant')
+        self.assertEqual(tx.consequence(4, 'g', 'a'), 'missense_variant')
+        self.assertEqual(tx.consequence(6, 'c', 't'), 'synonymous_variant')
+    
     def test_without_exons(self):
         ''' check methods needing exons raise an error, rather than crashing
         '''
