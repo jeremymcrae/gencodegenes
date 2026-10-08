@@ -46,7 +46,9 @@ cdef class Transcript:
             # allow construction without a Tx, so an existing C++ Tx can be
             # wrapped directly (see _wrap_tx); thisptr is assigned by the caller
             return
-        
+        if chrom is None:
+            raise ValueError(f'transcript {name} needs a chromosome')
+
         name = name.encode('utf8')
         chrom = chrom.encode('utf8')
         transcript_type = transcript_type.encode('utf8')

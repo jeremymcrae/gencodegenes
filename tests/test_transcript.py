@@ -800,6 +800,12 @@ class TestTranscriptPy(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'no exons assigned'):
                 func()
     
+    def test_without_chrom(self):
+        ''' check a transcript needs a chromosome
+        '''
+        with self.assertRaisesRegex(ValueError, 'needs a chromosome'):
+            Transcript('TEST')
+    
     def test_consequence_last_codon_not_stop(self):
         ''' check synonymous changes in the last codon are only stop_retained
         if that codon is a stop codon, e.g. not for a 3' incomplete CDS
