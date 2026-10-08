@@ -100,7 +100,9 @@ class Transcript:
     def cds(self, cds_ranges: list[tuple[int, int]]) -> None: ...
 
     @property
-    def cds_sequence(self) -> str: ...
+    def cds_sequence(self) -> str:
+        """coding sequence, in the direction of transcription"""
+        ...
     @cds_sequence.setter
     def cds_sequence(self, text: str) -> None: ...
 
@@ -112,7 +114,12 @@ class Transcript:
     def genomic_offset(self, offset: int) -> None: ...
 
     @property
-    def genomic_sequence(self) -> str: ...
+    def genomic_sequence(self) -> str:
+        """DNA sequence of the transcript region, plus genomic_offset bp on each
+        side. This is set in the direction of transcription, but returned on
+        the + strand.
+        """
+        ...
     @genomic_sequence.setter
     def genomic_sequence(self, text: str) -> None: ...
 
@@ -360,6 +367,7 @@ class Transcript:
 
         Raises:
             ValueError: if the variant can't be placed on the transcript (e.g.
-                an indel without an overlapping exon)
+                an indel without an overlapping exon), or the ref allele doesn't
+                match the genomic sequence
         """
         ...
