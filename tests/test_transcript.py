@@ -723,6 +723,9 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10011, 'ATGG', 'A'), 'start_lost')
         # deletes CAT (10010-10012), running from the 5' UTR into the start codon
         self.assertEqual(tx.consequence(10009, 'CCAT', 'C'), 'start_lost')
+        # deletes CA (10010-10011), which isn't a frameshift, as it isn't
+        # wholly within the CDS
+        self.assertEqual(tx.consequence(10009, 'CCA', 'C'), 'start_lost')
         # deletes the whole GCC codon (10014-10016)
         self.assertEqual(tx.consequence(10013, 'GGCC', 'G'), 'inframe_deletion')
         # inserts TAA after GCC: GCC -> GCC TAA
@@ -758,8 +761,31 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(2, 'CCTT', 'C'), 'stop_lost')
         # deletes genomic 15-17 (CCA), i.e. TGG in transcript orientation
         self.assertEqual(tx.consequence(14, 'GCCA', 'G'), 'start_lost')
+        # deletes genomic 18-19 (TG), i.e. the A of ATG and a 5' UTR base
+        self.assertEqual(tx.consequence(17, 'ATG', 'A'), 'start_lost')
         # inserts CCC before the start codon, which leaves it intact
         self.assertEqual(tx.consequence(18, 'T', 'TGGG'), '5_prime_UTR_variant')
+    
+    def test_consequence_start_codon_indels(self):
+        ''' check indels in the start codon are start_lost if the altered
+        peptide doesn't start or end with the reference peptide, or (for
+        deletions) the CDS no longer begins with ATG, as in VEP
+        '''
+        # CDS ATG ATG AAA GCC TAA (M M K A *) at 4-18
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 18)])
+        tx.genomic_sequence = 'CCC' + 'ATGATGAAAGCCTAA' + 'GG'
+        # deletes TGA (5-7): ATG ATG -> ATG, i.e. MM -> M
+        self.assertEqual(tx.consequence(4, 'ATGA', 'A'), 'start_lost')
+        # deletes the whole start codon (4-6), so the next ATG takes its place
+        self.assertEqual(tx.consequence(3, 'CATG', 'C'), 'inframe_deletion')
+        # deleting the whole start codon of ATG GCC leaves GCC at the start
+        tx = self.construct_cq_gene('+')
+        self.assertEqual(tx.consequence(10010, 'CATG', 'C'), 'start_lost')
+        
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 18)])
+        tx.genomic_sequence = 'CCC' + 'ATGATGAAAGCCTAA' + 'GG'
+        # inserts CGA within the start codon: ATG -> ACG ATG, i.e. M -> TM
+        self.assertEqual(tx.consequence(4, 'A', 'ACGA'), 'inframe_insertion')
     
     def test_consequence_insertion_codons(self):
         ''' check insertions in the + strand CDS ATG GCC AAA G|GC TGG CTG TAA

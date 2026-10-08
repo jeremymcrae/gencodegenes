@@ -782,7 +782,9 @@ static std::string acceptor_insertion_cq(int near) {
 
 // consequence of replacing a reference peptide with an altered peptide, if
 // that gains, loses or retains a stop, or loses the start. Otherwise returns
-// an empty string.
+// an empty string. As in VEP, the start is only lost if the altered peptide
+// neither starts nor ends with the reference peptide, so deleting whole codons
+// including the start codon is not start_lost.
 static std::string peptide_cq(const std::string & ref_aa, const std::string & alt_aa, bool at_start) {
     size_t ref_stop = ref_aa.find('*');
     size_t alt_stop = alt_aa.find('*');
@@ -793,8 +795,13 @@ static std::string peptide_cq(const std::string & ref_aa, const std::string & al
     } else if (ref_stop != std::string::npos
             && ref_aa.compare(0, ref_stop + 1, alt_aa, 0, alt_stop + 1) == 0) {
         return "stop_retained_variant";
-    } else if (at_start && (alt_aa.empty() || alt_aa[0] != ref_aa[0])) {
-        return "start_lost";
+    } else if (at_start && !alt_aa.empty()) {
+        bool starts = alt_aa.compare(0, ref_aa.size(), ref_aa) == 0;
+        bool ends = alt_aa.size() >= ref_aa.size()
+            && alt_aa.compare(alt_aa.size() - ref_aa.size(), ref_aa.size(), ref_aa) == 0;
+        if (!starts && !ends) {
+            return "start_lost";
+        }
     }
     return "";
 }
@@ -1075,7 +1082,16 @@ std::string Tx::indel_codon_cq(int start, int end, const std::string & ref, cons
     if (!translate_change(lo, hi, alt_t, ref_aa, alt_aa)) {
         return "";
     }
-    return peptide_cq(ref_aa, alt_aa, lo < 3);
+    std::string cq = peptide_cq(ref_aa, alt_aa, lo < 3);
+    if (cq.empty() && lo < 3) {
+        // as in VEP, the start is also lost if the CDS no longer begins with ATG
+        std::string altered = cds_sequence.substr(0, hi + 4);
+        altered.replace(lo, hi - lo + 1, alt_t);
+        if (altered.compare(0, 3, "ATG") != 0) {
+            return "start_lost";
+        }
+    }
+    return cq;
 }
 
 // check consequences for an indel with some CDS overlap
@@ -1112,7 +1128,11 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     int alt_len = (int) alt.size();
     bool inframe = (std::abs(ref_len - alt_len) % 3) == 0;
     std::string cq = indel_codon_cq(start, end, ref, alt);
-    if (!inframe) {
+    bool into_utr5 = fwd ? start < get_cds_start() : end > get_cds_start();
+    if (!inframe && into_utr5) {
+        // frameshifts must lie within the CDS, but this disrupts the start
+        cq = "start_lost";
+    } else if (!inframe) {
         cq = is_stop_change(cq) ? cq : "frameshift_variant";
     } else if (cq.empty()) {
         // TODO: account for altered splice boundaries
