@@ -56,8 +56,10 @@ class TestGencode(unittest.TestCase):
         ''' test each Gencode uses its own genome fasta, and closes it on exit
         '''
         with Gencode(self.gtf_path, self.fasta_path) as gencode:
-            seq = gencode['OR4F5'].canonical.genomic_sequence
-        self.assertEqual(len(seq), 927)
+            tx = gencode['OR4F5'].canonical
+            seq = tx.genomic_sequence
+        self.assertEqual(len(seq), tx.end - tx.start + 1 + 2 * tx.genomic_offset)
+        self.assertEqual(len(seq), 928)
         
         # exiting without a fasta is fine
         with Gencode(self.gtf_path) as gencode:
@@ -71,7 +73,7 @@ class TestGencode(unittest.TestCase):
         poly_a = Gencode(self.gtf_path, self.temp_fasta_path)
         no_fasta = Gencode(self.gtf_path)
         self.assertEqual(real['OR4F5'].canonical.genomic_sequence, seq)
-        self.assertEqual(poly_a['OR4F5'].canonical.genomic_sequence, 'A' * 927)
+        self.assertEqual(poly_a['OR4F5'].canonical.genomic_sequence, 'A' * 928)
         self.assertEqual(no_fasta['OR4F5'].canonical.genomic_sequence, '')
     
     def test_gencode_genome_chrom_edges(self):
@@ -93,12 +95,14 @@ class TestGencode(unittest.TestCase):
             start = gencode['START'].transcripts[0]
             end = gencode['END'].transcripts[0]
         
+        # START has 1 bp before it (position 1), so a 1 bp flank, covering 1-21
         self.assertEqual(start.genomic_offset, 1)
-        self.assertEqual(start.genomic_sequence, seq[0:20])
+        self.assertEqual(start.genomic_sequence, seq[0:21])
         self.assertEqual(start.cds_sequence, seq[3:18])
         
-        self.assertEqual(end.genomic_offset, 1)
-        self.assertEqual(end.genomic_sequence, seq[60:80])
+        # END finishes at the chromosome end, so has no flank, covering 62-80
+        self.assertEqual(end.genomic_offset, 0)
+        self.assertEqual(end.genomic_sequence, seq[61:80])
         self.assertEqual(end.cds_sequence, end.reverse_complement(seq[63:78]))
     
     def test_gene_alternate_ids(self):
