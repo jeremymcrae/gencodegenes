@@ -246,6 +246,11 @@ cdef class Gene:
         Occasionally there are multiple transcripts tagged as appris_principal
         and with the same longest CDS, we use the first one of those.
         '''
+        return self._to_Transcript(self._transcripts[self._canonical_idx()])
+    
+    cdef size_t _canonical_idx(self) except *:
+        ''' get the index of the canonical transcript (see canonical)
+        '''
         cdef size_t i, max_i
         cdef int max_score = 0
         for i in range(self._canonical.size()):
@@ -261,8 +266,7 @@ cdef class Gene:
             max_i = self._max_by_cds(canonical)
         except ValueError:
             max_i = self._max_by_exonic(canonical)
-        
-        return self._to_Transcript(self._transcripts[max_i])
+        return max_i
     
     def in_any_tx_cds(self, int pos):
         ''' find if a pos is in coding region of any transcript of a gene
@@ -400,15 +404,19 @@ cdef class Gencode:
         chrom = _chrom.decode('utf8')
         
         # first, account for any overlapping genes
+        cdef Gene gene
         overlaps = self.in_region(chrom, pos, pos)
         if len(overlaps) > 0:
             # if we have > 0 prioritise if the position is in the CDS
             cds_overlaps = [x for x in overlaps if x.in_any_tx_cds(pos)]
             if len(cds_overlaps) > 0:
                 overlaps = cds_overlaps
-            # prioritise the gene with longest CDS (in the canonical tx)
-            txs = [x.canonical for x in overlaps]
-            lengths = [x.get_coding_distance(x.cds_end)['pos'] if x.cds else 0 for x in txs]
+            # prioritise the gene with longest CDS (in the canonical tx), read
+            # from the Tx directly, to avoid loading sequence from the genome
+            lengths = []
+            for gene in overlaps:
+                tx_len = gene._cds_len(gene._transcripts[gene._canonical_idx()])
+                lengths.append(max(tx_len - 1, 0))
             idx = lengths.index(max(lengths))
             return overlaps[idx]
         
