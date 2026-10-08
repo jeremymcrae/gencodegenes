@@ -285,6 +285,24 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(a._merge_coordinates([{'start': 10, 'end': 20}], []), [(10, 20)])
         self.assertEqual(a._merge_coordinates([], []), [])
     
+    def test___add__minus_strand_sequence(self):
+        """ test merged sequences keep the + strand orientation on the - strand
+        """
+        seq = 'ACGTTGCAAGCTTGCA' * 2   # + strand bases for positions 1-32
+        rc = self.gene.reverse_complement
+        # sequences are set in the direction of transcription
+        a = Transcript('A', '1', 1, 20, '-', exons=[(1, 20)], cds=[(1, 18)],
+            sequence=rc(seq[:20]))
+        b = Transcript('B', '1', 11, 32, '-', exons=[(11, 32)], cds=[(13, 30)],
+            sequence=rc(seq[10:]))
+        self.assertEqual(a.genomic_sequence, seq[:20])
+        self.assertEqual(b.genomic_sequence, seq[10:])
+        
+        c = a + b
+        self.assertEqual(c.genomic_sequence, seq)
+        # the CDS spans positions 1-30, read in the direction of transcription
+        self.assertEqual(c.cds_sequence, rc(seq[:30]))
+    
     def test___add__non_coding(self):
         """ test the CDS is kept when adding a non-coding transcript
         """

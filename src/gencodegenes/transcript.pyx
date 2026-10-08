@@ -244,7 +244,10 @@ cdef class Transcript:
         
         if self.genomic_sequence != "" and other.genomic_sequence != "":
             altered.genomic_offset = self.genomic_offset
-            altered.genomic_sequence = self._merge_genomic_seq(other)
+            seq = self._merge_genomic_seq(other)
+            if self.strand == '-':
+                seq = self.reverse_complement(seq)
+            altered.genomic_sequence = seq
         
         return altered
     
