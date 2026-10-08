@@ -3,6 +3,7 @@
 import bisect
 import logging
 from pathlib import Path
+import weakref
 
 from cython.operator cimport dereference as deref, preincrement as inc
 from libcpp.algorithm cimport lower_bound, upper_bound, stable_sort
@@ -74,6 +75,8 @@ cpdef _open_gencode(gtf_path, coding_only=True):
         transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.is_canonical))
     return transcripts
 
+cdef class Gencode
+
 cdef class Gene:
     cdef string _symbol
     cdef vector[Tx] _transcripts
@@ -82,10 +85,12 @@ cdef class Gene:
     cdef int _start, _end
     cdef vector[string] _alternate_ids
     cdef object _genome  # pyfaidx Fasta shared with the parent Gencode, or None
+    cdef list _parents   # weakrefs to the Gencode objects indexing this gene
     def __cinit__(self, symbol, alt_ids=None):
         if isinstance(symbol, str):
             symbol = symbol.encode('utf8')
         self._symbol = symbol
+        self._parents = []
         
         if alt_ids is None:
             alt_ids = []
@@ -107,9 +112,14 @@ cdef class Gene:
         '''
         assert isinstance(_tx, Transcript)
         cdef Transcript txn = _tx          # typed handle so Cython sees thisptr
+        cdef Gencode parent
         if self._chrom is not None and txn.chrom != self._chrom:
             raise ValueError(f'cannot add {txn.name} on {txn.chrom} to {self.symbol} on {self._chrom}')
         self.add_tx(deref(txn.thisptr), False)
+        for ref in self._parents:
+            parent = ref()
+            if parent is not None:
+                parent._stale = True
     
     def __repr__(self):
         chrom = self.chrom
@@ -300,6 +310,8 @@ cdef class Gencode:
     cdef dict genes
     cdef map[string, vector[GenePoint]] starts, ends
     cdef object _genome
+    cdef bint _stale  # set when a gene's span may have changed since indexing
+    cdef object __weakref__
     def __cinit__(self, gencode=None, fasta=None, coding_only=True):
         ''' initialise Gencode
         
@@ -323,6 +335,7 @@ cdef class Gencode:
         cdef size_t i
         cdef Gene curr
         loci = {}
+        parent = weakref.ref(self)
         if gencode is not None:
             transcripts = open_gencode(str(gencode).encode('utf8'), coding_only)
             for i in range(transcripts.size()):
@@ -336,6 +349,7 @@ cdef class Gencode:
                 if key not in loci:
                     curr = Gene(x.symbol, x.alternate_ids)
                     curr._genome = self._genome
+                    curr._parents.append(parent)
                     loci[key] = curr
                     self.genes.setdefault(curr.symbol, []).append(curr)
                 curr = loci[key]
@@ -345,6 +359,7 @@ cdef class Gencode:
     def _sort(self):
         ''' index by starts and ends, to speed finding genes in a region
         '''
+        self._stale = False
         self.starts.clear()
         self.ends.clear()
         cdef Gene gene
@@ -396,12 +411,15 @@ cdef class Gencode:
         if all(x.chrom != gene.chrom for x in genes):
             if gene._genome is None:
                 gene._genome = self._genome
+            gene._parents.append(weakref.ref(self))
             genes.append(gene)
         self._sort()
     
     def nearest(self, str chrom, int pos):
         ''' find the nearest gene to a genomic chrom, pos coordinate
         '''
+        if self._stale:
+            self._sort()
         _chrom = self._match_chrom(chrom)
         chrom = _chrom.decode('utf8')
         
@@ -455,6 +473,8 @@ cdef class Gencode:
         Returns:
             list of Gene objects
         '''
+        if self._stale:
+            self._sort()
         symbols = _in_region(self._match_chrom(_chrom), start, end, self.starts,
             self.ends, max_window)
         return [self._gene_at(x) for x in symbols]

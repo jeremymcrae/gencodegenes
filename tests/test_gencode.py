@@ -3,6 +3,7 @@ import gzip
 from pathlib import Path
 import unittest
 import tempfile
+import weakref
 
 from gencodegenes.gencode import Gencode, Gene, _parse_gtfline, _open_gencode
 from gencodegenes.transcript import Transcript
@@ -192,6 +193,29 @@ class TestGencode(unittest.TestCase):
         # genes without transcripts lack coordinates, so can't be indexed
         with self.assertRaises(ValueError):
             gencode.add_gene(Gene('EMPTY'))
+    
+    def test_gencode_gene_extended(self):
+        ''' test the region index updates when genes gain transcripts
+        '''
+        gencode = Gencode()
+        gene = Gene('NEW')
+        gene.add_transcript(Transcript('TX1', 'chr1', 100, 200, '+', exons=[(100, 200)]))
+        gencode.add_gene(gene)
+        self.assertEqual(gencode.in_region('chr1', 8000, 8500), [])
+        gene.add_transcript(Transcript('TX2', 'chr1', 100, 9000, '+', exons=[(100, 9000)]))
+        self.assertEqual([x.symbol for x in gencode.in_region('chr1', 8000, 8500)], ['NEW'])
+        
+        # also for genes loaded from the GTF
+        gencode = Gencode(self.gtf_path)
+        gencode['OR4F5'].add_transcript(Transcript('TX3', 'chr1', 69000, 300000, '+',
+            exons=[(69000, 300000)]))
+        self.assertIn('OR4F5', [x.symbol for x in gencode.in_region('chr1', 250000, 250100)])
+        self.assertEqual(gencode.nearest('chr1', 250000).symbol, 'OR4F5')
+        
+        # genes don't keep their Gencode alive
+        ref = weakref.ref(gencode)
+        del gencode
+        self.assertIsNone(ref())
     
     def test_gencode_in_region(self):
         ''' test that in_region pulls out the correct genes
