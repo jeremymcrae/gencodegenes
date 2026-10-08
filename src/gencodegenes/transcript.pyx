@@ -211,7 +211,7 @@ cdef class Transcript:
             intersect_end = not_lag.end - lead.start + lead_offset
             intersect = lead_gdna[intersect_start:intersect_end]
         else:
-            intersect = 'N' * (lag.start - lead.end - lead_offset * 2)
+            intersect = 'N' * (lag.start - lead.end - lead_offset - 1)
         
         lag_offset = lag.genomic_offset
         lag_gdna = lag.genomic_sequence

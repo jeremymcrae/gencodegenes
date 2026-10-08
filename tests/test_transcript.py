@@ -190,13 +190,28 @@ class TestTranscriptPy(unittest.TestCase):
         
         a.exons = [(10, 50)]
         a.cds = [(10, 50)]
-        a.genomic_sequence = 'N' * 40
+        a.genomic_sequence = 'N' * 41
         
         b.exons = [(60, 80)]
         b.cds = [(60, 80)]
-        b.genomic_sequence = 'N' * 20
+        b.genomic_sequence = 'N' * 21
         
-        self.assertEqual(len((a + b).genomic_sequence), 70)
+        self.assertEqual(len((a + b).genomic_sequence), 71)
+    
+    def test___add__not_overlapping_with_offset(self):
+        ''' check the gap between non-overlapping transcripts is filled with Ns,
+        so the second transcript's sequence stays at the right positions
+        '''
+        # a spans 8-22 with the 2 bp flanks, b spans 38-52
+        a = Transcript("a", "1", 10, 20, "+", exons=[(10, 20)], cds=[(12, 17)],
+            offset=2, sequence='CCACGTACGTACGGG')
+        b = Transcript("b", "1", 40, 50, "+", exons=[(40, 50)], cds=[(42, 47)],
+            offset=2, sequence='TTGATTACAGATTAA')
+        
+        # a's sequence (8-22), Ns for 23-39, then b's sequence from 40
+        c = a + b
+        self.assertEqual(c.genomic_sequence, 'CCACGTACGTACGGG' + 'N' * 17 + 'GATTACAGATTAA')
+        self.assertEqual(c.cds_sequence, 'GTACGT' + 'TTACAG')
     
     def test___add__cds_length_fixed(self):
         """ check that we can merge transcripts, even with fixed CDS coords
