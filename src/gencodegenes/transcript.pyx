@@ -23,8 +23,6 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from libcpp.map cimport map
 from libcpp.string cimport string
 
-from itertools import combinations
-
 # passed as the name by _wrap_tx, which assigns thisptr itself
 cdef object _WRAP = object()
 
@@ -115,56 +113,23 @@ cdef class Transcript:
         return self._key() == other._key() and self.exons == other.exons \
             and self.cds == other.cds
     
-    def _get_overlaps(self, exon, regions):
-        ''' find all regions which overlap a given region
-        '''
-        return [ i for i, x in enumerate(regions) if
-            exon['start'] <= x['end'] and exon['end'] >= x['start'] ]
-    
-    def _insert_region(self, coords, region):
-        ''' include a region into a list of regions
-        
-        To include a region, we have to check which pre-existing regions the new
-        region overlaps, so any overlaps can be merged into a single region.
-        
-        Args:
-            coords: list of {start: X, end: Y} dictionaries
-            region: dict of {'start': X, 'end': Y} positions
-        '''
-        indices = self._get_overlaps(region, coords)
-        overlaps = [ coords[i] for i in indices ]
-        start = min( x['start'] for x in overlaps + [region] )
-        end = max( x['end'] for x in overlaps + [region] )
-        
-        for i in sorted(indices, reverse=True):
-            del coords[i]
-        
-        return coords + [{'start': start, 'end': end}]
-    
     def _merge_coordinates(self, first, second):
         ''' merge two sets of coordinates, to get the union of regions
-        
-        This uses an inefficient approach, looping over and over, but we won't
-        need to perform this often.
         
         Args:
             first: list of {'start': x, 'end': y} dictionaries for first transcript
             second: list of {'start': x, 'end': y} dictionaries for second transcript
         
         Returns:
-            list of [start, end] lists, sorted by position.
+            list of (start, end) tuples, sorted by position.
         '''
-        coords = []
-        for a, b in combinations(first + second, 2):
-            if a['start'] <= b['end'] and a['end'] >= b['start']:
-                region = {'start': min(a['start'], b['start']),
-                    'end': max(a['end'], b['end'])}
-                a, b = region, region
-            
-            coords = self._insert_region(coords, a)
-            coords = self._insert_region(coords, b)
-        
-        return [ (x['start'], x['end']) for x in sorted(coords, key=lambda x: x['start']) ]
+        merged = []
+        for x in sorted(first + second, key=lambda x: x['start']):
+            if merged and x['start'] <= merged[-1][1]:
+                merged[-1] = (merged[-1][0], max(merged[-1][1], x['end']))
+            else:
+                merged.append((x['start'], x['end']))
+        return merged
     
     def _merge_genomic_seq(self, other):
         ''' merge the genomic sequence from two transcripts

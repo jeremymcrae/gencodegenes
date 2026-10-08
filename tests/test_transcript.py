@@ -277,6 +277,23 @@ class TestTranscriptPy(unittest.TestCase):
         
         self.assertEqual(a._merge_coordinates(exons1, exons2),
             a._merge_coordinates(exons2, exons1))
+        # 10-30 bridges the gap between 10-20 and 25-40
+        self.assertEqual(a._merge_coordinates(exons1, exons2), [(10, 40)])
+        # regions that don't overlap stay apart, and a single region is kept
+        self.assertEqual(a._merge_coordinates([{'start': 50, 'end': 60}],
+            [{'start': 10, 'end': 20}]), [(10, 20), (50, 60)])
+        self.assertEqual(a._merge_coordinates([{'start': 10, 'end': 20}], []), [(10, 20)])
+        self.assertEqual(a._merge_coordinates([], []), [])
+    
+    def test___add__non_coding(self):
+        """ test the CDS is kept when adding a non-coding transcript
+        """
+        a = Transcript('A', '1', 100, 200, '+', exons=[(100, 200)], cds=[(120, 180)])
+        b = Transcript('B', '1', 100, 200, '+', transcript_type='lncRNA',
+            exons=[(100, 150)])
+        c = a + b
+        self.assertEqual(c.exons, [{'start': 100, 'end': 200}])
+        self.assertEqual(c.cds, [{'start': 120, 'end': 180}])
     
     def test_in_exons(self):
         """ test that in_exons() works correctly
