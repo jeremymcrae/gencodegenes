@@ -46,7 +46,7 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
     }
     tx_strand = strand;
     transcript_type = std::move(_transcript_type);
-    attributes = std::move(_attributes);
+    attributes = std::make_shared<std::map<std::string, std::string>>(std::move(_attributes));
 }
 
 static bool compare_regions(const Region & a, const Region & b) {

@@ -109,6 +109,21 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(Gene('TEST', ['ENSG1', 'HGNC:1']).alternate_ids, ['ENSG1', 'HGNC:1'])
         self.assertEqual(Gene('TEST', [b'ENSG1']).alternate_ids, ['ENSG1'])
     
+    def test_gene_transcript_attributes_are_independent(self):
+        ''' test setting attributes on a transcript from a gene doesn't alter
+        the gene's copy, or other transcripts from the gene
+        '''
+        gene = Gene('TEST')
+        gene.add_transcript(Transcript('TX1', 'chr1', 100, 400, '+',
+            exons=[(100, 400)], attributes={'gene_id': 'ENSG1'}))
+        first = gene.transcripts[0]
+        second = gene.transcripts[0]
+        first.attributes['gene_id'] = 'ENSG2'
+        first.attributes['tag'] = 'basic'
+        self.assertEqual(first.attributes, {'gene_id': 'ENSG2', 'tag': 'basic'})
+        self.assertEqual(second.attributes, {'gene_id': 'ENSG1'})
+        self.assertEqual(gene.transcripts[0].attributes, {'gene_id': 'ENSG1'})
+    
     def test_gene_in_any_tx_cds(self):
         ''' test checking if a site is in the CDS of any transcript of a gene
         '''

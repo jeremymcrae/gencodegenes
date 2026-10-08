@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 #include <unordered_map>
 
 namespace gencode {
@@ -44,7 +45,9 @@ class Tx {
     std::string cds_sequence = "";
     int gdna_offset=0;
     std::string genomic_sequence = "";
-    std::map<std::string, std::string> attributes;
+    // shared between copies of a Tx, and only copied when one is modified
+    std::shared_ptr<std::map<std::string, std::string>> attributes =
+        std::make_shared<std::map<std::string, std::string>>();
     
     std::unordered_map<int, int> exon_to_cds;
     void _cache_exon_cds_positions();
@@ -108,10 +111,15 @@ class Tx {
     void set_genomic_offset(int offset) { gdna_offset=offset; }
     int get_genomic_offset() { return gdna_offset; }
     
-    void set_attribute(const std::string & key, const std::string & value) { attributes[key] = value; }
-    const std::map<std::string, std::string> & get_attributes() { return attributes; }
-    bool has_attribute(const std::string & key) { return attributes.count(key) > 0; }
-    const std::string & get_attribute(const std::string & key) { return attributes.at(key); }
+    void set_attribute(const std::string & key, const std::string & value) {
+        if (attributes.use_count() > 1) {
+            attributes = std::make_shared<std::map<std::string, std::string>>(*attributes);
+        }
+        (*attributes)[key] = value;
+    }
+    const std::map<std::string, std::string> & get_attributes() { return *attributes; }
+    bool has_attribute(const std::string & key) { return attributes->count(key) > 0; }
+    const std::string & get_attribute(const std::string & key) { return attributes->at(key); }
     
     std::string reverse_complement(const std::string & seq);
     std::string get_centered_sequence(int pos, int length=3);
