@@ -191,7 +191,9 @@ cdef class Transcript:
         # transcripts.
         # TODO: this could be worked around, by figuring the minimum offset length,
         # TODO: then trimming the respective DNA offset sequences to that length.
-        assert self.genomic_offset == other.genomic_offset
+        if self.genomic_offset != other.genomic_offset:
+            raise ValueError(f'cannot merge sequences with different offsets: '
+                f'{self.name} ({self.genomic_offset}) and {other.name} ({other.genomic_offset})')
         
         # figure out which transcripts hold the leading and lagging sections
         lead, not_lead = self, other
@@ -255,6 +257,10 @@ cdef class Transcript:
             return self
         if self is None:
             return other
+        if self.chrom != other.chrom or self.strand != other.strand:
+            raise ValueError(f'cannot combine transcripts on different chromosomes or '
+                f'strands: {self.name} ({self.chrom}{self.strand}) and '
+                f'{other.name} ({other.chrom}{other.strand})')
         
         altered = Transcript('{}:{}'.format(self.name, other.name),
             self.chrom, min(self.start, other.start),

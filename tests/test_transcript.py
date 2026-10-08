@@ -198,6 +198,23 @@ class TestTranscriptPy(unittest.TestCase):
         
         self.assertEqual(len((a + b).genomic_sequence), 71)
     
+    def test___add__mismatched(self):
+        ''' check transcripts on different chromosomes or strands, or sequences
+        with different offsets, can't be combined
+        '''
+        a = Transcript("a", "1", 10, 20, "+", exons=[(10, 20)], cds=[(10, 15)])
+        for chrom, strand in [('2', '+'), ('1', '-')]:
+            b = Transcript("b", chrom, 10, 20, strand, exons=[(10, 20)], cds=[(10, 15)])
+            with self.assertRaisesRegex(ValueError, 'different chromosomes or strands'):
+                a + b
+        
+        a = Transcript("a", "1", 10, 20, "+", exons=[(10, 20)], cds=[(10, 15)],
+            offset=1, sequence='A' * 13)
+        b = Transcript("b", "1", 10, 20, "+", exons=[(10, 20)], cds=[(10, 15)],
+            offset=2, sequence='A' * 15)
+        with self.assertRaisesRegex(ValueError, 'different offsets'):
+            a + b
+    
     def test___add__one_without_sequence(self):
         ''' check transcripts combine when only one has a genomic sequence, without
         merging sequences
