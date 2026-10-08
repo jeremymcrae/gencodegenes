@@ -32,8 +32,8 @@ class _Attributes:
 class Transcript:
     def __init__(
         self,
-        name: str | None = ...,
-        chrom: str | None = ...,
+        name: str,
+        chrom: str,
         start: int = ...,
         end: int = ...,
         strand: str = ...,

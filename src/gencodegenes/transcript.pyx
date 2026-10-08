@@ -25,6 +25,9 @@ from libcpp.string cimport string
 
 from itertools import combinations
 
+# passed as the name by _wrap_tx, which assigns thisptr itself
+cdef object _WRAP = object()
+
 cdef class Transcript:
     def __cinit__(self, name=None, chrom=None, start=0, end=0, strand='+', 
             transcript_type='protein_coding', exons=None, cds=None, sequence=None, 
@@ -42,10 +45,10 @@ cdef class Transcript:
             attributes: dict of key/value pairs from the GTF attributes field
         '''
         
-        if name is None:
-            # allow construction without a Tx, so an existing C++ Tx can be
-            # wrapped directly (see _wrap_tx); thisptr is assigned by the caller
+        if name is _WRAP:
             return
+        if name is None:
+            raise ValueError('transcript needs a name')
         if chrom is None:
             raise ValueError(f'transcript {name} needs a chromosome')
 
@@ -532,7 +535,7 @@ cdef Transcript _wrap_tx(Tx & tx):
     avoiding the need to disassemble the Tx into python values and rebuild an
     equivalent object through Transcript.__init__.
     '''
-    cdef Transcript transcript = Transcript.__new__(Transcript)
+    cdef Transcript transcript = Transcript.__new__(Transcript, _WRAP)
     transcript.thisptr = new Tx()
     transcript.thisptr[0] = tx
     return transcript

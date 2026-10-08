@@ -805,6 +805,8 @@ class TestTranscriptPy(unittest.TestCase):
         '''
         with self.assertRaisesRegex(ValueError, 'needs a chromosome'):
             Transcript('TEST')
+        with self.assertRaisesRegex(ValueError, 'needs a name'):
+            Transcript()
     
     def test_tss_and_cds_coords(self):
         ''' check the TSS and CDS start follow the direction of transcription
