@@ -248,6 +248,10 @@ std::vector<std::string> _in_region(std::string chrom, int start, int end,
         std::map<std::string, std::vector<GenePoint>> & starts, 
         std::map<std::string, std::vector<GenePoint>> & ends,
         int max_window) {
+    if (start > end) {
+        throw std::invalid_argument("region start (" + std::to_string(start)
+            + ") is after its end (" + std::to_string(end) + ")");
+    }
     auto starts_it = starts.find(chrom);
     if (starts_it == starts.end()) {
         throw std::invalid_argument("unknown_chrom: " + chrom);

@@ -237,6 +237,10 @@ class TestGencode(unittest.TestCase):
         # we find matches if even a single base of the gene is in the region
         in_region = gencode.in_region('chr1', 0, 11)
         self.assertEqual(len(in_region), 1)
+        
+        # regions with the start after the end raise an error
+        with self.assertRaisesRegex(ValueError, 'is after its end'):
+            gencode.in_region('chr1', 105, 5)
         del gencode
     
     def test_gencode_nearest(self):
