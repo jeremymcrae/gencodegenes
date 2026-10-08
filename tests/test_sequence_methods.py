@@ -225,6 +225,10 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.assertEqual(self.gene.get_centered_sequence(7), "CTT")
         self.assertEqual(self.gene.get_centered_sequence(8), "TTT")
         
+        # windows ending at the last base (position 10) are within range
+        self.assertEqual(self.gene.get_centered_sequence(9), "TTT")
+        self.assertEqual(self.gene.get_centered_sequence(1), "AAA")
+        
         # test that positions outside the CDS raise errors
         with self.assertRaises(ValueError):
             self.gene.get_centered_sequence(-1)
