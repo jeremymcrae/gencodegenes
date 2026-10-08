@@ -62,14 +62,6 @@ cpdef _parse_gtfline(string line):
     parse_gtfline(line, info, False)
     return info
 
-cdef _convert_exons(vector[Region] exons):
-    ''' convert vector of exon Regions to list of lists
-    
-    We need exons and CDS as lists of lists for constructing the python 
-    Transcript object.
-    '''
-    return [[y.start, y.end] for y in exons]
-
 cpdef _open_gencode(gtf_path, coding_only=True):
     ''' python function for unit testing loading transcripts from GTF
     '''
@@ -164,7 +156,7 @@ cdef class Gene:
             return chr(self._transcripts[0].get_strand())
         raise IndexError('no transcripts in gene yet')
     
-    cdef _to_Transcript(self, Tx tx):
+    cdef _to_Transcript(self, Tx & tx):
         ''' construct Transcript (python object) from Tx (c++ object)
         '''
         cdef Transcript transcript = _wrap_tx(tx)
@@ -192,7 +184,7 @@ cdef class Gene:
         '''
         return [self._to_Transcript(x) for x in self._transcripts]
     
-    cdef int _cds_len(self, Tx tx):
+    cdef int _cds_len(self, Tx & tx) except *:
         ''' get length of coding sequence for a Tx object based transcript
         '''
         if tx.get_cds().size() == 0:
@@ -200,42 +192,42 @@ cdef class Gene:
         cdef CDS_coords coords = tx.get_coding_distance(tx.get_cds_end())
         return coords.position + 1
     
-    cdef Tx _max_by_cds(self, vector[Tx] transcripts) except *:
-        ''' get longest transcript by CDS length
+    cdef size_t _max_by_cds(self, vector[size_t] & indices) except *:
+        ''' get index of the longest transcript by CDS length
         '''
-        cdef Tx max_tx
-        length = 0
-        for tx in transcripts:
-            curr_len = self._cds_len(tx)
+        cdef size_t i, max_i = 0
+        cdef int curr_len, length = 0
+        for i in indices:
+            curr_len = self._cds_len(self._transcripts[i])
             if curr_len > length:
                 length = curr_len
-                max_tx = tx
+                max_i = i
         if length == 0:
             raise ValueError('no coding transcripts')
-        return max_tx
+        return max_i
     
-    cdef int _exonic_len(self, Tx tx):
+    cdef int _exonic_len(self, Tx & tx):
         ''' get length of exonic sequence for a Tx object based transcript
         '''
-        length = 0
-        for start, end in _convert_exons(tx.get_exons()):
-            length += abs(end - start) + 1
+        cdef int length = 0
+        cdef Region region
+        for region in tx.get_exons():
+            length += abs(region.end - region.start) + 1
         return length
-        # return sum(abs(x.end - x.start) + 1 for x in tx.get_exons())
     
-    cdef Tx _max_by_exonic(self, vector[Tx] transcripts) except *:
-        ''' get longest transcript by CDS length
+    cdef size_t _max_by_exonic(self, vector[size_t] & indices) except *:
+        ''' get index of the longest transcript by exonic length
         '''
-        cdef Tx max_tx
-        length = 0
-        for tx in transcripts:
-            curr_len = self._exonic_len(tx)
+        cdef size_t i, max_i = 0
+        cdef int curr_len, length = 0
+        for i in indices:
+            curr_len = self._exonic_len(self._transcripts[i])
             if curr_len > length:
                 length = curr_len
-                max_tx = tx
+                max_i = i
         if length == 0:
             raise ValueError('no exonic transcripts')
-        return max_tx
+        return max_i
     
     @property
     def canonical(self):
@@ -250,22 +242,23 @@ cdef class Gene:
         Occasionally there are multiple transcripts tagged as appris_principal
         and with the same longest CDS, we use the first one of those.
         '''
-        cdef vector[Tx] canonical
+        cdef size_t i, max_i
+        cdef int max_score = 0
+        for i in range(self._canonical.size()):
+            if i == 0 or self._canonical[i] > max_score:
+                max_score = self._canonical[i]
+        
+        cdef vector[size_t] canonical
         for i in range(self._transcripts.size()):
-            max_score = max(self._canonical)
             if self._canonical[i] == max_score:
-                canonical.push_back(self._transcripts[i])
+                canonical.push_back(i)
         
-        if canonical.size() == 0:
-            canonical = self._transcripts
-        
-        cdef Tx max_tx
         try:
-            max_tx = self._max_by_cds(canonical)
+            max_i = self._max_by_cds(canonical)
         except ValueError:
-            max_tx = self._max_by_exonic(canonical)
+            max_i = self._max_by_exonic(canonical)
         
-        return self._to_Transcript(max_tx)
+        return self._to_Transcript(self._transcripts[max_i])
     
     def in_any_tx_cds(self, int pos):
         ''' find if a pos is in coding region of any transcript of a gene

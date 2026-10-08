@@ -508,7 +508,7 @@ cdef class Transcript:
         return cq.decode('utf8')
 
 
-cdef Transcript _wrap_tx(Tx tx):
+cdef Transcript _wrap_tx(Tx & tx):
     ''' wrap an existing C++ Tx object in a Transcript, without re-parsing it
 
     This copy-constructs the given Tx (preserving its exons, CDS, type,
