@@ -835,6 +835,17 @@ class TestTranscriptPy(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'no exons assigned'):
                 func()
     
+    def test_get_coding_distance_non_coding(self):
+        ''' check non-coding transcripts have no coding distance
+        '''
+        tx = Transcript('TEST', '1', 100, 200, '+', transcript_type='lncRNA',
+            exons=[(100, 150), (180, 200)])
+        with self.assertRaisesRegex(ValueError, 'has no CDS'):
+            tx.get_coding_distance(120)
+        # intronic consequences only need the distance into the intron. 160 is
+        # 10 bp into the intron, and 20 bp before the next exon
+        self.assertEqual(tx.consequence(160, 'A', 'G'), 'intron_variant')
+    
     def test_without_chrom(self):
         ''' check a transcript needs a chromosome
         '''

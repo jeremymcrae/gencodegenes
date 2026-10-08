@@ -196,6 +196,9 @@ class Transcript:
                     for exonic positions). Positive offsets are 3' of an exon
                     (splice donor side), negative offsets are 5' of an exon
                     (splice acceptor side).
+
+        Raises:
+            ValueError: if the transcript has no CDS
         """
         ...
     def get_position_on_chrom(self, pos: int, offset: int = ...) -> int:

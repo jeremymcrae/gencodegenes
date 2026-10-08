@@ -391,6 +391,8 @@ cdef class Transcript:
             pos: nucleotide position on chromosome
         '''
         coords = self.thisptr.get_coding_distance(pos)
+        if self.thisptr.get_cds().size() == 0:
+            raise ValueError(f'{self.name} has no CDS')
         
         return {'pos': coords.position, 'offset': coords.offset}
     
