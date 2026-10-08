@@ -105,6 +105,26 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(end.genomic_sequence, seq[61:80])
         self.assertEqual(end.cds_sequence, end.reverse_complement(seq[63:78]))
     
+    def test_gencode_genome_chrom_prefix(self):
+        ''' test sequence is found when the GTF and fasta differ in the 'chr' prefix
+        '''
+        seq = 'ACGT' * 20
+        for gtf_chrom, fasta_chrom in [('chr1', '1'), ('1', 'chr1')]:
+            with open(self.temp_fasta_path, 'wt') as output:
+                output.write(f'>{fasta_chrom}\n{seq}\n')
+            Path(self.temp_fasta_path + '.fai').unlink(missing_ok=True)
+            lines = [f'{gtf_chrom}\tHAVANA\t{feature}\t{x}\t{y}\t.\t+\t.\ttranscript_id "TX"; '
+                    'gene_name "TX"; transcript_type "protein_coding";\n'
+                for feature, x, y in [('transcript', 10, 40), ('exon', 10, 40), ('CDS', 13, 27)]]
+            write_gtf(self.temp_gtf_path, lines)
+            
+            # positions 10-40, plus the default 5 bp flanks, are 5-45
+            with Gencode(self.temp_gtf_path, self.temp_fasta_path) as gencode:
+                tx = gencode['TX'].canonical
+            self.assertEqual(tx.chrom, gtf_chrom)
+            self.assertEqual(tx.genomic_sequence, seq[4:45])
+            self.assertEqual(tx.cds_sequence, seq[12:27])
+    
     def test_gene_alternate_ids(self):
         ''' test Gene accepts alternate IDs as str, list of str, or bytes
         '''

@@ -166,6 +166,9 @@ cdef class Gene:
         if tx.get_genomic_sequence().size() == 0 and self._genome is not None:
             offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
             chrom = tx.get_chrom().decode('utf8')
+            if chrom not in self._genome:
+                # allow for differences in the 'chr' prefix, e.g. 'chr1' vs '1'
+                chrom = chrom[3:] if chrom.startswith('chr') else f'chr{chrom}'
             start = tx.get_start()
             end = tx.get_end()
             # shrink the flanks for transcripts near the ends of the chromosome
