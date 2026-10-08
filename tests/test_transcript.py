@@ -637,7 +637,8 @@ class TestTranscriptPy(unittest.TestCase):
         tx = self.construct_cq_gene()
         for dist, cq in expected.items():
             pos = 10020 + dist
-            self.assertEqual(tx.consequence(pos, 'T', 'C'), cq, msg=f'pos={pos}')
+            ref = tx.genomic_sequence[pos - tx.start]
+            self.assertEqual(tx.consequence(pos, ref, 'C'), cq, msg=f'pos={pos}')
         
         # on the - strand, the donor is at the 3' end of the intron (in + strand
         # coordinates), next to the exon which is first in transcript order
@@ -683,6 +684,26 @@ class TestTranscriptPy(unittest.TestCase):
         # 10 bp from the acceptor, which is at the lower end on the - strand
         self.assertEqual(tx.consequence(10030, 'A', 'G'), 'splice_polypyrimidine_tract_variant')
         self.assertEqual(tx.consequence(10005, 'A', 'G'), '3_prime_UTR_variant')
+    
+    def test_consequence_ref_mismatch(self):
+        ''' check ref alleles must match the genomic sequence, where available
+        '''
+        tx = self.construct_cq_gene()
+        # the CDS starts with ATG at 10011-10013
+        with self.assertRaisesRegex(ValueError, "doesn't match the genomic sequence"):
+            tx.consequence(10011, 'G', 'A')
+        with self.assertRaisesRegex(ValueError, "doesn't match the genomic sequence"):
+            tx.consequence(10011, 'ATC', 'A')
+        self.assertEqual(tx.consequence(10012, 't', 'c'), 'start_lost')
+        
+        # only the part overlapping the sequence is checked (10001 is C)
+        self.assertEqual(tx.consequence(10000, 'AC', 'A'), '5_prime_UTR_variant')
+        with self.assertRaisesRegex(ValueError, "doesn't match the genomic sequence"):
+            tx.consequence(10000, 'AG', 'A')
+        
+        # without a sequence, the ref allele isn't checked
+        tx = self.construct_cq_gene(strand='-')
+        self.assertEqual(tx.consequence(10001, 'G', 'A'), '3_prime_UTR_variant')
     
     def test_consequence_lowercase(self):
         ''' check lowercase (e.g. soft-masked) sequence and alleles are handled

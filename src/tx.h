@@ -68,6 +68,7 @@ class Tx {
     std::string coding_cq(int start, int end, const std::string & alt);
     std::string indel_codon_cq(int start, int end, const std::string & ref, const std::string & alt);
     std::string indel_cq(int start, int end, std::string ref, std::string alt);
+    [[noreturn]] void ref_mismatch(int pos, const std::string & ref, const std::string & genomic);
 
  public:
     Tx(std::string transcript_id, std::string chromosome, int start_pos,

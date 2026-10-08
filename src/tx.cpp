@@ -1242,6 +1242,15 @@ void Tx::trim_alleles(int& start, int&end, std::string& ref, std::string& alt) {
     }
 }
 
+// kept out of line, so building the error message doesn't slow consequence()
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((noinline, cold))
+#endif
+void Tx::ref_mismatch(int pos, const std::string & ref, const std::string & genomic) {
+    throw std::invalid_argument("ref allele " + ref + " at " + std::to_string(pos)
+        + " doesn't match the genomic sequence for " + get_name() + ": " + genomic);
+}
+
 std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     int start = pos;
     int end = pos + (int)ref.size() - 1;
@@ -1250,6 +1259,19 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     }
     to_upper(ref);
     to_upper(alt);
+    
+    // check the ref allele matches the genomic sequence, where they overlap
+    if (!genomic_sequence.empty()) {
+        int lo = std::max(start, tx_start - gdna_offset);
+        int hi = std::min(end, tx_end + gdna_offset);
+        const char * genomic = genomic_sequence.data() + (lo - tx_start + gdna_offset);
+        const char * bases = ref.data() + (lo - start);
+        for (int i = 0; i <= hi - lo; i++) {
+            if (genomic[i] != bases[i]) {
+                ref_mismatch(pos, ref, std::string(genomic, hi - lo + 1));
+            }
+        }
+    }
     
     // TODO: need to realign alt against ref sequence, and strip down to alternate bases
     trim_alleles(start, end, ref, alt);
