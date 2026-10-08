@@ -738,6 +738,25 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10040, 'GG', 'CC'), 'splice_donor_variant')
         self.assertEqual(tx.consequence(10040, 'GGC', 'CCC'), 'splice_donor_variant')
     
+    def test_consequence_incomplete_last_codon(self):
+        ''' check changes in an incomplete final codon don't raise errors
+        '''
+        # the 10 bp CDS is ATG GCC AAA G, and the sequence can't be extended
+        # to complete the last codon
+        tx = Transcript('TEST', '1', 1, 10, '+', exons=[(1, 10)], cds=[(1, 10)],
+            sequence='ATGGCCAAAG')
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAAG')
+        self.assertEqual(tx.consequence(10, 'G', 'C'), 'coding_sequence_variant')
+        # AAA -> AAC is K -> N, and the base in the incomplete codon is skipped
+        self.assertEqual(tx.consequence(9, 'AG', 'CC'), 'missense_variant')
+        
+        # on the - strand, the incomplete codon is at the lowest position
+        tx = Transcript('TEST', '1', 1, 10, '-', exons=[(1, 10)], cds=[(1, 10)],
+            sequence='ATGGCCAAAG')
+        self.assertEqual(tx.genomic_sequence, 'CTTTGGCCAT')
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAAG')
+        self.assertEqual(tx.consequence(1, 'C', 'G'), 'coding_sequence_variant')
+    
     def test_consequence_ref_mismatch(self):
         ''' check ref alleles must match the genomic sequence, where available
         '''

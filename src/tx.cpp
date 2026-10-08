@@ -1183,16 +1183,21 @@ static std::string codon_cq(char initial_aa, char mutated_aa, int codon_number, 
 //
 // Each substituted base within the CDS is applied to its codon, and the most
 // severe consequence across the altered codons is returned. Bases outside the
-// CDS are skipped.
+// CDS, or in an incomplete final codon, are skipped.
 std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     if (cds_sequence.empty()) {
         throw std::invalid_argument(get_name() + " lacks genomic sequence (e.g. "
             "from a genome fasta), which is needed for coding consequences");
     }
     bool fwd = get_strand() == '+';
+    int partial = cds_sequence.size() % 3;
+    int complete = (int) cds_sequence.size() - partial;
     std::map<int, Codon> codons;
     for (int pos = start; pos <= end; pos++) {
         if (!in_coding_region(pos)) {
+            continue;
+        }
+        if (partial != 0 && get_coding_distance(pos).position >= complete) {
             continue;
         }
         Codon codon = get_codon_info(pos);
