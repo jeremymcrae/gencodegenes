@@ -54,9 +54,16 @@ class Tx {
     bool overlaps_cds(int start, int end);
     bool in_exonic_splice_region(int start, int end);
     std::string outside_gene_cq(int start, int end);
+    std::string short_intron_cq(int start, int end);
+    std::string intron_cq(int start, int end, bool insertion);
     std::string intronic_cq(int start, int end);
+    std::string utr3_sequence(int n);
+    bool translate_change(int lo, int hi, const std::string & alt_t,
+        std::string & ref_aa, std::string & alt_aa);
+    std::string coding_insertion_cq(int k, const std::string & ins_t);
+    std::string insertion_cq(int left, const std::string & ins);
     std::string coding_cq(int start, int end, const std::string & alt);
-    std::string inframe_codon_cq(int start, int end, const std::string & ref, const std::string & alt);
+    std::string indel_codon_cq(int start, int end, const std::string & ref, const std::string & alt);
     std::string indel_cq(int start, int end, std::string ref, std::string alt);
 
  public:

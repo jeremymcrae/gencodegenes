@@ -332,7 +332,7 @@ CDS_coords Tx::get_coding_distance(int pos) {
         int dist_2;
         if (after) {
             dist_1 = (fwd) ? exons[first].end - cds_start : cds_start - exons[first].end;
-            dist_2 = (fwd) ? (pos - exons[alt].start) + 1 : (exons[alt].start - pos) + 1;
+            dist_2 = (fwd) ? (pos - exons[alt].start) + 1 : (exons[alt].start - pos) - 1;
         } else {
             dist_1 = (fwd) ? exons[first].start - cds_start : cds_start - exons[first].start;
             dist_2 = (fwd) ? (pos - exons[alt].end) - 1 : (exons[alt].end - pos) + 1;
@@ -723,6 +723,86 @@ bool Tx::in_exonic_splice_region(int start, int end) {
     return false;
 }
 
+// consequences in order of severity, following Ensembl VEP
+static const std::vector<std::string> cq_order = {"splice_acceptor_variant",
+    "splice_donor_variant", "stop_gained", "frameshift_variant", "stop_lost",
+    "start_lost", "inframe_insertion", "inframe_deletion", "missense_variant",
+    "protein_altering_variant", "splice_donor_5th_base_variant",
+    "splice_region_variant", "splice_donor_region_variant",
+    "splice_polypyrimidine_tract_variant", "start_retained_variant",
+    "stop_retained_variant", "synonymous_variant", "coding_sequence_variant",
+    "5_prime_UTR_variant", "3_prime_UTR_variant",
+    "non_coding_transcript_exon_variant", "intron_variant",
+    "upstream_gene_variant", "downstream_gene_variant", "intergenic_variant"};
+
+static size_t severity(const std::string & cq) {
+    return std::find(cq_order.begin(), cq_order.end(), cq) - cq_order.begin();
+}
+
+static std::string most_severe(const std::string & a, const std::string & b) {
+    return (severity(a) <= severity(b)) ? a : b;
+}
+
+// consequence for intronic sites from near to far bases from the splice donor
+// (at the 5' end of the intron)
+static std::string donor_cq(int near, int far) {
+    if (overlap(near, far, 1, 2)) { return "splice_donor_variant"; }
+    if (overlap(near, far, 5, 5)) { return "splice_donor_5th_base_variant"; }
+    if (overlap(near, far, 7, 8)) { return "splice_region_variant"; }
+    if (overlap(near, far, 3, 6)) { return "splice_donor_region_variant"; }
+    return "intron_variant";
+}
+
+// consequence for intronic sites from near to far bases from the splice
+// acceptor (at the 3' end of the intron)
+static std::string acceptor_cq(int near, int far) {
+    if (overlap(near, far, 1, 2)) { return "splice_acceptor_variant"; }
+    if (overlap(near, far, 3, 8)) { return "splice_region_variant"; }
+    if (overlap(near, far, 3, 17)) { return "splice_polypyrimidine_tract_variant"; }
+    return "intron_variant";
+}
+
+// consequence for an intronic insertion, where near is the distance from the
+// splice donor of the closer base flanking the insertion
+static std::string donor_insertion_cq(int near) {
+    if (near == 1) { return "splice_donor_variant"; }
+    if (near >= 3 && near <= 5) { return "splice_donor_region_variant"; }
+    if (near == 2 || near == 6 || near == 7) { return "splice_region_variant"; }
+    return "intron_variant";
+}
+
+// consequence for an intronic insertion, where near is the distance from the
+// splice acceptor of the closer base flanking the insertion
+static std::string acceptor_insertion_cq(int near) {
+    if (near == 1) { return "splice_acceptor_variant"; }
+    if (near >= 2 && near <= 7) { return "splice_region_variant"; }
+    if (near >= 8 && near <= 16) { return "splice_polypyrimidine_tract_variant"; }
+    return "intron_variant";
+}
+
+// consequence of replacing a reference peptide with an altered peptide, if
+// that gains, loses or retains a stop, or loses the start. Otherwise returns
+// an empty string.
+static std::string peptide_cq(const std::string & ref_aa, const std::string & alt_aa, bool at_start) {
+    size_t ref_stop = ref_aa.find('*');
+    size_t alt_stop = alt_aa.find('*');
+    if (ref_stop == std::string::npos && alt_stop != std::string::npos) {
+        return "stop_gained";
+    } else if (ref_stop != std::string::npos && alt_stop == std::string::npos) {
+        return "stop_lost";
+    } else if (ref_stop != std::string::npos
+            && ref_aa.compare(0, ref_stop + 1, alt_aa, 0, alt_stop + 1) == 0) {
+        return "stop_retained_variant";
+    } else if (at_start && (alt_aa.empty() || alt_aa[0] != ref_aa[0])) {
+        return "start_lost";
+    }
+    return "";
+}
+
+static bool is_stop_change(const std::string & cq) {
+    return cq == "stop_gained" || cq == "stop_lost" || cq == "stop_retained_variant";
+}
+
 std::string Tx::outside_gene_cq(int start, int end) {
     bool fwd = get_strand() == '+';
     if ((end < tx_start) & ((tx_start - end) <= 5000)) {
@@ -741,9 +821,10 @@ std::string Tx::outside_gene_cq(int start, int end) {
     return "intergenic_variant";
 }
 
-// figure out consequence for a site not in coding region
-std::string Tx::intronic_cq(int start, int end) {
-    // figure out if we are in a very short intron
+// consequence for a site in an intron under 10 bp, or an empty string for
+// sites elsewhere. Introns this short are likely annotation artefacts, so the
+// site is treated as exonic.
+std::string Tx::short_intron_cq(int start, int end) {
     auto idx = closest_exon_num(start);
     auto exon = exons[idx];
     int intron_length = 100;
@@ -754,20 +835,55 @@ std::string Tx::intronic_cq(int start, int end) {
         auto other = exons[idx - 1];
         intron_length = exon.start - other.end;
     }
+    if (intron_length >= 10) {
+        return "";
+    }
     bool fwd = get_strand() == '+';
-    if (intron_length < 10) {
-        // introns this short are likely annotation artefacts, so treat the
-        // site as exonic
-        if (cds.empty()) {
-            return "non_coding_transcript_exon_variant";
-        } else if (end < cds_min) {
-            return fwd ? "5_prime_UTR_variant" : "3_prime_UTR_variant";
-        } else if (start > cds_max) {
-            return fwd ? "3_prime_UTR_variant" : "5_prime_UTR_variant";
-        }
-        return "coding_sequence_variant";
+    if (cds.empty()) {
+        return "non_coding_transcript_exon_variant";
+    } else if (end < cds_min) {
+        return fwd ? "5_prime_UTR_variant" : "3_prime_UTR_variant";
+    } else if (start > cds_max) {
+        return fwd ? "3_prime_UTR_variant" : "5_prime_UTR_variant";
+    }
+    return "coding_sequence_variant";
+}
+
+// consequence for sites within an intron, checking both the splice donor (at
+// the 5' end of the intron) and the splice acceptor (at the 3' end). For
+// insertions, start and end are the bases either side of the inserted bases.
+std::string Tx::intron_cq(int start, int end, bool insertion) {
+    int idx = closest_exon_num(start);
+    if (exons[idx].end >= start) {
+        // the site precedes the closest exon
+        idx -= 1;
+    }
+    if (idx < 0 || idx >= (int) exons.size() - 1) {
+        return "intron_variant";
     }
     
+    // distances into the intron, from the exon before, and the exon after
+    int lower = exons[idx].end;
+    int upper = exons[idx + 1].start;
+    bool fwd = get_strand() == '+';
+    int donor_near = fwd ? start - lower : upper - end;
+    int donor_far = fwd ? end - lower : upper - start;
+    int acceptor_near = fwd ? upper - end : start - lower;
+    int acceptor_far = fwd ? upper - start : end - lower;
+    if (insertion) {
+        return most_severe(donor_insertion_cq(donor_near), acceptor_insertion_cq(acceptor_near));
+    }
+    return most_severe(donor_cq(donor_near, donor_far), acceptor_cq(acceptor_near, acceptor_far));
+}
+
+// figure out consequence for a site not in coding region
+std::string Tx::intronic_cq(int start, int end) {
+    std::string short_intron = short_intron_cq(start, end);
+    if (!short_intron.empty()) {
+        return short_intron;
+    }
+    
+    bool fwd = get_strand() == '+';
     // TODO: figure out for variants spanning an exon
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
@@ -798,29 +914,150 @@ std::string Tx::intronic_cq(int start, int end) {
     // TODO: In those cases, the splice site might remain unaltered. This means
     // TODO: the variant location might need to be adjusted. For this, we'd need 
     // TODO: to check the ref genome vs the replacement, to adjust indel coords.
-    
-    // ok, now we have intronic variants, so we check for splice variants first
-    int delta = std::min(std::abs(start_coord.offset), std::abs(end_coord.offset));
-    if ((delta < 3) & (start_coord.offset < 0)) {
-        return "splice_acceptor_variant";
-    } else if ((delta < 3) & (start_coord.offset > 0)) {
-        return "splice_donor_variant";
-    } else if (delta < 9) {
-        return "splice_region_variant";
-    }
-    
-    return "intron_variant";
+    return intron_cq(start, end, false);
 }
 
-// check if an inframe indel within a single exon gains a stop, or loses the
-// stop or start codon, by translating the affected codons before and after.
+// up to n bases of the 3' UTR following the CDS, in transcript orientation
+std::string Tx::utr3_sequence(int n) {
+    std::string seq;
+    bool fwd = get_strand() == '+';
+    int step = fwd ? 1 : -1;
+    int cds_end = get_cds_end();
+    int first = closest_exon_num(cds_end);
+    for (int i = first; i >= 0 && i < (int) exons.size() && (int) seq.size() < n; i += step) {
+        int from = (i == first) ? cds_end + step : (fwd ? exons[i].start : exons[i].end);
+        int to = fwd ? exons[i].end : exons[i].start;
+        for (int pos = from; (to - pos) * step >= 0 && (int) seq.size() < n; pos += step) {
+            int x = pos - get_start() + gdna_offset;
+            if (x < 0 || x >= (int) genomic_sequence.size()) {
+                return seq;
+            }
+            seq += fwd ? genomic_sequence[x] : complement(genomic_sequence[x]);
+        }
+    }
+    return seq;
+}
+
+// translate the codons covering CDS positions lo to hi, before and after
+// replacing those bases with alt_t (in transcript orientation). For
+// insertions, lo is the position the bases are inserted before, and hi is
+// lo - 1. After a frameshift in the stop codon, the last alt codon is
+// completed with the following bases, to check if the stop is retained, but
+// otherwise incomplete codons aren't translated. Codons running past the CDS
+// end use the 3' UTR sequence.
+//
+// @returns false if the sequence isn't available
+bool Tx::translate_change(int lo, int hi, const std::string & alt_t,
+        std::string & ref_aa, std::string & alt_aa) {
+    if (lo < 0 || cds_sequence.empty() || (int) cds_sequence.size() != cds_length) {
+        return false;
+    }
+    int last = std::max(lo, hi);
+    int first = lo - lo % 3;
+    int length = last - last % 3 + 3 - first;
+    if (hi < lo && lo % 3 == 0 && last < cds_length - 3) {
+        // insertions between codons leave the neighbouring codons intact
+        length = 0;
+    }
+    int alt_length = length - (hi - lo + 1) + (int) alt_t.size();
+    int needed = first + length;
+    if (last >= cds_length - 3) {
+        needed += (3 - alt_length % 3) % 3;
+    }
+    std::string seq = cds_sequence;
+    if (needed > cds_length) {
+        seq += utr3_sequence(needed - cds_length);
+    }
+    if (first + length > (int) seq.size()) {
+        return false;
+    }
+    std::string ref_seq = seq.substr(first, length);
+    std::string alt_seq = ref_seq;
+    alt_seq.replace(lo - first, hi - lo + 1, alt_t);
+    alt_seq += seq.substr(first + length, needed - first - length);
+    alt_seq.resize(alt_seq.size() - alt_seq.size() % 3);
+    try {
+        ref_aa = translate(ref_seq);
+        alt_aa = translate(alt_seq);
+    } catch (const std::invalid_argument &) {
+        return false;
+    }
+    return true;
+}
+
+// consequence for bases inserted before CDS position k
+std::string Tx::coding_insertion_cq(int k, const std::string & ins_t) {
+    std::string ref_aa;
+    std::string alt_aa;
+    std::string change;
+    if (translate_change(k, k - 1, ins_t, ref_aa, alt_aa)) {
+        change = peptide_cq(ref_aa, alt_aa, k < 3);
+    }
+    if (ins_t.size() % 3 != 0) {
+        return is_stop_change(change) ? change : "frameshift_variant";
+    } else if (!change.empty()) {
+        return change;
+    }
+    // insertions within a codon can change the amino acid at that codon
+    bool retained = (alt_aa.compare(0, ref_aa.size(), ref_aa) == 0)
+        || (alt_aa.size() >= ref_aa.size()
+            && alt_aa.compare(alt_aa.size() - ref_aa.size(), ref_aa.size(), ref_aa) == 0);
+    return retained ? "inframe_insertion" : "protein_altering_variant";
+}
+
+// consequence for bases inserted between the left base and the next base
+//
+// @param left position of the base before the inserted bases
+// @param ins inserted bases, on the + strand
+std::string Tx::insertion_cq(int left, const std::string & ins) {
+    int right = left + 1;
+    if (right <= tx_start) {
+        return outside_gene_cq(left, left);
+    } else if (left >= tx_end) {
+        return outside_gene_cq(right, right);
+    }
+    
+    bool left_exonic = is_exonic(left);
+    bool right_exonic = is_exonic(right);
+    if (!left_exonic && !right_exonic) {
+        std::string short_intron = short_intron_cq(left, right);
+        return short_intron.empty() ? intron_cq(left, right, true) : short_intron;
+    }
+    
+    // insertions at an exon/intron junction count as being in the exon
+    bool fwd = get_strand() == '+';
+    std::string cq;
+    if (cds.empty()) {
+        cq = "non_coding_transcript_exon_variant";
+    } else {
+        // find the CDS position the bases are inserted before
+        int before = fwd ? left : right;
+        int after = fwd ? right : left;
+        bool before_exonic = fwd ? left_exonic : right_exonic;
+        int k = before_exonic ? get_coding_distance(before).position + 1
+            : get_coding_distance(after).position;
+        if (k <= 0) {
+            cq = "5_prime_UTR_variant";
+        } else if (k >= cds_length) {
+            cq = "3_prime_UTR_variant";
+        } else {
+            cq = coding_insertion_cq(k, fwd ? ins : reverse_complement(ins));
+        }
+    }
+    
+    // insertions within the 3 exonic bases next to an intron, or at the
+    // exon/intron junction, are in the splice region
+    bool region = (!left_exonic || in_exonic_splice_region(left, left))
+        && (!right_exonic || in_exonic_splice_region(right, right));
+    return region ? most_severe(cq, "splice_region_variant") : cq;
+}
+
+// check if an indel within a single exon gains, loses or retains a stop, or
+// loses the start, by translating the affected codons before and after.
 //
 // @returns consequence, or an empty string if none of those apply, or the
 //    sequence isn't available
-std::string Tx::inframe_codon_cq(int start, int end, const std::string & ref, const std::string & alt) {
-    if (cds_sequence.empty() || (int) cds_sequence.size() != cds_length) {
-        return "";
-    }
+std::string Tx::indel_codon_cq(int start, int end, const std::string & ref, const std::string & alt) {
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
     int lo = std::min(start_coord.position, end_coord.position);
@@ -832,57 +1069,13 @@ std::string Tx::inframe_codon_cq(int start, int end, const std::string & ref, co
         return "start_lost";
     }
     
-    bool fwd = get_strand() == '+';
-    std::string ref_t = fwd ? ref : reverse_complement(ref);
-    std::string alt_t = fwd ? alt : reverse_complement(alt);
-    bool inserted_before = (alt_t.size() > ref_t.size()) &&
-        (alt_t.compare(alt_t.size() - ref_t.size(), ref_t.size(), ref_t) == 0);
-    if ((lo == 0) && inserted_before) {
-        // bases inserted immediately before the start codon are in the 5' UTR
-        return "";
-    }
-    
-    std::string seq = cds_sequence;
-    if (hi >= cds_length) {
-        // extend into the 3' UTR, to check if the stop codon is re-formed
-        int cds_end = get_cds_end();
-        Region exon = get_closest_exon(cds_end);
-        int n = std::min(fwd ? exon.end - cds_end : cds_end - exon.start, hi - cds_length + 3);
-        int pos = (fwd ? cds_end + 1 : cds_end - n) - get_start() + gdna_offset;
-        if (pos < 0 || pos + n > (int) genomic_sequence.size()) {
-            return "";
-        }
-        std::string flank = genomic_sequence.substr(pos, n);
-        seq += fwd ? flank : reverse_complement(flank);
-    }
-    
-    int first = lo - lo % 3;
-    int length = hi - hi % 3 + 3 - first;
-    if (first + length > (int) seq.size()) {
-        return "";
-    }
-    std::string ref_seq = seq.substr(first, length);
-    std::string alt_seq = ref_seq;
-    alt_seq.replace(lo - first, ref.size(), alt_t);
-    
     std::string ref_aa;
     std::string alt_aa;
-    try {
-        ref_aa = translate(ref_seq);
-        alt_aa = translate(alt_seq);
-    } catch (const std::invalid_argument &) {
+    std::string alt_t = (get_strand() == '+') ? alt : reverse_complement(alt);
+    if (!translate_change(lo, hi, alt_t, ref_aa, alt_aa)) {
         return "";
     }
-    bool ref_stop = ref_aa.find('*') != std::string::npos;
-    bool alt_stop = alt_aa.find('*') != std::string::npos;
-    if (!ref_stop && alt_stop) {
-        return "stop_gained";
-    } else if (ref_stop && !alt_stop) {
-        return "stop_lost";
-    } else if ((first == 0) && (alt_aa.empty() || alt_aa[0] != ref_aa[0])) {
-        return "start_lost";
-    }
-    return "";
+    return peptide_cq(ref_aa, alt_aa, lo < 3);
 }
 
 // check consequences for an indel with some CDS overlap
@@ -918,18 +1111,14 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     int ref_len = (int) ref.size();
     int alt_len = (int) alt.size();
     bool inframe = (std::abs(ref_len - alt_len) % 3) == 0;
+    std::string cq = indel_codon_cq(start, end, ref, alt);
     if (!inframe) {
-        return "frameshift_variant";
-    }
-    std::string codon_change = inframe_codon_cq(start, end, ref, alt);
-    if (!codon_change.empty()) {
-        return codon_change;
-    } else if (deletion) {
+        cq = is_stop_change(cq) ? cq : "frameshift_variant";
+    } else if (cq.empty()) {
         // TODO: account for altered splice boundaries
-        return "inframe_deletion";
-    } else {
-        return "inframe_insertion";
+        cq = deletion ? "inframe_deletion" : "inframe_insertion";
     }
+    return in_exonic_splice_region(start, end) ? most_severe(cq, "splice_region_variant") : cq;
 }
 
 // consequence of changing a single codon
@@ -977,24 +1166,17 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
         return "coding_sequence_variant";
     }
     
-    static const std::vector<std::string> severity = {"stop_gained", "stop_lost",
-        "start_lost", "missense_variant", "splice_region_variant",
-        "start_retained_variant", "stop_retained_variant", "synonymous_variant"};
-    auto rank = [](const std::string & cq) {
-        return (size_t) (std::find(severity.begin(), severity.end(), cq) - severity.begin());
-    };
     int last_codon = get_codon_number_for_cds_position(cds_length - 1);
-    size_t worst = severity.size() - 1;
+    std::string worst = "synonymous_variant";
     for (auto &item : codons) {
         Codon & codon = item.second;
         char mutated_aa = translate_codon(codon.codon_seq);
-        std::string cq = codon_cq(codon.initial_aa, mutated_aa, codon.codon_number, last_codon);
-        worst = std::min(worst, rank(cq));
+        worst = most_severe(worst, codon_cq(codon.initial_aa, mutated_aa, codon.codon_number, last_codon));
     }
     if (in_exonic_splice_region(start, end)) {
-        worst = std::min(worst, rank("splice_region_variant"));
+        worst = most_severe(worst, "splice_region_variant");
     }
-    return severity[worst];
+    return worst;
 }
 
 int min_len(const std::string & a, const std::string & b) {
@@ -1027,6 +1209,14 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     
     // TODO: need to realign alt against ref sequence, and strip down to alternate bases
     trim_alleles(start, end, ref, alt);
+    
+    // insertions lie between the anchor base and its neighbour
+    if (ref.size() == 1 && alt.size() > 1 && (alt[0] == ref[0] || alt.back() == ref[0])) {
+        if (alt[0] == ref[0]) {
+            return insertion_cq(start, alt.substr(1));
+        }
+        return insertion_cq(start - 1, alt.substr(0, alt.size() - 1));
+    }
     
     if ((end < tx_start) | (start > tx_end)) {
         return outside_gene_cq(start, end);

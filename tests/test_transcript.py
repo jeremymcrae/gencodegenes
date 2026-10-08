@@ -397,6 +397,14 @@ class TestTranscriptPy(unittest.TestCase):
         self.gene = self.construct_gene(exons=[(10, 20), (30, 40), (90, 100)],
             cds= [(30, 40), (90, 95)])
         self.assertEqual(self.gene.get_coding_distance(15), {'pos': -6, 'offset': 0})
+        
+        # on the - strand, upstream exons are at higher coordinates. The CDS
+        # starts at 35, so 36-40 are -1 to -5, then 90 is -6 and 100 is -16
+        self.gene = self.construct_gene(start=10, end=100, strand='-',
+            exons=[(10, 20), (30, 40), (90, 100)], cds=[(10, 20), (30, 35)])
+        self.assertEqual(self.gene.get_coding_distance(40), {'pos': -5, 'offset': 0})
+        self.assertEqual(self.gene.get_coding_distance(90), {'pos': -6, 'offset': 0})
+        self.assertEqual(self.gene.get_coding_distance(100), {'pos': -16, 'offset': 0})
     
     def test_chrom_pos_to_cds(self):
         """ test that chrom_pos_to_cds() works correctly
@@ -597,27 +605,30 @@ class TestTranscriptPy(unittest.TestCase):
         ''' check intronic variants by distance to the nearest exon
         
         Splice donor and acceptor variants are in the first or last 2 bp of the
-        intron, and splice region variants are 3-8 bp into the intron.
+        intron. Donor bases 3-6 are splice donor region (with base 5 classed
+        separately), 7-8 are splice region, acceptor bases 3-8 are splice
+        region, and acceptor bases 3-17 are the polypyrimidine tract.
         '''
+        # distance into the 20 bp intron from the donor end
+        expected = {1: 'splice_donor_variant', 2: 'splice_donor_variant',
+            3: 'splice_donor_region_variant', 4: 'splice_donor_region_variant',
+            5: 'splice_donor_5th_base_variant', 6: 'splice_donor_region_variant',
+            7: 'splice_region_variant', 8: 'splice_region_variant',
+            # 9-12 are 12-9 bp from the acceptor end
+            9: 'splice_polypyrimidine_tract_variant',
+            12: 'splice_polypyrimidine_tract_variant',
+            13: 'splice_region_variant', 18: 'splice_region_variant',
+            19: 'splice_acceptor_variant', 20: 'splice_acceptor_variant'}
         tx = self.construct_cq_gene()
-        expected = {10021: 'splice_donor_variant', 10022: 'splice_donor_variant',
-            10023: 'splice_region_variant', 10028: 'splice_region_variant',
-            10029: 'intron_variant', 10030: 'intron_variant',
-            10031: 'intron_variant', 10032: 'intron_variant',
-            10033: 'splice_region_variant', 10038: 'splice_region_variant',
-            10039: 'splice_acceptor_variant', 10040: 'splice_acceptor_variant'}
-        for pos, cq in expected.items():
+        for dist, cq in expected.items():
+            pos = 10020 + dist
             self.assertEqual(tx.consequence(pos, 'T', 'C'), cq, msg=f'pos={pos}')
         
         # on the - strand, the donor is at the 3' end of the intron (in + strand
         # coordinates), next to the exon which is first in transcript order
         tx = self.construct_cq_gene(strand='-')
-        expected = {10040: 'splice_donor_variant', 10039: 'splice_donor_variant',
-            10038: 'splice_region_variant', 10033: 'splice_region_variant',
-            10032: 'intron_variant', 10029: 'intron_variant',
-            10028: 'splice_region_variant', 10023: 'splice_region_variant',
-            10022: 'splice_acceptor_variant', 10021: 'splice_acceptor_variant'}
-        for pos, cq in expected.items():
+        for dist, cq in expected.items():
+            pos = 10041 - dist
             self.assertEqual(tx.consequence(pos, 'T', 'C'), cq, msg=f'pos={pos}')
     
     def test_consequence_coding_snvs(self):
@@ -725,7 +736,7 @@ class TestTranscriptPy(unittest.TestCase):
         # deletes AAG (10050-10052), into the 3' UTR: TAA GGG -> TGG
         self.assertEqual(tx.consequence(10049, 'TAAG', 'T'), 'stop_lost')
         # deletes AGG (10051-10053), into the 3' UTR: TAA GGG -> TAG, still a stop
-        self.assertEqual(tx.consequence(10050, 'AAGG', 'A'), 'inframe_deletion')
+        self.assertEqual(tx.consequence(10050, 'AAGG', 'A'), 'stop_retained_variant')
         
         # without sequence, inframe indels can't be checked further
         tx = self.construct_cq_gene('-')
@@ -748,7 +759,69 @@ class TestTranscriptPy(unittest.TestCase):
         # deletes genomic 15-17 (CCA), i.e. TGG in transcript orientation
         self.assertEqual(tx.consequence(14, 'GCCA', 'G'), 'start_lost')
         # inserts CCC before the start codon, which leaves it intact
-        self.assertEqual(tx.consequence(18, 'T', 'TGGG'), 'inframe_insertion')
+        self.assertEqual(tx.consequence(18, 'T', 'TGGG'), '5_prime_UTR_variant')
+    
+    def test_consequence_insertion_codons(self):
+        ''' check insertions in the + strand CDS ATG GCC AAA G|GC TGG CTG TAA
+        '''
+        tx = self.construct_cq_gene('+')
+        # inserts TAC within GCC: GCC -> GTA CCC (V P), which loses the A
+        self.assertEqual(tx.consequence(10014, 'G', 'GTAC'), 'protein_altering_variant')
+        # inserts CCG within GCC: GCC -> GCC GCC (A A)
+        self.assertEqual(tx.consequence(10014, 'G', 'GCCG'), 'inframe_insertion')
+        # inserts A within TGG: TGG -> TGA G, a frameshift creating a stop
+        self.assertEqual(tx.consequence(10044, 'G', 'GA'), 'stop_gained')
+        # inserts T between GCC and AAA. The neighbouring codons are left
+        # intact, so this doesn't create a stop, despite T AAA -> TAA A
+        self.assertEqual(tx.consequence(10016, 'C', 'CT'), 'frameshift_variant')
+        # deletes the first T of TAA (10049): TAA G -> AAG
+        self.assertEqual(tx.consequence(10048, 'GT', 'G'), 'stop_lost')
+    
+    def test_consequence_insertion_splice_sites(self):
+        ''' check insertions near exon/intron boundaries
+        
+        Layout: exon 1 at 1001-1020 (all 5' UTR on + strand), intron at
+        1021-1040, exon 2 at 1041-1100 with CDS at 1050-1070.
+        '''
+        tx = Transcript('TEST', '1', 1001, 1100, '+',
+            exons=[(1001, 1020), (1041, 1100)], cds=[(1050, 1070)])
+        # insertions are classed by the base before the inserted bases
+        expected = {1017: '5_prime_UTR_variant',
+            # within the 3 exonic bases next to the intron
+            1018: 'splice_region_variant',
+            # at the exon/intron junction, which counts as exonic
+            1020: 'splice_region_variant',
+            # 1-7 bp into the intron, by the closer flanking base
+            1021: 'splice_donor_variant', 1022: 'splice_region_variant',
+            1023: 'splice_donor_region_variant', 1025: 'splice_donor_region_variant',
+            1026: 'splice_region_variant', 1027: 'splice_region_variant',
+            # 8+ bp from the donor, and 8-16 bp from the acceptor
+            1028: 'splice_polypyrimidine_tract_variant',
+            1033: 'splice_region_variant', 1038: 'splice_region_variant',
+            1039: 'splice_acceptor_variant',
+            1040: 'splice_region_variant', 1043: '5_prime_UTR_variant'}
+        for pos, cq in expected.items():
+            self.assertEqual(tx.consequence(pos, 'A', 'AT'), cq, msg=f'pos={pos}')
+        
+        # insertions at the junction of a coding exon follow the CDS change. The
+        # CDS is ATG GCC AAA G|GC TGG CTG TAA, and both insert A before GC,
+        # i.e. GGC -> GAG C
+        tx = self.construct_cq_gene('+')
+        self.assertEqual(tx.consequence(10020, 'G', 'GA'), 'frameshift_variant')
+        self.assertEqual(tx.consequence(10040, 'G', 'GA'), 'frameshift_variant')
+    
+    def test_consequence_stop_flank_across_exons(self):
+        ''' check frameshifts in a stop codon at the end of an exon use the
+        3' UTR from the next exon
+        '''
+        # CDS ATG GCC AAA TAA at 4-15, then a 14 bp intron, and exon 2
+        for exon2, cq in (('G' * 11, 'splice_region_variant'), ('C' * 11, 'stop_lost')):
+            tx = Transcript('TEST', '1', 1, 40, '+', exons=[(1, 15), (30, 40)],
+                cds=[(4, 15)])
+            tx.genomic_sequence = 'CCC' + 'ATGGCCAAATAA' + 'GTAAGTTTTTTTAG' + exon2
+            # deletes the A at 14: TAA -> TA + G, i.e. stop retained (but in
+            # the splice region), or TA + C, which loses the stop
+            self.assertEqual(tx.consequence(13, 'TA', 'T'), cq, msg=f'exon2={exon2}')
     
     def test_consequence_splice_site_outside_cds(self):
         ''' check variants spanning an exon/intron boundary outside the CDS are
