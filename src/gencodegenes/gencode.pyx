@@ -75,6 +75,16 @@ cpdef _open_gencode(gtf_path, coding_only=True):
         transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.is_canonical))
     return transcripts
 
+cdef list _chrom_names(str chrom):
+    ''' get the names a chromosome could have, allowing for differences in the
+    'chr' prefix (e.g. 'chr1' vs '1'), and in naming the mitochondrial genome
+    '''
+    bare = chrom[3:] if chrom.startswith('chr') else chrom
+    names = [chrom, bare, f'chr{bare}']
+    if bare in ('M', 'MT'):
+        names += ['MT', 'chrM', 'M', 'chrMT']
+    return list(dict.fromkeys(names))
+
 cdef class Gencode
 
 cdef class Gene:
@@ -179,8 +189,10 @@ cdef class Gene:
             offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
             chrom = tx.get_chrom().decode('utf8')
             if chrom not in self._genome:
-                # allow for differences in the 'chr' prefix, e.g. 'chr1' vs '1'
-                chrom = chrom[3:] if chrom.startswith('chr') else f'chr{chrom}'
+                for name in _chrom_names(chrom):
+                    if name in self._genome:
+                        chrom = name
+                        break
             start = tx.get_start()
             end = tx.get_end()
             # shrink the flanks for transcripts near the ends of the chromosome
@@ -292,13 +304,7 @@ cdef class Gene:
     def distance(self, chrom, pos):
         ''' get distance to nearest boundary of a gene
         '''
-        # sanatize the chromosome first
-        if self.chrom.startswith('chr') and not chrom.startswith('chr'):
-            chrom = f'chr{chrom}'
-        elif not self.chrom.startswith('chr') and chrom.startswith('chr'):
-            chrom = chrom[3:]
-        
-        if self.chrom != chrom:
+        if chrom != self.chrom and chrom not in _chrom_names(self.chrom):
             return None
         if self.start <= pos <= self.end:
             return 0
@@ -481,10 +487,13 @@ cdef class Gencode:
     
     cdef bytes _match_chrom(self, str chrom):
         ''' find the chromosome name used in the annotations, allowing for
-        differences in the 'chr' prefix (e.g. 'chr1' vs '1')
+        differences in the 'chr' prefix (e.g. 'chr1' vs '1'), and in naming
+        the mitochondrial genome
         '''
-        alternate = chrom[3:] if chrom.startswith('chr') else f'chr{chrom}'
-        for name in [chrom, alternate]:
+        key = chrom.encode('utf8')
+        if self.starts.count(key) > 0:
+            return key
+        for name in _chrom_names(chrom):
             key = name.encode('utf8')
             if self.starts.count(key) > 0:
                 return key

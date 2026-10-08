@@ -110,7 +110,8 @@ class TestGencode(unittest.TestCase):
         ''' test sequence is found when the GTF and fasta differ in the 'chr' prefix
         '''
         seq = 'ACGT' * 20
-        for gtf_chrom, fasta_chrom in [('chr1', '1'), ('1', 'chr1')]:
+        for gtf_chrom, fasta_chrom in [('chr1', '1'), ('1', 'chr1'), ('chrM', 'MT'),
+                ('MT', 'chrM')]:
             with open(self.temp_fasta_path, 'wt') as output:
                 output.write(f'>{fasta_chrom}\n{seq}\n')
             Path(self.temp_fasta_path + '.fai').unlink(missing_ok=True)
@@ -325,7 +326,10 @@ class TestGencode(unittest.TestCase):
                 '1\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST1"; transcript_type "protein_coding";\n',
                 'chr2\tHAVANA\ttranscript\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n',
                 'chr2\tHAVANA\texon\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n',
-                'chr2\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n']
+                'chr2\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n',
+                'chrM\tHAVANA\ttranscript\t10\t20\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n',
+                'chrM\tHAVANA\texon\t10\t20\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n',
+                'chrM\tHAVANA\tCDS\t10\t20\t.\t+\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n']
         
         write_gtf(self.temp_gtf_path, lines)
         gencode = Gencode(self.temp_gtf_path)
@@ -336,6 +340,11 @@ class TestGencode(unittest.TestCase):
         for chrom in ['2', 'chr2']:
             self.assertEqual([x.symbol for x in gencode.in_region(chrom, 5, 15)], ['TEST2'])
             self.assertEqual(gencode.nearest(chrom, 100).symbol, 'TEST2')
+        for chrom in ['chrM', 'M', 'MT', 'chrMT']:
+            self.assertEqual([x.symbol for x in gencode.in_region(chrom, 5, 15)], ['TEST3'])
+            self.assertEqual(gencode.nearest(chrom, 100).symbol, 'TEST3')
+            self.assertEqual(gencode['TEST3'].distance(chrom, 100), 80)
+        self.assertIsNone(gencode['TEST3'].distance('1', 100))
         
         with self.assertRaises(ValueError):
             gencode.in_region('3', 5, 15)
