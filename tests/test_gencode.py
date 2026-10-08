@@ -109,6 +109,23 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(Gene('TEST', ['ENSG1', 'HGNC:1']).alternate_ids, ['ENSG1', 'HGNC:1'])
         self.assertEqual(Gene('TEST', [b'ENSG1']).alternate_ids, ['ENSG1'])
     
+    def test_gene_in_any_tx_cds(self):
+        ''' test checking if a site is in the CDS of any transcript of a gene
+        '''
+        gene = Gene('TEST')
+        self.assertFalse(gene.in_any_tx_cds(150))
+        gene.add_transcript(Transcript('TX1', 'chr1', 100, 400, '+',
+            exons=[(100, 200), (300, 400)], cds=[(150, 200), (300, 350)]))
+        gene.add_transcript(Transcript('TX2', 'chr1', 100, 400, '+',
+            exons=[(100, 400)], cds=[(360, 380)]))
+        # in the CDS of the first transcript only, and the second only
+        self.assertTrue(gene.in_any_tx_cds(150))
+        self.assertTrue(gene.in_any_tx_cds(370))
+        # intronic in the first transcript, and in the second's 5' UTR
+        self.assertFalse(gene.in_any_tx_cds(250))
+        # in the 3' UTR of both
+        self.assertFalse(gene.in_any_tx_cds(390))
+    
     def test_gencode_add_gene(self):
         ''' test adding genes doesn't duplicate genes in the region index
         '''

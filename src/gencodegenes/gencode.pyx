@@ -267,10 +267,14 @@ cdef class Gene:
         
         return self._to_Transcript(max_tx)
     
-    def in_any_tx_cds(self, pos):
+    def in_any_tx_cds(self, int pos):
         ''' find if a pos is in coding region of any transcript of a gene
         '''
-        return any(tx.in_coding_region(pos) for tx in self._transcripts)
+        cdef size_t i
+        for i in range(self._transcripts.size()):
+            if self._transcripts[i].in_coding_region(pos):
+                return True
+        return False
     
     def distance(self, chrom, pos):
         ''' get distance to nearest boundary of a gene
