@@ -413,7 +413,7 @@ cdef class Gencode:
                 gene._genome = self._genome
             gene._parents.append(weakref.ref(self))
             genes.append(gene)
-        self._sort()
+            self._stale = True
     
     def nearest(self, str chrom, int pos):
         ''' find the nearest gene to a genomic chrom, pos coordinate
