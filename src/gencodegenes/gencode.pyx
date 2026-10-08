@@ -318,7 +318,7 @@ cdef class Gencode:
         Args:
             gencode: path to gencode annotations file
             fasta: path to fasta for genome matching annotations build
-            coding: restrict to protein_coding only by default
+            coding_only: restrict to protein_coding only by default
         '''
         if gencode is not None and not Path(gencode).exists():
             raise ValueError(f'cannot find gencode at: {gencode}')
