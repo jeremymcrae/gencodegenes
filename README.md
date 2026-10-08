@@ -60,8 +60,10 @@ tx.name         # transcript ID
 tx.chrom        # transcript chromosome
 tx.start        # transcript start (lowest position on chromosome)
 tx.end          # transcript end (highest position on chromosome)
-tx.cds_start    # CDS start position
-tx.cds_end      # CDS end position 
+tx.tss          # transcription start site (tx.end on the - strand)
+tx.cds_start    # CDS start position, in the direction of transcription (so
+                # the highest CDS position on the - strand)
+tx.cds_end      # CDS end position, in the direction of transcription
 tx.type         # transcript type e.g. protein_coding
 tx.strand       # strand (+ or -)
 tx.exons        # list of exon coordinates

@@ -806,6 +806,17 @@ class TestTranscriptPy(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'needs a chromosome'):
             Transcript('TEST')
     
+    def test_tss_and_cds_coords(self):
+        ''' check the TSS and CDS start follow the direction of transcription
+        '''
+        tx = Transcript('TEST', '1', 100, 200, '+', exons=[(100, 200)], cds=[(120, 180)])
+        self.assertEqual((tx.start, tx.end, tx.tss), (100, 200, 100))
+        self.assertEqual((tx.cds_start, tx.cds_end), (120, 180))
+        
+        tx = Transcript('TEST', '1', 100, 200, '-', exons=[(100, 200)], cds=[(120, 180)])
+        self.assertEqual((tx.start, tx.end, tx.tss), (100, 200, 200))
+        self.assertEqual((tx.cds_start, tx.cds_end), (180, 120))
+    
     def test_consequence_last_codon_not_stop(self):
         ''' check synonymous changes in the last codon are only stop_retained
         if that codon is a stop codon, e.g. not for a 3' incomplete CDS

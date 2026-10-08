@@ -66,11 +66,15 @@ class Transcript:
         ...
     @property
     def start(self) -> int:
-        """transcript start position (TSS) on chromosome"""
+        """lowest position of the transcript on the chromosome"""
         ...
     @property
     def end(self) -> int:
-        """transcript end position on chromosome"""
+        """highest position of the transcript on the chromosome"""
+        ...
+    @property
+    def tss(self) -> int:
+        """transcription start site on the chromosome (end on the - strand)"""
         ...
     @property
     def strand(self) -> str:
@@ -78,11 +82,13 @@ class Transcript:
         ...
     @property
     def cds_start(self) -> int:
-        """CDS start position on chromosome"""
+        """first CDS position in the direction of transcription, so the
+        highest CDS position on the - strand"""
         ...
     @property
     def cds_end(self) -> int:
-        """CDS end position on chromosome"""
+        """last CDS position in the direction of transcription, so the
+        lowest CDS position on the - strand"""
         ...
 
     @property

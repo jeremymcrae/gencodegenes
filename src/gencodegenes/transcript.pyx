@@ -297,23 +297,31 @@ cdef class Transcript:
         return self.thisptr.get_type().decode('utf8')
     @property
     def start(self):
-        '''transcript start position (TSS) on chromosome'''
+        '''lowest position of the transcript on the chromosome'''
         return self.thisptr.get_start()
     @property
     def end(self):
-        '''transcript end position on chromosome'''
+        '''highest position of the transcript on the chromosome'''
         return self.thisptr.get_end()
+    @property
+    def tss(self):
+        '''transcription start site on the chromosome (end on the - strand)'''
+        if self.thisptr.get_strand() == b'-':
+            return self.thisptr.get_end()
+        return self.thisptr.get_start()
     @property
     def strand(self):
         '''strand the transcript is on (+ or -)'''
         return chr(self.thisptr.get_strand())
     @property
     def cds_start(self):
-        '''CDS start position on chromosome'''
+        '''first CDS position in the direction of transcription, so the
+        highest CDS position on the - strand'''
         return self.thisptr.get_cds_start()
     @property
     def cds_end(self):
-        '''CDS end position on chromosome'''
+        '''last CDS position in the direction of transcription, so the
+        lowest CDS position on the - strand'''
         return self.thisptr.get_cds_end()
     
     @property
