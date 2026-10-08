@@ -4,8 +4,8 @@ import bisect
 import logging
 from pathlib import Path
 
-from cython.operator cimport dereference as deref
-from libcpp.algorithm cimport lower_bound, upper_bound
+from cython.operator cimport dereference as deref, preincrement as inc
+from libcpp.algorithm cimport lower_bound, upper_bound, stable_sort
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp cimport bool
@@ -338,25 +338,24 @@ cdef class Gencode:
         '''
         self.starts.clear()
         self.ends.clear()
+        cdef Gene gene
+        cdef string chrom
         for symbol, genes in self.genes.items():
             for i, gene in enumerate(genes):
-                chrom = gene.chrom.encode('utf8')
+                chrom = gene._chrom.encode('utf8')
                 key = f'{symbol}\t{i}'.encode('utf8')
-                
-                # ensure the chromosome is present
-                if self.starts.count(chrom) == 0:
-                    self.starts[chrom] = []
-                if self.ends.count(chrom) == 0:
-                    self.ends[chrom] = []
-                
-                self.starts[chrom].push_back(GenePoint(gene.start, key))
-                self.ends[chrom].push_back(GenePoint(gene.end, key))
+                self.starts[chrom].push_back(GenePoint(gene._start, key))
+                self.ends[chrom].push_back(GenePoint(gene._end, key))
         
-        # sort start and end coords by position
-        for x, values in self.starts:
-            self.starts[x] = sorted(values, key=lambda x: x['pos'])
-        for x, values in self.ends:
-            self.ends[x] = sorted(values, key=lambda x: x['pos'])
+        # sort start and end coords by position, keeping the order of ties
+        cdef map[string, vector[GenePoint]].iterator it = self.starts.begin()
+        while it != self.starts.end():
+            stable_sort(deref(it).second.begin(), deref(it).second.end(), &CompFunc)
+            inc(it)
+        it = self.ends.begin()
+        while it != self.ends.end():
+            stable_sort(deref(it).second.begin(), deref(it).second.end(), &CompFunc)
+            inc(it)
     
     def __repr__(self):
         return f'Gencode(n_genes={len(self)})'
