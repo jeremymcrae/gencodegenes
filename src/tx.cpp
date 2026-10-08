@@ -92,6 +92,8 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
 void Tx::set_cds(std::vector<Region> cds_ranges) {
     cds.clear();
     exon_to_cds.clear();
+    cds_sequence.clear();
+    cds_length = 0;
     if (cds_ranges.empty()) {
         // no subsequent adjustments for transcripts without CDS
         return;
@@ -145,6 +147,12 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     cds_length = 0;
     for (auto region : cds) {
         cds_length += (region.end - region.start) + 1;
+    }
+    
+    if (!genomic_sequence.empty()) {
+        // rebuild the CDS sequence, which expects the sequence oriented to the
+        // transcript strand
+        add_genomic_sequence(get_strand() == '+' ? genomic_sequence : reverse_complement(genomic_sequence));
     }
 }
 

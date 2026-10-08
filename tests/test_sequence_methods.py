@@ -155,6 +155,27 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.gene.genomic_sequence = gdna
         self.assertEqual(self.gene.cds_sequence, "AGGCTT")
     
+    def test_cds_sequence_after_cds_change(self):
+        ''' check the CDS sequence follows changes to the CDS
+        '''
+        seq = 'ATGGCCAAATAGCCCCCC'
+        tx = Transcript('TEST', '1', 1, 18, '+', exons=[(1, 18)], cds=[(1, 12)],
+            sequence=seq)
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAATAG')
+        tx.cds = [(4, 12)]
+        self.assertEqual(tx.cds_sequence, 'GCCAAATAG')
+        # 7 is now the first base of the AAA codon, so A>T gives TAA
+        self.assertEqual(tx.consequence(7, 'A', 'T'), 'stop_gained')
+        tx.cds = []
+        self.assertEqual(tx.cds_sequence, '')
+        
+        # on the - strand, transcript positions 1-12 are at 7-18 on the chromosome
+        tx = Transcript('TEST', '1', 1, 18, '-', exons=[(1, 18)], cds=[(7, 18)],
+            sequence=seq)
+        self.assertEqual(tx.cds_sequence, 'ATGGCCAAATAG')
+        tx.cds = [(7, 15)]
+        self.assertEqual(tx.cds_sequence, 'GCCAAATAG')
+    
     def test_genomic_sequence_wrong_length(self):
         """ check a sequence not matching the transcript span plus offsets raises
         """
