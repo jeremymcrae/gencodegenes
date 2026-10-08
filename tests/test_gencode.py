@@ -176,8 +176,8 @@ class TestGencode(unittest.TestCase):
                 'chr1\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding;"\n'\
                 'chr2\tHAVANA\tgene\t100\t110\t.\t-\t.\tgene_name "TEST3";\n' \
                 'chr2\tHAVANA\ttranscript\t100\t110\t.\t-\t.\ttranscript_id "ENST_C";gene_name "TEST3"; transcript_type "protein_coding"; tag "appris_principal_1";\n' \
-                'chr2\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_C" gene_name "TEST3"; transcript_type "protein_coding"\n' \
-                'chr2\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_C" gene_name "TEST3"; transcript_type "protein_coding"\n'
+                'chr2\tHAVANA\texon\t100\t110\t.\t-\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding"\n' \
+                'chr2\tHAVANA\tCDS\t105\t110\t.\t-\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding"\n'
         
         write_gtf(self.temp_gtf_path, lines)
         make_fasta(self.temp_fasta_path, ['chr1', 'chr2'])
@@ -930,9 +930,11 @@ class TestGencode(unittest.TestCase):
                 'chr1\tHAVANA\tCDS\t32\t38\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
                 'chr1\tHAVANA\tstop_codon\t50\t52\t.\t+\t.\ttranscript_id "ENST_B"; gene_name "TEST2"; transcript_type "protein_coding";\n' \
                 'chr1\tHAVANA\ttranscript\t60\t70\t.\t.\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n' \
-                'chr1\tHAVANA\texon\t60\t70\t.\t.\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n'
+                'chr1\tHAVANA\texon\t60\t70\t.\t.\t.\ttranscript_id "ENST_C"; gene_name "TEST3"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\ttranscript\t80\t90\t.\t+\t.\ttranscript_id "ENST_D"; gene_name "TEST4"; transcript_type "protein_coding";\n'
         
-        # ENST_B has a stop codon outside its exons, ENST_C lacks a valid strand
+        # ENST_B has a stop codon outside its exons, ENST_C lacks a valid strand,
+        # and ENST_D lacks exons
         write_gtf(self.temp_gtf_path, lines)
         data = _open_gencode(self.temp_gtf_path)
         self.assertEqual([x[1].name for x in data], ['ENST_A'])

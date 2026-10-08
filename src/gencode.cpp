@@ -105,6 +105,9 @@ static void set_span(TxInfo & info) {
 // the rest of the GTF from loading.
 static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info) {
     try {
+        if (info.exons.empty()) {
+            throw std::invalid_argument("no exons");
+        }
         include_end_codons(info);
         set_span(info);
         Tx tx(info.name, info.chrom, info.start, info.end, info.strand,
