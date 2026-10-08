@@ -165,6 +165,17 @@ class TestGencode(unittest.TestCase):
         # in the 3' UTR of both
         self.assertFalse(gene.in_any_tx_cds(390))
     
+    def test_gene_add_transcript_other_chrom(self):
+        ''' test a gene can't take transcripts from another chromosome
+        '''
+        gene = Gene('TEST')
+        gene.add_transcript(Transcript('TX1', 'chr1', 100, 400, '+', exons=[(100, 400)]))
+        with self.assertRaisesRegex(ValueError, 'cannot add TX2 on chr2'):
+            gene.add_transcript(Transcript('TX2', 'chr2', 5000, 6000, '+',
+                exons=[(5000, 6000)]))
+        self.assertEqual((gene.chrom, gene.start, gene.end), ('chr1', 100, 400))
+        self.assertEqual(len(gene.transcripts), 1)
+    
     def test_gencode_add_gene(self):
         ''' test adding genes doesn't duplicate genes in the region index
         '''

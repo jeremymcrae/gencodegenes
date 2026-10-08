@@ -107,6 +107,8 @@ cdef class Gene:
         '''
         assert isinstance(_tx, Transcript)
         cdef Transcript txn = _tx          # typed handle so Cython sees thisptr
+        if self._chrom is not None and txn.chrom != self._chrom:
+            raise ValueError(f'cannot add {txn.name} on {txn.chrom} to {self.symbol} on {self._chrom}')
         self.add_tx(deref(txn.thisptr), False)
     
     def __repr__(self):
