@@ -182,7 +182,8 @@ cdef class Gene:
     def transcripts(self):
         ''' get list of Transcripts for gene, with genomic DNA included
         '''
-        return [self._to_Transcript(x) for x in self._transcripts]
+        cdef size_t i
+        return [self._to_Transcript(self._transcripts[i]) for i in range(self._transcripts.size())]
     
     cdef int _cds_len(self, Tx & tx) except *:
         ''' get length of coding sequence for a Tx object based transcript
