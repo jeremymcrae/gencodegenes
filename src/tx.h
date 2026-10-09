@@ -106,7 +106,7 @@ class Tx {
     int get_codon_number_for_cds_position(int cds_position);
     int get_position_within_codon(int cds_position);
     void add_cds_sequence(std::string cds_dna);
-    void add_genomic_sequence(std::string gdna);
+    void add_genomic_sequence(std::string gdna, bool plus_strand=false);
     const std::string & get_cds_sequence() { return cds_sequence; }
     const std::string & get_genomic_sequence() { return genomic_sequence; }
     void set_genomic_offset(int offset) { gdna_offset=offset; }

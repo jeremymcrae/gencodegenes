@@ -5,7 +5,7 @@ import unittest
 import tempfile
 import weakref
 
-from gencodegenes.gencode import Gencode, Gene, _parse_gtfline, _open_gencode
+from gencodegenes.gencode import Gencode, Gene, _Genome, _parse_gtfline, _open_gencode
 from gencodegenes.transcript import Transcript
 
 def write_gtf(path, lines):
@@ -52,6 +52,30 @@ class TestGencode(unittest.TestCase):
         gene = gencode['OR4F5']
         with self.assertRaises(KeyError):
             gencode['ZZZZZZZ']
+    
+    def test_genome_cache(self):
+        ''' test the genome keeps the most recently used regions
+        '''
+        seq = 'acgt' * 10 + 'TTGCA' * 12   # 100 bp, partly lower case
+        with open(self.temp_fasta_path, 'wt') as output:
+            output.write(f'>chr1\n{seq}\n')
+        genome = _Genome(self.temp_fasta_path, max_cached=2)
+        cached = lambda: [x[:3] for x in genome._cache]
+        
+        self.assertEqual(genome.sequence('chr1', 10, 20, 0, 50), seq[10:20].upper())
+        # a query inside a cached region doesn't add another region
+        self.assertEqual(genome.sequence('chr1', 30, 40, 0, 50), seq[30:40].upper())
+        self.assertEqual(cached(), [('chr1', 0, 50)])
+        self.assertEqual(genome.sequence('chr1', 60, 70, 55, 80), seq[60:70])
+        self.assertEqual(cached(), [('chr1', 0, 50), ('chr1', 55, 80)])
+        # using a region makes it the most recent, so the other is dropped next
+        self.assertEqual(genome.sequence('chr1', 5, 8, 0, 50), seq[5:8].upper())
+        self.assertEqual(genome.sequence('chr1', 85, 95, 85, 95), seq[85:95])
+        self.assertEqual(cached(), [('chr1', 0, 50), ('chr1', 85, 95)])
+        # regions are clipped to the chromosome
+        self.assertEqual(genome.sequence('chr1', 98, 100, 90, 150), seq[98:100])
+        self.assertEqual(cached(), [('chr1', 85, 95), ('chr1', 90, 100)])
+        genome.close()
     
     def test_gencode_genome(self):
         ''' test each Gencode uses its own genome fasta, and closes it on exit

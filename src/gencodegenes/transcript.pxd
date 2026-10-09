@@ -57,6 +57,7 @@ cdef extern from "tx.h" namespace "gencode":
         int get_position_within_codon(int)
         void add_cds_sequence(string)
         void add_genomic_sequence(string) except +
+        void add_genomic_sequence(string, bool) except +
         string get_cds_sequence()
         string get_genomic_sequence()
         int get_genomic_offset()

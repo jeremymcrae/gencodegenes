@@ -85,6 +85,47 @@ cdef list _chrom_names(str chrom):
         names += ['MT', 'chrM', 'M', 'chrMT']
     return list(dict.fromkeys(names))
 
+class _Genome:
+    ''' genome fasta, which keeps the sequences of the most recently read
+    regions, so a gene's transcripts only need one read from the fasta
+    '''
+    def __init__(self, path, max_cached=5):
+        self._fasta = Fasta(str(path))
+        self._max_cached = max_cached
+        self._cache = []  # (chrom, start, end, seq) tuples, most recent last
+    
+    def close(self):
+        self._fasta.close()
+    
+    def chrom_name(self, chrom):
+        ''' find the name the fasta uses for a chromosome
+        '''
+        if chrom not in self._fasta:
+            for name in _chrom_names(chrom):
+                if name in self._fasta:
+                    return name
+        return chrom
+    
+    def chrom_length(self, chrom):
+        return len(self._fasta[chrom])
+    
+    def sequence(self, chrom, start, end, region_start, region_end):
+        ''' get the upper case sequence from start to end (0-based, end exclusive),
+        reading the surrounding region from the fasta, unless it is cached
+        '''
+        for i, (cached_chrom, cached_start, cached_end, seq) in enumerate(self._cache):
+            if cached_chrom == chrom and cached_start <= start and end <= cached_end:
+                self._cache.append(self._cache.pop(i))
+                return seq[start - cached_start:end - cached_start]
+        
+        region_start = max(0, min(start, region_start))
+        region_end = min(self.chrom_length(chrom), max(end, region_end))
+        seq = self._fasta[chrom][region_start:region_end].seq.upper()
+        self._cache.append((chrom, region_start, region_end, seq))
+        if len(self._cache) > self._max_cached:
+            del self._cache[0]
+        return seq[start - region_start:end - region_start]
+
 cdef class Gencode
 
 cdef class Gene:
@@ -94,7 +135,7 @@ cdef class Gene:
     cdef str _chrom
     cdef int _start, _end
     cdef vector[string] _alternate_ids
-    cdef object _genome  # pyfaidx Fasta shared with the parent Gencode, or None
+    cdef object _genome  # _Genome shared with the parent Gencode, or None
     cdef list _parents   # weakrefs to the Gencode objects indexing this gene
     def __cinit__(self, symbol, alt_ids=None):
         if isinstance(symbol, str):
@@ -187,21 +228,16 @@ cdef class Gene:
         # fasta (if available), matching the transcript's strand orientation
         if tx.get_genomic_sequence().size() == 0 and self._genome is not None:
             offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
-            chrom = tx.get_chrom().decode('utf8')
-            if chrom not in self._genome:
-                for name in _chrom_names(chrom):
-                    if name in self._genome:
-                        chrom = name
-                        break
+            chrom = self._genome.chrom_name(tx.get_chrom().decode('utf8'))
             start = tx.get_start()
             end = tx.get_end()
             # shrink the flanks for transcripts near the ends of the chromosome
-            offset = max(0, min(offset, start - 1, len(self._genome[chrom]) - end))
-            seq = self._genome[chrom][start-1-offset:end+offset].seq.upper()
-            if chr(tx.get_strand()) == '-':
-                seq = tx.reverse_complement(seq.encode('utf8')).decode('utf8')
+            offset = max(0, min(offset, start - 1, self._genome.chrom_length(chrom) - end))
+            # read the whole gene (plus default flanks), for the other transcripts
+            seq = self._genome.sequence(chrom, start - 1 - offset, end + offset,
+                self._start - 6, self._end + 5)
             transcript.genomic_offset = offset
-            transcript.genomic_sequence = seq
+            transcript.thisptr.add_genomic_sequence(seq.encode('utf8'), True)
         
         return transcript
     
@@ -334,7 +370,7 @@ cdef class Gencode:
         self._genome = None
         if fasta:
             logging.info(f'opening genome fasta: {fasta}')
-            self._genome = Fasta(str(fasta))
+            self._genome = _Genome(fasta)
         logging.info(f'opening gencode annotations: {gencode}')
         cdef vector[NamedTx] transcripts
         cdef NamedTx * x

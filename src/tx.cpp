@@ -1,5 +1,4 @@
 #include <array>
-#include <cctype>
 #include <string>
 #include <vector>
 #include <cstdlib>
@@ -33,7 +32,7 @@ static std::unordered_map<std::string, char> aa_code = {
 
 static void to_upper(std::string & seq) {
     for (auto & base : seq) {
-        base = (char) std::toupper((unsigned char) base);
+        base = (base >= 'a' && base <= 'z') ? (char) (base - ('a' - 'A')) : base;
     }
 }
 
@@ -150,9 +149,8 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     }
     
     if (!genomic_sequence.empty()) {
-        // rebuild the CDS sequence, which expects the sequence oriented to the
-        // transcript strand
-        add_genomic_sequence(get_strand() == '+' ? genomic_sequence : reverse_complement(genomic_sequence));
+        // rebuild the CDS sequence
+        add_genomic_sequence(genomic_sequence, true);
     }
 }
 
@@ -446,7 +444,8 @@ void Tx::add_cds_sequence(std::string cds_dna) {
 // @param gdna string for genomic sequence. If the transcript strand is '-',
 //    then the DNA sequence will be for the - strand, so we need to
 //    reorient the DNA to the + strand.
-void Tx::add_genomic_sequence(std::string gdna) {
+// @param plus_strand true if gdna is already on the + strand
+void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
     int expected = (tx_end - tx_start) + 1 + 2 * gdna_offset;
     if ((int) gdna.size() != expected) {
         throw std::invalid_argument(get_name() + " genomic sequence is "
@@ -455,7 +454,7 @@ void Tx::add_genomic_sequence(std::string gdna) {
     }
     to_upper(gdna);
     char fwd = '+';
-    if (get_strand() != fwd) {
+    if (get_strand() != fwd && !plus_strand) {
         // orient the DNA sequence to the + strand.
         gdna = reverse_complement(gdna);
     }
@@ -572,9 +571,11 @@ static char complement(char base) {
 
 // reverse complement a DNA or RNA sequence
 std::string Tx::reverse_complement(const std::string & seq) {
-    std::string revcomp(seq.rbegin(), seq.rend());
-    for (auto &base : revcomp) {
-        base = complement(base);
+    static const std::array<char, 256> complements = make_complements();
+    size_t n = seq.size();
+    std::string revcomp(n, 'N');
+    for (size_t i = 0; i < n; i++) {
+        revcomp[i] = complements[(uint8_t) seq[n - 1 - i]];
     }
     return revcomp;
 }
