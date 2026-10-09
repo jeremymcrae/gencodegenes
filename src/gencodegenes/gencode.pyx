@@ -110,7 +110,7 @@ class _Genome:
         return len(self._fasta[chrom])
     
     def sequence(self, chrom, start, end, region_start, region_end):
-        ''' get the upper case sequence from start to end (0-based, end exclusive),
+        ''' get the sequence from start to end (0-based, end exclusive) as bytes,
         reading the surrounding region from the fasta, unless it is cached
         '''
         for i, (cached_chrom, cached_start, cached_end, seq) in enumerate(self._cache):
@@ -120,7 +120,7 @@ class _Genome:
         
         region_start = max(0, min(start, region_start))
         region_end = min(self.chrom_length(chrom), max(end, region_end))
-        seq = self._fasta[chrom][region_start:region_end].seq.upper()
+        seq = self._fasta[chrom][region_start:region_end].seq.encode('utf8')
         self._cache.append((chrom, region_start, region_end, seq))
         if len(self._cache) > self._max_cached:
             del self._cache[0]
@@ -237,7 +237,7 @@ cdef class Gene:
             seq = self._genome.sequence(chrom, start - 1 - offset, end + offset,
                 self._start - 6, self._end + 5)
             transcript.genomic_offset = offset
-            transcript.thisptr.add_genomic_sequence(seq.encode('utf8'), True)
+            transcript.thisptr.add_genomic_sequence(seq, True)
         
         return transcript
     

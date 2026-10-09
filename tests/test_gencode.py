@@ -56,20 +56,21 @@ class TestGencode(unittest.TestCase):
     def test_genome_cache(self):
         ''' test the genome keeps the most recently used regions
         '''
-        seq = 'acgt' * 10 + 'TTGCA' * 12   # 100 bp, partly lower case
+        seq = 'acgt' * 10 + 'TTGCA' * 12   # 100 bp
         with open(self.temp_fasta_path, 'wt') as output:
             output.write(f'>chr1\n{seq}\n')
         genome = _Genome(self.temp_fasta_path, max_cached=2)
         cached = lambda: [x[:3] for x in genome._cache]
+        seq = seq.encode('utf8')
         
-        self.assertEqual(genome.sequence('chr1', 10, 20, 0, 50), seq[10:20].upper())
+        self.assertEqual(genome.sequence('chr1', 10, 20, 0, 50), seq[10:20])
         # a query inside a cached region doesn't add another region
-        self.assertEqual(genome.sequence('chr1', 30, 40, 0, 50), seq[30:40].upper())
+        self.assertEqual(genome.sequence('chr1', 30, 40, 0, 50), seq[30:40])
         self.assertEqual(cached(), [('chr1', 0, 50)])
         self.assertEqual(genome.sequence('chr1', 60, 70, 55, 80), seq[60:70])
         self.assertEqual(cached(), [('chr1', 0, 50), ('chr1', 55, 80)])
         # using a region makes it the most recent, so the other is dropped next
-        self.assertEqual(genome.sequence('chr1', 5, 8, 0, 50), seq[5:8].upper())
+        self.assertEqual(genome.sequence('chr1', 5, 8, 0, 50), seq[5:8])
         self.assertEqual(genome.sequence('chr1', 85, 95, 85, 95), seq[85:95])
         self.assertEqual(cached(), [('chr1', 0, 50), ('chr1', 85, 95)])
         # regions are clipped to the chromosome
@@ -133,7 +134,7 @@ class TestGencode(unittest.TestCase):
     def test_gencode_genome_chrom_prefix(self):
         ''' test sequence is found when the GTF and fasta differ in the 'chr' prefix
         '''
-        seq = 'ACGT' * 20
+        seq = 'ACGTacgt' * 10
         for gtf_chrom, fasta_chrom in [('chr1', '1'), ('1', 'chr1'), ('chrM', 'MT'),
                 ('MT', 'chrM')]:
             with open(self.temp_fasta_path, 'wt') as output:
@@ -147,9 +148,10 @@ class TestGencode(unittest.TestCase):
             # positions 10-40, plus the default 5 bp flanks, are 5-45
             with Gencode(self.temp_gtf_path, self.temp_fasta_path) as gencode:
                 tx = gencode['TX'].canonical
+            # lower case (soft-masked) bases are returned in upper case
             self.assertEqual(tx.chrom, gtf_chrom)
-            self.assertEqual(tx.genomic_sequence, seq[4:45])
-            self.assertEqual(tx.cds_sequence, seq[12:27])
+            self.assertEqual(tx.genomic_sequence, seq[4:45].upper())
+            self.assertEqual(tx.cds_sequence, seq[12:27].upper())
     
     def test_gene_alternate_ids(self):
         ''' test Gene accepts alternate IDs as str, list of str, or bytes
