@@ -88,10 +88,6 @@ extensions = [
         language="c++"),
     ]
 
-# include tx.h in the package, for downstream usage
-shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
-shutil.copy("src/tx.cpp", "src/gencodegenes/tx.cpp")
-
 setup(
     package_dir={'': 'src'},
     ext_modules=cythonize(extensions),
