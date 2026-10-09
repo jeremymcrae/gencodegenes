@@ -131,6 +131,21 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(end.genomic_sequence, seq[61:80])
         self.assertEqual(end.cds_sequence, end.reverse_complement(seq[63:78]))
     
+    def test_gencode_genome_past_chrom_end(self):
+        ''' test transcripts beyond the end of the fasta chromosome raise errors
+        '''
+        with open(self.temp_fasta_path, 'wt') as output:
+            output.write(f'>chr1\n{"ACGT" * 20}\n')
+        # one transcript runs past the 80 bp chromosome, the other starts after it
+        for start, end in [(70, 90), (100, 120)]:
+            lines = [f'chr1\tHAVANA\t{feature}\t{start}\t{end}\t.\t+\t.\ttranscript_id "TX"; '
+                    'gene_name "TX"; transcript_type "protein_coding";\n'
+                for feature in ['transcript', 'exon', 'CDS']]
+            write_gtf(self.temp_gtf_path, lines)
+            with Gencode(self.temp_gtf_path, self.temp_fasta_path) as gencode:
+                with self.assertRaisesRegex(ValueError, 'genomic sequence is'):
+                    gencode['TX'].canonical
+    
     def test_gencode_genome_chrom_prefix(self):
         ''' test sequence is found when the GTF and fasta differ in the 'chr' prefix
         '''

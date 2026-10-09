@@ -93,6 +93,7 @@ class _Genome:
         self._fasta = Fasta(str(path))
         self._max_cached = max_cached
         self._cache = []  # (chrom, start, end, seq) tuples, most recent last
+        self._lengths = {}
     
     def close(self):
         self._fasta.close()
@@ -107,16 +108,22 @@ class _Genome:
         return chrom
     
     def chrom_length(self, chrom):
-        return len(self._fasta[chrom])
+        if chrom not in self._lengths:
+            self._lengths[chrom] = len(self._fasta[chrom])
+        return self._lengths[chrom]
     
-    def sequence(self, chrom, start, end, region_start, region_end):
-        ''' get the sequence from start to end (0-based, end exclusive) as bytes,
-        reading the surrounding region from the fasta, unless it is cached
+    def region(self, chrom, start, end, region_start, region_end):
+        ''' get a cached sequence which covers start to end (0-based, end
+        exclusive), reading the surrounding region from the fasta if needed
+        
+        Returns:
+            tuple of the sequence (as bytes), and the index of start within it
         '''
         for i, (cached_chrom, cached_start, cached_end, seq) in enumerate(self._cache):
             if cached_chrom == chrom and cached_start <= start and end <= cached_end:
-                self._cache.append(self._cache.pop(i))
-                return seq[start - cached_start:end - cached_start]
+                if i != len(self._cache) - 1:
+                    self._cache.append(self._cache.pop(i))
+                return seq, start - cached_start
         
         region_start = max(0, min(start, region_start))
         region_end = min(self.chrom_length(chrom), max(end, region_end))
@@ -124,7 +131,13 @@ class _Genome:
         self._cache.append((chrom, region_start, region_end, seq))
         if len(self._cache) > self._max_cached:
             del self._cache[0]
-        return seq[start - region_start:end - region_start]
+        return seq, start - region_start
+    
+    def sequence(self, chrom, start, end, region_start, region_end):
+        ''' get the sequence from start to end (0-based, end exclusive) as bytes
+        '''
+        seq, idx = self.region(chrom, start, end, region_start, region_end)
+        return seq[idx:idx + end - start]
 
 cdef class Gencode
 
@@ -223,6 +236,10 @@ cdef class Gene:
         ''' construct Transcript (python object) from Tx (c++ object)
         '''
         cdef Transcript transcript = _wrap_tx(tx)
+        cdef const char * data
+        cdef bytes seq
+        cdef int idx
+        cdef size_t length
         
         # if the transcript lacks a genomic sequence, pull one from the genome
         # fasta (if available), matching the transcript's strand orientation
@@ -234,10 +251,16 @@ cdef class Gene:
             # shrink the flanks for transcripts near the ends of the chromosome
             offset = max(0, min(offset, start - 1, self._genome.chrom_length(chrom) - end))
             # read the whole gene (plus default flanks), for the other transcripts
-            seq = self._genome.sequence(chrom, start - 1 - offset, end + offset,
+            seq, idx = self._genome.region(chrom, start - 1 - offset, end + offset,
                 self._start - 6, self._end + 5)
             transcript.genomic_offset = offset
-            transcript.thisptr.add_genomic_sequence(seq, True)
+            # copy straight from the cached bytes, without slicing them first.
+            # Sequence missing from the fasta ends up too short, which raises
+            # an error in add_genomic_sequence
+            data = seq
+            idx = min(idx, len(seq))
+            length = min(end + offset - (start - 1 - offset), len(seq) - idx)
+            transcript.thisptr.add_genomic_sequence(move(string(data + idx, length)), True)
         
         return transcript
     
