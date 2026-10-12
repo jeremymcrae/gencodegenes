@@ -88,6 +88,8 @@ extensions = [
         language="c++"),
     ]
 
+shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
+
 setup(
     package_dir={'': 'src'},
     ext_modules=cythonize(extensions),
