@@ -17,15 +17,6 @@ else:
     if sys.platform == "darwin":
         EXTRA_COMPILE_ARGS += ["-stdlib=libc++"]
         EXTRA_LINK_ARGS += ["-stdlib=libc++"]
-        sdk_base = "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk"
-        if os.path.exists(sdk_base):
-            EXTRA_COMPILE_ARGS += [
-                f"-I{sdk_base}/usr/include/c++/v1",
-                f"-I{sdk_base}/usr/include",
-            ]
-            EXTRA_LINK_ARGS += [
-                f"-L{sdk_base}/usr/lib",
-            ]
 
 ZLIB_NG_DIR = os.path.abspath('src/zlib-ng')
 
