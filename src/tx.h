@@ -69,7 +69,6 @@ class Tx {
     
     bool is_exonic(int pos, Region exon);
     int closest_exon_num(int pos);
-    int closest_exon_num(int pos, std::vector<Region> & group);
     int overlapping_region_num(int start, int end, std::vector<Region> & group);
     CDS_coords to_closest_exon(int pos, Region exon);
     int exonic_position(int pos, int idx);

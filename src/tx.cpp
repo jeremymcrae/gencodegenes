@@ -279,25 +279,20 @@ static bool starts_before(const Region & region, int pos) {
 }
 
 // find the index of the closest exon to a chromosome position
-int Tx::closest_exon_num(int pos) {
-    return closest_exon_num(pos, exons);
-}
-
-// find the index for the closest exon/CDS to a chromosome position
 //
-// @param position chromosomal nucleotide position
-// @returns number of exon containing the position
-int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
-    size_t idx = std::lower_bound(group.begin(), group.end(), pos, starts_before) - group.begin();
+// @param pos chromosomal nucleotide position
+// @returns index of the exon containing the position, or the nearest exon
+int Tx::closest_exon_num(int pos) {
+    size_t idx = std::lower_bound(exons.begin(), exons.end(), pos, starts_before) - exons.begin();
     if (idx == 0) {
         return idx;
-    } else if (idx == group.size()) {
+    } else if (idx == exons.size()) {
         return idx - 1;
     }
     
     // get the exon, and the preceding exon (lower bound finds exon after pos)
-    Region a = group[idx - 1];
-    Region b = group[idx];
+    Region a = exons[idx - 1];
+    Region b = exons[idx];
     
     // if the position is within an exon, return that exon number
     if ((pos >= a.start) && (pos <= a.end)) {
@@ -332,12 +327,7 @@ Region Tx::get_closest_exon(int pos) {
 //
 // @param position integer chromosome position e.g. 10000000
 bool Tx::in_coding_region(int pos) {
-    if (cds.size() == 0) {
-        return false;
-    }
-    int idx = closest_exon_num(pos, cds);
-    Region region = cds[idx];
-    return (pos >= region.start) && (pos <= region.end);
+    return overlaps_cds(pos, pos);
 }
 
 // shift an intronic site to the nearest exon boundary (but track the offset)
