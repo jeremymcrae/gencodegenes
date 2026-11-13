@@ -251,10 +251,9 @@ bool Tx::is_exonic(int pos, Region exon) {
     return (pos >= exon.start) && (pos <= exon.end);
 }
 
-// include a sort operator for Region structs. This allows quick searching
-// of vectors of Regions
-static bool compareRegion(const Region& a, int b) {
-    return a.start < b;
+// check if a region starts before a position, for binary searches of sorted regions
+static bool starts_before(const Region & region, int pos) {
+    return region.start < pos;
 }
 
 // find the index of the closest exon to a chromosome position
@@ -267,7 +266,7 @@ int Tx::closest_exon_num(int pos) {
 // @param position chromosomal nucleotide position
 // @returns number of exon containing the position
 int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
-    size_t idx = std::lower_bound(group.begin(), group.end(), pos, compareRegion) - group.begin();
+    size_t idx = std::lower_bound(group.begin(), group.end(), pos, starts_before) - group.begin();
     if (idx == 0) {
         return idx;
     } else if (idx == group.size()) {
@@ -321,7 +320,6 @@ bool Tx::in_coding_region(int pos) {
 
 // shift an intronic site to the nearest exon boundary (but track the offset)
 CDS_coords Tx::to_closest_exon(int pos, Region exon) {
-    // Region exon = get_closest_exon(pos);
     int site;
     if (std::abs(exon.start - pos) < std::abs(exon.end - pos)) {
         site = exon.start;
@@ -693,7 +691,7 @@ int Tx::get_boundary_distance(int bp) {
 }
 
 // check for overlap of two ranges
-static bool overlap(const int & start1, const int & end1, const int & start2, const int & end2) {
+static bool overlap(int start1, int end1, int start2, int end2) {
     return (end1 >= start2) && (end2 >= start1);
 }
 
