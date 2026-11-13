@@ -177,10 +177,14 @@ cdef class Gene:
         '''
         assert isinstance(_tx, Transcript)
         cdef Transcript txn = _tx          # typed handle so Cython sees thisptr
-        cdef Gencode parent
         if self._chrom is not None and txn.chrom != self._chrom:
             raise ValueError(f'cannot add {txn.name} on {txn.chrom} to {self.symbol} on {self._chrom}')
         self.add_tx(deref(txn.thisptr), False)
+    
+    cdef _mark_stale(self):
+        ''' flag that the Gencode objects indexing this gene need to reindex it
+        '''
+        cdef Gencode parent
         for ref in self._parents:
             parent = ref()
             if parent is not None:
@@ -212,6 +216,7 @@ cdef class Gene:
     @chrom.setter
     def chrom(self, value):
         self._chrom = value
+        self._mark_stale()
     
     @property
     def start(self):
@@ -219,6 +224,7 @@ cdef class Gene:
     @start.setter
     def start(self, value):
         self._start = value
+        self._mark_stale()
     
     @property
     def end(self):
@@ -226,6 +232,7 @@ cdef class Gene:
     @end.setter
     def end(self, value):
         self._end = value
+        self._mark_stale()
     
     @property
     def strand(self):

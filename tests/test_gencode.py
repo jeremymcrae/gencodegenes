@@ -255,6 +255,14 @@ class TestGencode(unittest.TestCase):
         gene.add_transcript(Transcript('TX2', 'chr1', 100, 9000, '+', exons=[(100, 9000)]))
         self.assertEqual([x.symbol for x in gencode.in_region('chr1', 8000, 8500)], ['NEW'])
         
+        # and when the gene span is set directly
+        gene.end = 20000
+        self.assertEqual([x.symbol for x in gencode.in_region('chr1', 15000, 15500)], ['NEW'])
+        gene.start = 10000
+        self.assertEqual(gencode.in_region('chr1', 5000, 5500), [])
+        gene.chrom = 'chr2'
+        self.assertEqual([x.symbol for x in gencode.in_region('chr2', 15000, 15500)], ['NEW'])
+        
         # also for genes loaded from the GTF
         gencode = Gencode(self.gtf_path)
         gencode['OR4F5'].add_transcript(Transcript('TX3', 'chr1', 69000, 300000, '+',
