@@ -366,7 +366,7 @@ CDS_coords Tx::get_coding_distance(int pos) {
     
     bool fwd = get_strand() == '+';
     bool after = alt > first;
-    bool positive = (fwd & after) | (!fwd & !after);
+    bool positive = fwd == after;
     // use positive coding position if the transcript is either:
     //   a) on the + strand and the site is 3' of CDS start
     //   b) on the - strand and the site is 5' of CDS start
@@ -698,7 +698,7 @@ Codon Tx::get_codon_info(int bp) {
     bool in_coding = in_coding_region(bp);
     CDS_coords site = get_coding_distance(bp);
     
-    if ((site.position < 0) | (site.position >= cds_length)) {
+    if ((site.position < 0) || (site.position >= cds_length)) {
         throw std::invalid_argument( "position not inside CDS region" );
     }
     
@@ -884,13 +884,13 @@ std::string Tx::splice_boundary_cq(int start, int end, int idx) {
 
 std::string Tx::outside_gene_cq(int start, int end) {
     bool fwd = get_strand() == '+';
-    if ((end < tx_start) & ((tx_start - end) <= 5000)) {
+    if ((end < tx_start) && ((tx_start - end) <= 5000)) {
         if (fwd) {
             return "upstream_gene_variant";
         } else {
             return "downstream_gene_variant";
         }
-    } else if ((start > tx_end) & ((start - tx_end) <= 5000)) {
+    } else if ((start > tx_end) && ((start - tx_end) <= 5000)) {
         if (fwd) {
             return "downstream_gene_variant";
         } else {
@@ -907,10 +907,10 @@ std::string Tx::short_intron_cq(int start, int end) {
     auto idx = closest_exon_num(start);
     auto exon = exons[idx];
     int intron_length = 100;
-    if ((exon.end < start) & (idx < ((int) exons.size() - 1))) {
+    if ((exon.end < start) && (idx < ((int) exons.size() - 1))) {
         auto other = exons[idx + 1];
         intron_length = other.start - exon.end;
-    } else if ((end < exon.start) & (idx > 0)) {
+    } else if ((end < exon.start) && (idx > 0)) {
         auto other = exons[idx - 1];
         intron_length = exon.start - other.end;
     }
@@ -971,7 +971,7 @@ std::string Tx::intronic_cq(int start, int end) {
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
     
-    bool intronic = (start_coord.offset != 0) & (end_coord.offset != 0);
+    bool intronic = (start_coord.offset != 0) && (end_coord.offset != 0);
     if (!intronic) {
         std::string cq;
         if (cds.empty()) {
@@ -1345,7 +1345,7 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
         return insertion_cq(start - 1, alt.substr(0, alt.size() - 1));
     }
     
-    if ((end < tx_start) | (start > tx_end)) {
+    if ((end < tx_start) || (start > tx_end)) {
         return outside_gene_cq(start, end);
     }
     
