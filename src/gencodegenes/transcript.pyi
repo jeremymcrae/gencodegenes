@@ -1,4 +1,4 @@
-from typing import Iterator, TypedDict
+from typing import Iterator, Sequence, TypedDict
 
 class _Region(TypedDict):
     start: int
@@ -38,8 +38,8 @@ class Transcript:
         end: int = ...,
         strand: str = ...,
         transcript_type: str = ...,
-        exons: list[tuple[int, int]] | None = ...,
-        cds: list[tuple[int, int]] | None = ...,
+        exons: Sequence[Sequence[int]] | None = ...,
+        cds: Sequence[Sequence[int]] | None = ...,
         sequence: str | None = ...,
         offset: int = ...,
         attributes: dict[str, str] | None = ...,
@@ -96,14 +96,14 @@ class Transcript:
         """list of exon coords as {'start': int, 'end': int} dicts"""
         ...
     @exons.setter
-    def exons(self, exon_ranges: list[tuple[int, int]]) -> None: ...
+    def exons(self, exon_ranges: Sequence[Sequence[int]]) -> None: ...
 
     @property
     def cds(self) -> list[_Region]:
         """list of CDS coords as {'start': int, 'end': int} dicts"""
         ...
     @cds.setter
-    def cds(self, cds_ranges: list[tuple[int, int]]) -> None: ...
+    def cds(self, cds_ranges: Sequence[Sequence[int]]) -> None: ...
 
     @property
     def cds_sequence(self) -> str:
@@ -239,14 +239,14 @@ class Transcript:
             position within the codon: 0, 1 or 2
         """
         ...
-    def reverse_complement(self, text: str) -> str:
+    def reverse_complement(self, text: str | bytes) -> str:
         """reverse complement a DNA or RNA sequence
 
         Case is preserved, IUPAC ambiguity codes are complemented, U pairs with
         A, and any other character becomes N.
 
         Args:
-            text: DNA or RNA sequence
+            text: DNA or RNA sequence, as str or ASCII bytes
 
         Returns:
             reverse complemented DNA sequence
@@ -365,9 +365,14 @@ class Transcript:
                 outside the CDS: 5_prime_UTR_variant, 3_prime_UTR_variant,
                     non_coding_transcript_exon_variant, intron_variant,
                     splice_acceptor_variant, splice_donor_variant (within 2 bp
-                    of an exon), splice_region_variant (within 8 bp of an exon)
+                    of an exon), splice_region_variant (within 8 bp of an exon),
+                    splice_donor_5th_base_variant,
+                    splice_donor_region_variant (3-6 bp after an exon),
+                    splice_polypyrimidine_tract_variant (3-17 bp before an exon)
                 indels in the CDS: frameshift_variant, inframe_insertion,
-                    inframe_deletion, splice_donor_variant
+                    inframe_deletion, protein_altering_variant,
+                    splice_acceptor_variant, splice_donor_variant, or the stop
+                    and start terms below
                 SNVs and MNVs in the CDS: stop_gained, stop_lost, start_lost,
                     missense_variant, start_retained_variant,
                     stop_retained_variant, synonymous_variant
