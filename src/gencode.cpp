@@ -29,7 +29,7 @@ struct TxInfo {
     // CDS range, including the start and stop codons
     int cds_min = INT_MAX;
     int cds_max = 0;
-    int is_canonical = 0;
+    int canonical_score = 0;
     std::string symbol;
     std::vector<std::string> alt_ids;
     std::map<std::string, std::string> attributes;
@@ -113,7 +113,7 @@ static void add_transcript(std::vector<NamedTx> & transcripts, TxInfo & info) {
         tx.set_exons(std::move(info.exons));
         tx.set_cds(std::move(info.cds));
         transcripts.push_back({std::move(info.symbol), std::move(info.alt_ids),
-            std::move(tx), info.is_canonical});
+            std::move(tx), info.canonical_score});
     } catch (const std::invalid_argument & e) {
         std::cerr << "skipping transcript " << info.name << ": " << e.what() << std::endl;
     }
@@ -154,7 +154,7 @@ static TxInfo * get_entry(std::deque<TxInfo> & entries,
     info->chrom = gtf.chrom;
     // invalid strands are rejected when the Tx is constructed
     info->strand = (gtf.strand.size() == 1) ? gtf.strand[0] : '.';
-    info->is_canonical = gtf.is_canonical;
+    info->canonical_score = gtf.canonical_score;
     info->transcript_type = gtf.transcript_type;
     info->symbol = gtf.symbol;
     info->alt_ids = gtf.alternate_ids;

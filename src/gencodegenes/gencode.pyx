@@ -32,7 +32,7 @@ cdef extern from "gtf.h" namespace "gencode":
         vector[string] alternate_ids
         string tx_id
         string transcript_type
-        int is_canonical
+        int canonical_score
         map[string, string] attributes
         
     void parse_gtfline(string & line, GTFLine & info, bool all_fields) except +
@@ -42,7 +42,7 @@ cdef extern from "gencode.h" namespace "gencode":
         string symbol
         vector[string] alternate_ids
         Tx tx
-        int is_canonical
+        int canonical_score
     
     cdef struct GeneInterval:
         int start
@@ -73,8 +73,12 @@ cpdef _open_gencode(gtf_path, coding_only=True):
     transcripts = []
     for x in _transcripts:
         tx = x.tx
-        transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.is_canonical))
+        transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.canonical_score))
     return transcripts
+
+# bases of genomic sequence loaded beyond each end of a transcript, unless the
+# transcript sets its own genomic offset
+cdef int DEFAULT_FLANK = 5
 
 cdef list _chrom_names(str chrom):
     ''' get the names a chromosome could have, allowing for differences in the
@@ -156,12 +160,13 @@ class _Genome:
         cdef int idx, start = tx.get_start(), end = tx.get_end()
         cdef size_t length
         
-        offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
+        offset = DEFAULT_FLANK if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
         chrom = self.chrom_name(tx.get_chrom().decode('utf8'))
         # shrink the flanks for transcripts near the ends of the chromosome
         offset = max(0, min(offset, start - 1, self.chrom_length(chrom) - end))
+        # region() takes 0-based coordinates, with exclusive ends
         seq, idx = self.region(chrom, start - 1 - offset, end + offset,
-            gene_start - 6, gene_end + 5)
+            gene_start - 1 - DEFAULT_FLANK, gene_end + DEFAULT_FLANK)
         transcript.genomic_offset = offset
         # copy straight from the cached bytes, without slicing them first.
         # Sequence missing from the fasta ends up too short, which raises
@@ -176,7 +181,7 @@ cdef class Gencode
 cdef class Gene:
     cdef string _symbol
     cdef vector[Tx] _transcripts
-    cdef vector[int] _canonical
+    cdef vector[int] _canonical_scores
     cdef str _chrom
     cdef int _start, _end
     cdef vector[string] _alternate_ids
@@ -196,12 +201,12 @@ cdef class Gene:
         self.start = INT_MAX
         self.end = INT_MIN
     
-    cdef add_tx(self, Tx tx, int is_canonical):
+    cdef add_tx(self, Tx tx, int canonical_score):
         self.chrom = tx.get_chrom().decode('utf8')
         self.start = min(self.start, tx.get_start())
         self.end = max(self.end, tx.get_end())
         self._transcripts.push_back(move(tx))
-        self._canonical.push_back(is_canonical)
+        self._canonical_scores.push_back(canonical_score)
     
     def add_transcript(self, _tx):
         ''' add a Transcript to the gene object
@@ -332,12 +337,12 @@ cdef class Gene:
         '''
         cdef size_t i
         cdef int score, max_score = 0
-        for score in self._canonical:
+        for score in self._canonical_scores:
             max_score = max(max_score, score)
         
         cdef vector[size_t] canonical
         for i in range(self._transcripts.size()):
-            if self._canonical[i] == max_score:
+            if self._canonical_scores[i] == max_score:
                 canonical.push_back(i)
         
         try:
@@ -415,10 +420,10 @@ cdef class Gencode:
                     loci[key] = curr
                     self.genes.setdefault(curr.symbol, []).append(curr)
                 curr = loci[key]
-                curr.add_tx(move(x.tx), x.is_canonical)
-        self._sort()
+                curr.add_tx(move(x.tx), x.canonical_score)
+        self._index()
     
-    def _sort(self):
+    def _index(self):
         ''' index gene coordinates per chromosome, to speed finding genes by
         position
         '''
@@ -471,7 +476,7 @@ cdef class Gencode:
         ''' find the nearest gene to a genomic chrom, pos coordinate
         '''
         if self._stale:
-            self._sort()
+            self._index()
         cdef vector[GeneInterval] * intervals = &self.intervals[self._match_chrom(chrom)]
         
         # first, account for any overlapping genes
@@ -516,7 +521,7 @@ cdef class Gencode:
             list of Gene objects, ordered by gene start
         '''
         if self._stale:
-            self._sort()
+            self._index()
         cdef vector[GeneInterval] * intervals = &self.intervals[self._match_chrom(chrom)]
         return [self._indexed[i] for i in genes_in_region(deref(intervals), start, end)]
     

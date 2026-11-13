@@ -14,7 +14,7 @@ struct NamedTx {
     std::string symbol;
     std::vector<std::string> alternate_ids;
     Tx tx;
-    int is_canonical;
+    int canonical_score;
 };
 
 // gene coordinates, for finding genes by position

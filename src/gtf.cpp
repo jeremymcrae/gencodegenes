@@ -17,6 +17,10 @@ const std::string gene_name_key = "gene_name";
 const std::string hgnc_id_key = "hgnc_id";
 const std::string tag_key = "tag";
 
+// canonical scores for transcripts with each tag, where higher scores take priority
+const int ensembl_canonical_score = 10;
+const int appris_principal_score = 5;
+
 static inline bool is_trim_char(char c) {
     return c == ';' || c == '=' || c == ' ' || c == '"';
 }
@@ -195,9 +199,9 @@ static void parse_gene_fields(const std::string &line, size_t offset, GTFLine &i
     // canonical status is flagged in the (comma-joined) tag values
     const std::string &tags = get(tag_key);
     if (tags.find("Ensembl_canonical") != std::string::npos) {
-        info.is_canonical = 10;
+        info.canonical_score = ensembl_canonical_score;
     } else if (tags.find("appris_principal") != std::string::npos) {
-        info.is_canonical = 5;
+        info.canonical_score = appris_principal_score;
     }
 }
 
@@ -266,7 +270,7 @@ void parse_gtfline(std::string & line, GTFLine & info, bool all_fields) {
     // clear fields left over from a previous line
     info.symbol.clear();
     info.alternate_ids.clear();
-    info.is_canonical = 0;
+    info.canonical_score = 0;
     info.attributes.clear();
     if (all_fields || info.feature == "transcript") {
         parse_gene_fields(line, tabs[7] + 1, info);

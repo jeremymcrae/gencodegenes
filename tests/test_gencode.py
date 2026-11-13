@@ -594,7 +594,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'',
             'transcript_type': b'',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -619,7 +619,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [b'ENSG00000186092.4'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 5,
+            'canonical_score': 5,
             'attributes': {
                 b'gene_id': b'ENSG00000186092.4',
                 b'transcript_id': b'ENST00000335137.3',
@@ -660,7 +660,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [b'ENSG00000186092.4', b'HGNC:14825'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 5,
+            'canonical_score': 5,
             'attributes': {
                 b'gene_id': b'ENSG00000186092.4',
                 b'transcript_id': b'ENST00000335137.3',
@@ -697,7 +697,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [b'HGNC:14825'],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 5,
+            'canonical_score': 5,
             'attributes': {
                 b'transcript_id': b'ENST00000335137.3',
                 b'gene_type': b'protein_coding',
@@ -726,7 +726,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 5,
+            'canonical_score': 5,
             'attributes': {
                 b'transcript_id': b'ENST00000335137.3',
                 b'gene_type': b'protein_coding',
@@ -760,7 +760,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 0,  ## exons don't get checked for principal tag
+            'canonical_score': 0,  ## exons don't get checked for principal tag
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -786,7 +786,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 0,  ## CDS don't get checked for principal tag
+            'canonical_score': 0,  ## CDS don't get checked for principal tag
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -811,7 +811,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -836,7 +836,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -861,7 +861,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST00000335137.3',
             'transcript_type': b'protein_coding',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -880,7 +880,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'',
             'transcript_type': b'',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {},
             }
         self.assertEqual(obj, expected)
@@ -899,7 +899,7 @@ class TestGencode(unittest.TestCase):
             'alternate_ids': [],
             'tx_id': b'ENST_A',
             'transcript_type': b'',
-            'is_canonical': 0,
+            'canonical_score': 0,
             'attributes': {b'transcript_id': b'ENST_A', b'gene_name': b'TEST'},
             }
         self.assertEqual(obj, expected)

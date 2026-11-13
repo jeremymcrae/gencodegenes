@@ -37,7 +37,7 @@ struct GTFLine {
     std::vector<std::string> alternate_ids;
     std::string tx_id;
     std::string transcript_type;
-    int is_canonical = 0;
+    int canonical_score = 0;  // how strongly the transcript is tagged as canonical
     std::map<std::string, std::string> attributes;
 };
 

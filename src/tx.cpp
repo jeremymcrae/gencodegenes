@@ -692,19 +692,26 @@ bool Tx::overlaps_cds(int start, int end) {
     return overlapping_region_num(start, end, cds) >= 0;
 }
 
+// introns are treated as exonic (as likely annotation artefacts) if the next
+// exon starts fewer than this many bases after the previous exon ends
+static const int min_intron_gap = 10;
+
+// sites within this distance of a transcript are upstream or downstream of it
+static const int flank_distance = 5000;
+
 // checks if a genomic range overlaps the 3 exonic bases next to an intron.
-// Introns under 10 bp are treated as exonic, so don't have a splice region.
+// Short introns are treated as exonic, so don't have a splice region.
 bool Tx::in_exonic_splice_region(int start, int end) {
     int idx = overlapping_region_num(start, end, exons);
     if (idx < 0) {
         return false;
     }
     Region exon = exons[idx];
-    if ((idx > 0) && (exon.start - exons[idx - 1].end >= 10)
+    if ((idx > 0) && (exon.start - exons[idx - 1].end >= min_intron_gap)
             && overlap(start, end, exon.start, exon.start + 2)) {
         return true;
     }
-    if ((idx < (int) exons.size() - 1) && (exons[idx + 1].start - exon.end >= 10)
+    if ((idx < (int) exons.size() - 1) && (exons[idx + 1].start - exon.end >= min_intron_gap)
             && overlap(start, end, exon.end - 2, exon.end)) {
         return true;
     }
@@ -816,31 +823,28 @@ std::string Tx::splice_boundary_cq(int start, int end, int idx) {
 }
 
 // consequence for sites outside the transcript, which are upstream or
-// downstream if within 5 kb
+// downstream if nearby
 std::string Tx::outside_gene_cq(int start, int end) {
     bool before = end < tx_start;
     int distance = before ? tx_start - end : start - tx_end;
-    if (distance > 5000) {
+    if (distance > flank_distance) {
         return "intergenic_variant";
     }
     return (before == is_forward()) ? "upstream_gene_variant" : "downstream_gene_variant";
 }
 
-// consequence for a site in an intron under 10 bp, or an empty string for
-// sites elsewhere. Introns this short are likely annotation artefacts, so the
-// site is treated as exonic.
+// consequence for a site in a short intron (see min_intron_gap), or an empty
+// string for sites elsewhere. The site is treated as exonic.
 std::string Tx::short_intron_cq(int start, int end) {
     auto idx = closest_exon_num(start);
     auto exon = exons[idx];
-    int intron_length = 100;
+    int gap = min_intron_gap;
     if ((exon.end < start) && (idx < ((int) exons.size() - 1))) {
-        auto other = exons[idx + 1];
-        intron_length = other.start - exon.end;
+        gap = exons[idx + 1].start - exon.end;
     } else if ((end < exon.start) && (idx > 0)) {
-        auto other = exons[idx - 1];
-        intron_length = exon.start - other.end;
+        gap = exon.start - exons[idx - 1].end;
     }
-    if (intron_length >= 10) {
+    if (gap >= min_intron_gap) {
         return "";
     }
     bool fwd = is_forward();
