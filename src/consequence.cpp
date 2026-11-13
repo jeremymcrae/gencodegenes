@@ -96,6 +96,14 @@ static std::string acceptor_insertion_cq(int near) {
     return "intron_variant";
 }
 
+// check if an altered peptide starts or ends with the reference peptide
+static bool retains_ref_peptide(const std::string & ref_aa, const std::string & alt_aa) {
+    bool starts = alt_aa.compare(0, ref_aa.size(), ref_aa) == 0;
+    bool ends = alt_aa.size() >= ref_aa.size()
+        && alt_aa.compare(alt_aa.size() - ref_aa.size(), ref_aa.size(), ref_aa) == 0;
+    return starts || ends;
+}
+
 // consequence of replacing a reference peptide with an altered peptide, if
 // that gains, loses or retains a stop, or loses the start. Otherwise returns
 // an empty string. As in VEP, the start is only lost if the altered peptide
@@ -111,13 +119,8 @@ static std::string peptide_cq(const std::string & ref_aa, const std::string & al
     } else if (ref_stop != std::string::npos
             && ref_aa.compare(0, ref_stop + 1, alt_aa, 0, alt_stop + 1) == 0) {
         return "stop_retained_variant";
-    } else if (at_start && !alt_aa.empty()) {
-        bool starts = alt_aa.compare(0, ref_aa.size(), ref_aa) == 0;
-        bool ends = alt_aa.size() >= ref_aa.size()
-            && alt_aa.compare(alt_aa.size() - ref_aa.size(), ref_aa.size(), ref_aa) == 0;
-        if (!starts && !ends) {
-            return "start_lost";
-        }
+    } else if (at_start && !alt_aa.empty() && !retains_ref_peptide(ref_aa, alt_aa)) {
+        return "start_lost";
     }
     return "";
 }
@@ -334,10 +337,7 @@ std::string Tx::coding_insertion_cq(int k, const std::string & ins_t) {
         return change;
     }
     // insertions within a codon can change the amino acid at that codon
-    bool retained = (alt_aa.compare(0, ref_aa.size(), ref_aa) == 0)
-        || (alt_aa.size() >= ref_aa.size()
-            && alt_aa.compare(alt_aa.size() - ref_aa.size(), ref_aa.size(), ref_aa) == 0);
-    return retained ? "inframe_insertion" : "protein_altering_variant";
+    return retains_ref_peptide(ref_aa, alt_aa) ? "inframe_insertion" : "protein_altering_variant";
 }
 
 // consequence for bases inserted between the left base and the next base
