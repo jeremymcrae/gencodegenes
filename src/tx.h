@@ -51,9 +51,9 @@ class Tx {
  private:
     std::string name;
     std::string chrom;
-    int tx_start;
-    int tx_end;
-    char tx_strand;
+    int tx_start = 0;
+    int tx_end = 0;
+    char tx_strand = '+';
     int cds_min = 0;
     int cds_max = 0;
     int cds_length = 0;

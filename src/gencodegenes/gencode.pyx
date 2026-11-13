@@ -68,13 +68,8 @@ cpdef _open_gencode(gtf_path, coding_only=True):
     ''' python function for unit testing loading transcripts from GTF
     '''
     cdef vector[NamedTx] _transcripts = open_gencode(gtf_path.encode('utf8'), coding_only)
-    cdef Tx tx
-    
-    transcripts = []
-    for x in _transcripts:
-        tx = x.tx
-        transcripts.append((x.symbol.decode('utf8'), _wrap_tx(tx), x.canonical_score))
-    return transcripts
+    return [(_transcripts[i].symbol.decode('utf8'), _wrap_tx(_transcripts[i].tx),
+        _transcripts[i].canonical_score) for i in range(_transcripts.size())]
 
 # bases of genomic sequence loaded beyond each end of a transcript, unless the
 # transcript sets its own genomic offset
