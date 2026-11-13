@@ -335,10 +335,9 @@ cdef class Gene:
         ''' get the index of the canonical transcript (see canonical)
         '''
         cdef size_t i, max_i
-        cdef int max_score = 0
-        for i in range(self._canonical.size()):
-            if i == 0 or self._canonical[i] > max_score:
-                max_score = self._canonical[i]
+        cdef int score, max_score = 0
+        for score in self._canonical:
+            max_score = max(max_score, score)
         
         cdef vector[size_t] canonical
         for i in range(self._transcripts.size()):
