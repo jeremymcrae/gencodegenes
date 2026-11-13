@@ -839,6 +839,23 @@ static bool is_stop_change(const std::string & cq) {
     return cq == "stop_gained" || cq == "stop_lost" || cq == "stop_retained_variant";
 }
 
+// consequence for a genomic range running out of an overlapped exon into an
+// adjacent intron, which disrupts that splice site. Returns an empty string if
+// the range stays within the exon, or only runs past the transcript ends.
+//
+// @param idx index of an exon overlapping the range
+std::string Tx::splice_boundary_cq(int start, int end, int idx) {
+    bool fwd = get_strand() == '+';
+    std::string cq;
+    if (idx > 0 && start < exons[idx].start) {
+        cq = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
+    }
+    if (idx >= 0 && idx < (int) exons.size() - 1 && end > exons[idx].end) {
+        cq = most_severe(cq, fwd ? "splice_donor_variant" : "splice_acceptor_variant");
+    }
+    return cq;
+}
+
 std::string Tx::outside_gene_cq(int start, int end) {
     bool fwd = get_strand() == '+';
     if ((end < tx_start) & ((tx_start - end) <= 5000)) {
@@ -919,17 +936,14 @@ std::string Tx::intronic_cq(int start, int end) {
         return short_intron;
     }
     
-    bool fwd = get_strand() == '+';
-    // TODO: figure out for variants spanning an exon
+    // variants running from an exon into an intron disrupt that splice site
+    std::string splice = splice_boundary_cq(start, end, overlapping_region_num(start, end, exons));
+    if (!splice.empty()) {
+        return splice;
+    }
+    
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
-    
-    // variants running from an exon into an intron disrupt that splice site
-    if ((start_coord.offset == 0) & (end_coord.offset != 0) & (end < exons.back().end)) {
-        return fwd ? "splice_donor_variant" : "splice_acceptor_variant";
-    } else if ((start_coord.offset != 0) & (end_coord.offset == 0) & (start > exons[0].start)) {
-        return fwd ? "splice_acceptor_variant" : "splice_donor_variant";
-    }
     
     bool intronic = (start_coord.offset != 0) & (end_coord.offset != 0);
     if (!intronic) {
@@ -1137,13 +1151,7 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     // the transcript ends are trimmed to the exonic part instead.
     bool fwd = get_strand() == '+';
     bool deletion = ref.size() > alt.size();
-    std::string splice;
-    if (start < exon.start && idx > 0) {
-        splice = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
-    }
-    if (end > exon.end && idx < (int) exons.size() - 1) {
-        splice = most_severe(splice, fwd ? "splice_donor_variant" : "splice_acceptor_variant");
-    }
+    std::string splice = splice_boundary_cq(start, end, idx);
     if (!splice.empty()) {
         return splice;
     }
@@ -1242,12 +1250,7 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     // Single base changes in the CDS can't leave the exon.
     if (end > start) {
         int idx = overlapping_region_num(start, end, exons);
-        if (idx > 0 && start < exons[idx].start) {
-            worst = most_severe(worst, fwd ? "splice_acceptor_variant" : "splice_donor_variant");
-        }
-        if (idx >= 0 && idx < (int) exons.size() - 1 && end > exons[idx].end) {
-            worst = most_severe(worst, fwd ? "splice_donor_variant" : "splice_acceptor_variant");
-        }
+        worst = most_severe(worst, splice_boundary_cq(start, end, idx));
     }
     return worst;
 }

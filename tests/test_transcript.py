@@ -1115,6 +1115,19 @@ class TestTranscriptPy(unittest.TestCase):
         
         # deletions within the exon, away from its ends, are unaffected
         self.assertEqual(tx.consequence(1005, 'AAAA', 'A'), '5_prime_UTR_variant')
+        
+        # deletions of a whole exon, plus its splice site, from before the
+        # transcript start (998-1025), or from intron to intron
+        whole_first = (997, 'A' * 29, 'A')
+        whole_middle = (1034, 'A' * 33, 'A')
+        for strand, cq in (('+', 'splice_donor_variant'), ('-', 'splice_acceptor_variant')):
+            tx = Transcript('TEST', '1', 1001, 1100, strand,
+                exons=[(1001, 1020), (1041, 1100)], cds=[(1050, 1070)])
+            self.assertEqual(tx.consequence(*whole_first), cq, msg=f'strand={strand}')
+            tx = Transcript('TEST', '1', 1001, 1100, strand,
+                exons=[(1001, 1020), (1041, 1060), (1081, 1100)])
+            self.assertEqual(tx.consequence(*whole_middle), 'splice_acceptor_variant',
+                msg=f'strand={strand}')
     
     def test_consequence_exonic_splice_region(self):
         ''' check low impact variants in the 3 exonic bases next to an intron

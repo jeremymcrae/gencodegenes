@@ -56,6 +56,7 @@ class Tx {
     void trim_alleles(int& start, int& end, std::string& ref, std::string& alt);
     bool overlaps_cds(int start, int end);
     bool in_exonic_splice_region(int start, int end);
+    std::string splice_boundary_cq(int start, int end, int idx);
     std::string outside_gene_cq(int start, int end);
     std::string short_intron_cq(int start, int end);
     std::string intron_cq(int start, int end, bool insertion);
