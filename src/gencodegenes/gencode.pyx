@@ -1,13 +1,12 @@
 # cython: language_level=3, boundscheck=False, emit_linenums=True
 
-import bisect
 import logging
 from pathlib import Path
 import weakref
 
 from cython.operator cimport dereference as deref, preincrement as inc
 from libc.limits cimport INT_MAX, INT_MIN
-from libcpp.algorithm cimport lower_bound, upper_bound, stable_sort
+from libcpp.algorithm cimport lower_bound, stable_sort
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp cimport bool

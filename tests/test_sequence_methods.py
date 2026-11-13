@@ -1,7 +1,6 @@
 """ unit test the SequenceMethods class
 """
 
-from __future__ import division
 import unittest
 
 from gencodegenes.transcript import Transcript

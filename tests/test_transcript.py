@@ -446,21 +446,6 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertFalse(self.gene.in_coding_region(1901))
         self.assertFalse(self.gene.in_coding_region(-1100))
     
-    # def test_get_exon_containing_position(self):
-    #     """ test that get_exon_containing_position() works correctly
-    #     """
-    #
-    #     exons = [(1000, 1200), (1800, 2000)]
-    #
-    #     self.assertEqual(self.gene.get_exon_containing_position(1000, exons), 0)
-    #     self.assertEqual(self.gene.get_exon_containing_position(1200, exons), 0)
-    #     self.assertEqual(self.gene.get_exon_containing_position(1800, exons), 1)
-    #     self.assertEqual(self.gene.get_exon_containing_position(2000, exons), 1)
-    #
-    #     # raise an error if the position isn't within the exons
-    #     with self.assertRaises(RuntimeError):
-    #         self.gene.get_exon_containing_position(2100, exons)
-    
     def test_get_coding_distance(self):
         """ test that get_coding_distance() works correctly
         """
@@ -524,12 +509,7 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_coding_distance(1798), {'pos': 101, 'offset': -2})
         self.assertEqual(self.gene.get_coding_distance(1799), {'pos': 101, 'offset': -1})
         
-        # # check that sites sufficiently distant from an exon raise an error, or
-        # # sites upstream of a gene, just outside the CDS, but within an exon
-        # with self.assertRaises(RuntimeError):
-        #     self.gene.get_coding_distance(1215)
-        # with self.assertRaises(RuntimeError):
-        #     self.gene.get_coding_distance(1098)
+        # sites distant from an exon, or upstream of the CDS within an exon
         self.assertEqual(self.gene.get_coding_distance(1215), {'pos': 100, 'offset': 15})
         self.assertEqual(self.gene.get_coding_distance(1098), {'pos': -2, 'offset': 0})
         
@@ -550,7 +530,6 @@ class TestTranscriptPy(unittest.TestCase):
     def test_get_boundary_distance(self):
         """ check the function to get distances to the nearest intron/exon boundary
         """
-        print(self.gene)
         # check a site upstream of the gene
         self.assertEqual(self.gene.get_boundary_distance(50), 950)
         
