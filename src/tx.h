@@ -77,8 +77,10 @@ class Tx {
     char translate_codon(const std::string & seq);
     
     void fix_cds_length();
-    void trim_alleles(int& start, int& end, std::string& ref, std::string& alt);
     bool overlaps_cds(int start, int end);
+    
+    // consequence prediction, defined in consequence.cpp
+    void trim_alleles(int& start, int& end, std::string& ref, std::string& alt);
     bool in_exonic_splice_region(int start, int end);
     std::string splice_boundary_cq(int start, int end, int idx);
     std::string outside_gene_cq(int start, int end);
