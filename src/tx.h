@@ -8,6 +8,23 @@
 
 namespace gencode {
 
+// Coordinate conventions:
+//   - chromosome positions are 1-based, and regions include both their start
+//     and end, with start <= end regardless of strand
+//   - CDS positions count coding bases from the first base of the CDS (0), in
+//     the direction of transcription. Sites before the CDS start are negative.
+//   - an offset is the distance into an intron from the closest exon boundary,
+//     in the direction of transcription (negative for sites before the exon)
+//   - the genomic sequence is stored on the + strand, and extends gdna_offset
+//     bases beyond each end of the transcript
+//   - the CDS sequence, and variables with a _t suffix (e.g. alt_t), are in
+//     transcript orientation
+//
+// The CDS coordinates can differ from those in the GTF, as they are adjusted
+// to include the start and stop codons (in gencode.cpp), moved into the exons
+// if they lie in introns (fix_cds_boundary), and extended to complete the final
+// codon once the sequence is known (fix_cds_length).
+
 struct CDS_coords {
     int position;
     int offset;
@@ -29,6 +46,7 @@ struct Codon {
 };
 
 class Tx {
+ private:
     std::string name;
     std::string chrom;
     int tx_start;
@@ -53,6 +71,8 @@ class Tx {
     int overlapping_region_num(int start, int end, std::vector<Region> & group);
     CDS_coords to_closest_exon(int pos, Region exon);
     int exonic_position(int pos, int idx);
+    // index of a chromosome position within the genomic sequence
+    int genomic_index(int pos) { return pos - tx_start + gdna_offset; }
     std::string get_seq_in_region(int start, int end);
     char translate_codon(const std::string & seq);
     

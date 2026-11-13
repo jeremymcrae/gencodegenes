@@ -434,7 +434,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
     
     std::string cds_seq;
     for (auto &region : cds) {
-        int x = (region.start - get_start()) + gdna_offset;
+        int x = genomic_index(region.start);
         int len = (region.end - region.start) + 1;
         cds_seq += genomic_sequence.substr(x, len);
     }
@@ -486,7 +486,7 @@ void Tx::fix_cds_length() {
         diff = 3 - diff;
         
         bool fwd = is_forward();
-        int start_bp = (fwd ? end + 1 : end - diff) - get_start() + gdna_offset;
+        int start_bp = genomic_index(fwd ? end + 1 : end - diff);
         if (start_bp < 0 || start_bp + diff > (int) genomic_sequence.size()) {
             // the genomic sequence doesn't extend far enough to complete the codon
             return;
@@ -564,23 +564,19 @@ std::string Tx::get_centered_sequence(int pos, int length) {
     }
     
     int start = pos - length / 2;
-    int end = start + length;
-    return get_seq_in_region(start, end);
+    return get_seq_in_region(start, start + length - 1);
 }
 
-// @param start first position of the region
-// @param end position after the last position of the region
+// get the + strand genomic sequence from start to end
 std::string Tx::get_seq_in_region(int start, int end) {
     if (genomic_sequence.empty()) {
         throw std::invalid_argument(get_name() + " lacks genomic sequence (e.g. "
             "from a genome fasta)");
     }
-    if (start < (get_start() - gdna_offset) || end > (get_end() + gdna_offset + 1)) {
+    if (start < (get_start() - gdna_offset) || end > (get_end() + gdna_offset)) {
         throw std::invalid_argument( "sequence position not in gene range" );
     }
-    int pos = start - get_start() + gdna_offset;
-    int length = end - start;
-    return genomic_sequence.substr(pos, length);
+    return genomic_sequence.substr(genomic_index(start), (end - start) + 1);
 }
 
 // get the codon sequence for a given codon_number
@@ -934,7 +930,7 @@ std::string Tx::utr3_sequence(int n) {
         int from = (i == first) ? cds_end + step : (fwd ? exons[i].start : exons[i].end);
         int to = fwd ? exons[i].end : exons[i].start;
         for (int pos = from; (to - pos) * step >= 0 && (int) seq.size() < n; pos += step) {
-            int x = pos - get_start() + gdna_offset;
+            int x = genomic_index(pos);
             if (x < 0 || x >= (int) genomic_sequence.size()) {
                 return seq;
             }
@@ -1255,7 +1251,7 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
     if (!genomic_sequence.empty()) {
         int lo = std::max(start, tx_start - gdna_offset);
         int hi = std::min(end, tx_end + gdna_offset);
-        const char * genomic = genomic_sequence.data() + (lo - tx_start + gdna_offset);
+        const char * genomic = genomic_sequence.data() + genomic_index(lo);
         const char * bases = ref.data() + (lo - start);
         for (int i = 0; i <= hi - lo; i++) {
             if (genomic[i] != bases[i]) {
