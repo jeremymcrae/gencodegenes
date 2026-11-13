@@ -154,7 +154,8 @@ static TxInfo * get_entry(std::deque<TxInfo> & entries,
 
     info->name = gtf.tx_id;
     info->chrom = gtf.chrom;
-    info->strand = gtf.strand[0];
+    // invalid strands are rejected when the Tx is constructed
+    info->strand = (gtf.strand.size() == 1) ? gtf.strand[0] : '.';
     info->is_canonical = gtf.is_canonical;
     info->transcript_type = gtf.transcript_type;
     info->symbol = gtf.symbol;
