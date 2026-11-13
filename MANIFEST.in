@@ -1,7 +1,8 @@
 # gencodegenes code
 include MANIFEST.in
 include pyproject.toml
-include src/gencodegenes/*.cpp
+include src/gencodegenes/gencode.cpp
+include src/gencodegenes/transcript.cpp
 include src/gencodegenes/*.py
 include src/gencodegenes/*.pyx
 include src/gencodegenes/*.pxd
