@@ -84,6 +84,15 @@ static std::vector<Region> to_regions(const std::vector<std::vector<int>> & rang
     return regions;
 }
 
+// total number of bases in a set of regions
+static int total_length(const std::vector<Region> & regions) {
+    int length = 0;
+    for (auto & region : regions) {
+        length += (region.end - region.start) + 1;
+    }
+    return length;
+}
+
 static void check_regions(const std::vector<Region> & regions, const std::string & name) {
     for (auto & region : regions) {
         if (region.start > region.end) {
@@ -170,10 +179,7 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
         cds.push_back(region);
     }
     
-    cds_length = 0;
-    for (auto region : cds) {
-        cds_length += (region.end - region.start) + 1;
-    }
+    cds_length = total_length(cds);
     
     if (!genomic_sequence.empty()) {
         // rebuild the CDS sequence
@@ -460,10 +466,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
     
     _fix_cds_length();
     
-    cds_length = 0;
-    for (auto region : cds) {
-        cds_length += (region.end - region.start) + 1;
-    }
+    cds_length = total_length(cds);
 }
 
 // correct the coding sequence of a transcript, if it misses bases.
