@@ -313,6 +313,14 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.gene.get_centered_sequence(2, length=4)
     
+    def test_get_centered_sequence_without_sequence(self):
+        """ check get_centered_sequence() needs the genomic sequence
+        """
+        self.gene = self.construct_gene(start=1, end=10, exons=[(1, 10)], cds=[(2, 7)])
+        for pos in [2, 5]:
+            with self.assertRaisesRegex(ValueError, 'lacks genomic sequence'):
+                self.gene.get_centered_sequence(pos)
+    
     def test_get_codon_sequence(self):
         """ test that get_codon_sequence() works correctly
         """

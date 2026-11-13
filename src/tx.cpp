@@ -645,6 +645,10 @@ std::string Tx::get_centered_sequence(int pos, int length) {
 // @param start first position of the region
 // @param end position after the last position of the region
 std::string Tx::get_seq_in_region(int start, int end) {
+    if (genomic_sequence.empty()) {
+        throw std::invalid_argument(get_name() + " lacks genomic sequence (e.g. "
+            "from a genome fasta)");
+    }
     if (start < (get_start() - gdna_offset) || end > (get_end() + gdna_offset + 1)) {
         throw std::invalid_argument( "sequence position not in gene range" );
     }
