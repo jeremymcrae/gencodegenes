@@ -332,15 +332,8 @@ bool Tx::in_coding_region(int pos) {
 
 // shift an intronic site to the nearest exon boundary (but track the offset)
 CDS_coords Tx::to_closest_exon(int pos, Region exon) {
-    int site;
-    if (std::abs(exon.start - pos) < std::abs(exon.end - pos)) {
-        site = exon.start;
-    } else {
-        site = exon.end;
-    }
-    
-    bool fwd = is_forward();
-    int offset = (fwd) ? pos - site : site - pos;
+    int site = (std::abs(exon.start - pos) < std::abs(exon.end - pos)) ? exon.start : exon.end;
+    int offset = is_forward() ? pos - site : site - pos;
     return CDS_coords {site, offset};
 }
 
