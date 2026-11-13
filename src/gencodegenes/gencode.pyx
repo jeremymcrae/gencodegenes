@@ -299,7 +299,7 @@ cdef class Gene:
         cdef int length = 0
         cdef size_t i
         for i in range(tx.get_exons().size()):
-            length += abs(tx.get_exons()[i].end - tx.get_exons()[i].start) + 1
+            length += (tx.get_exons()[i].end - tx.get_exons()[i].start) + 1
         return length
     
     cdef size_t _max_by_exonic(self, vector[size_t] & indices) except *:

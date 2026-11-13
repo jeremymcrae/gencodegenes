@@ -162,7 +162,7 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     // cds boundaries
     if (!is_exonic(cds_min)) {
         Region region = fix_cds_boundary(cds_min);
-        int delta = std::abs(region.end - region.start);
+        int delta = region.end - region.start;
         
         cds[0] = Region {cds[0].start + delta, cds[0].end};
         cds_min = region.start;
@@ -171,7 +171,7 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     
     if (!is_exonic(cds_max)) {
         Region region = fix_cds_boundary(cds_max);
-        int delta = std::abs(region.end - region.start);
+        int delta = region.end - region.start;
         
         size_t idx = cds.size() - 1;
         cds[idx] = Region {cds[idx].start, cds[idx].end - delta};
@@ -443,7 +443,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
     
     std::string cds_seq;
     for (auto &region : cds) {
-        int x = std::abs(region.start - get_start()) + gdna_offset;
+        int x = (region.start - get_start()) + gdna_offset;
         int len = (region.end - region.start) + 1;
         cds_seq += genomic_sequence.substr(x, len);
     }
