@@ -139,6 +139,37 @@ class _Genome:
         '''
         seq, idx = self.region(chrom, start, end, region_start, region_end)
         return seq[idx:idx + end - start]
+    
+    def add_sequence(self, Transcript transcript, int gene_start, int gene_end):
+        ''' add the genomic sequence (with flanks) to a transcript, matching
+        the transcript's strand orientation
+        
+        Args:
+            transcript: Transcript lacking a genomic sequence
+            gene_start: start of the gene containing the transcript. The whole
+                gene (plus default flanks) is read, for the other transcripts.
+            gene_end: end of the gene containing the transcript
+        '''
+        cdef Tx * tx = transcript.thisptr
+        cdef const char * data
+        cdef bytes seq
+        cdef int idx, start = tx.get_start(), end = tx.get_end()
+        cdef size_t length
+        
+        offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
+        chrom = self.chrom_name(tx.get_chrom().decode('utf8'))
+        # shrink the flanks for transcripts near the ends of the chromosome
+        offset = max(0, min(offset, start - 1, self.chrom_length(chrom) - end))
+        seq, idx = self.region(chrom, start - 1 - offset, end + offset,
+            gene_start - 6, gene_end + 5)
+        transcript.genomic_offset = offset
+        # copy straight from the cached bytes, without slicing them first.
+        # Sequence missing from the fasta ends up too short, which raises
+        # an error in add_genomic_sequence
+        data = seq
+        idx = min(idx, len(seq))
+        length = min(end + offset - (start - 1 - offset), len(seq) - idx)
+        tx.add_genomic_sequence(move(string(data + idx, length)), True)
 
 cdef class Gencode
 
@@ -244,32 +275,8 @@ cdef class Gene:
         ''' construct Transcript (python object) from Tx (c++ object)
         '''
         cdef Transcript transcript = _wrap_tx(tx)
-        cdef const char * data
-        cdef bytes seq
-        cdef int idx
-        cdef size_t length
-        
-        # if the transcript lacks a genomic sequence, pull one from the genome
-        # fasta (if available), matching the transcript's strand orientation
         if tx.get_genomic_sequence().size() == 0 and self._genome is not None:
-            offset = 5 if tx.get_genomic_offset() == 0 else tx.get_genomic_offset()
-            chrom = self._genome.chrom_name(tx.get_chrom().decode('utf8'))
-            start = tx.get_start()
-            end = tx.get_end()
-            # shrink the flanks for transcripts near the ends of the chromosome
-            offset = max(0, min(offset, start - 1, self._genome.chrom_length(chrom) - end))
-            # read the whole gene (plus default flanks), for the other transcripts
-            seq, idx = self._genome.region(chrom, start - 1 - offset, end + offset,
-                self._start - 6, self._end + 5)
-            transcript.genomic_offset = offset
-            # copy straight from the cached bytes, without slicing them first.
-            # Sequence missing from the fasta ends up too short, which raises
-            # an error in add_genomic_sequence
-            data = seq
-            idx = min(idx, len(seq))
-            length = min(end + offset - (start - 1 - offset), len(seq) - idx)
-            transcript.thisptr.add_genomic_sequence(move(string(data + idx, length)), True)
-        
+            self._genome.add_sequence(transcript, self._start, self._end)
         return transcript
     
     @property
