@@ -44,6 +44,7 @@ cdef extern from "tx.h" namespace "gencode":
         const string & get_type()
         int get_cds_start()
         int get_cds_end()
+        int get_cds_length()
         
         bool is_exonic(int) except +
         int closest_exon_num(int)

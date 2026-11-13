@@ -92,6 +92,7 @@ class Tx {
     char get_strand() { return tx_strand; }
     int get_cds_start();
     int get_cds_end();
+    int get_cds_length() { return cds_length; }
     
     bool is_exonic(int pos, Region exon);
     bool is_exonic(int pos);

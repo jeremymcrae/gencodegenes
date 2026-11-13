@@ -19,7 +19,6 @@ from pyfaidx import Fasta
 from gencodegenes.transcript cimport (
     Tx,
     Region,
-    CDS_coords,
     Transcript,
     _wrap_tx,
     )
@@ -272,21 +271,13 @@ cdef class Gene:
         cdef size_t i
         return [self._to_Transcript(self._transcripts[i]) for i in range(self._transcripts.size())]
     
-    cdef int _cds_len(self, Tx & tx) except *:
-        ''' get length of coding sequence for a Tx object based transcript
-        '''
-        if tx.get_cds().size() == 0:
-            return 0
-        cdef CDS_coords coords = tx.get_coding_distance(tx.get_cds_end())
-        return coords.position + 1
-    
     cdef size_t _max_by_cds(self, vector[size_t] & indices) except *:
         ''' get index of the longest transcript by CDS length
         '''
         cdef size_t i, max_i = 0
         cdef int curr_len, length = 0
         for i in indices:
-            curr_len = self._cds_len(self._transcripts[i])
+            curr_len = self._transcripts[i].get_cds_length()
             if curr_len > length:
                 length = curr_len
                 max_i = i
@@ -503,8 +494,7 @@ cdef class Gencode:
             # from the Tx directly, to avoid loading sequence from the genome
             lengths = []
             for gene in overlaps:
-                tx_len = gene._cds_len(gene._transcripts[gene._canonical_idx()])
-                lengths.append(max(tx_len - 1, 0))
+                lengths.append(gene._transcripts[gene._canonical_idx()].get_cds_length())
             idx = lengths.index(max(lengths))
             return overlaps[idx]
         
