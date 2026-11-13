@@ -463,19 +463,12 @@ cdef class Transcript:
             pos: nucleotide position on chromosome
         '''
         codon = dict(self.thisptr.get_codon_info(pos))
-        
-        if codon['codon_number'] == -9999999:
-            codon['codon_number'] = None
-            codon['intra_codon'] = None
-            codon['codon_seq'] = None
-            codon['initial_aa'] = None
-        
-        if codon['codon_seq'] is not None:
+        if codon.pop('in_coding'):
             codon['codon_seq'] = codon['codon_seq'].decode('utf8')
-        
-        if codon['initial_aa'] is not None:
             codon['initial_aa'] = chr(codon['initial_aa'])
-        
+        else:
+            codon.update(codon_number=None, intra_codon=None, codon_seq=None,
+                initial_aa=None)
         return codon
     
     def get_boundary_distance(self, pos):

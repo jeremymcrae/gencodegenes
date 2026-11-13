@@ -92,6 +92,7 @@ cdef extern from "tx.h" namespace "gencode":
         int codon_number
         char initial_aa
         int offset
+        bool in_coding
 
 cdef class Transcript:
     cdef Tx *thisptr # hold a C++ instance which we're wrapping

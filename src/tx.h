@@ -25,6 +25,7 @@ struct Codon {
     int codon_number;
     char initial_aa;
     int offset;
+    bool in_coding;  // the codon fields are only set if the site is coding
 };
 
 class Tx {

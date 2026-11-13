@@ -647,22 +647,14 @@ Codon Tx::get_codon_info(int bp) {
         throw std::invalid_argument( "position not inside CDS region" );
     }
     
-    // define the default values for the codon positions. We check these later
-    // in python and convert to None if they are still the defaults.
-    int codon_number = -9999999;
-    int intra_codon = -1;
-    std::string codon_seq = "";
-    char initial_aa='0';
-    
+    Codon codon {site.position, "", -1, -1, '\0', site.offset, in_coding};
     if (in_coding) {
-        codon_number = get_codon_number_for_cds_position(site.position);
-        intra_codon = get_position_within_codon(site.position);
-        codon_seq = get_codon_sequence(codon_number);
-        initial_aa = translate_codon(codon_seq);
+        codon.codon_number = get_codon_number_for_cds_position(site.position);
+        codon.intra_codon = get_position_within_codon(site.position);
+        codon.codon_seq = get_codon_sequence(codon.codon_number);
+        codon.initial_aa = translate_codon(codon.codon_seq);
     }
-    
-    return Codon {site.position, codon_seq, intra_codon, codon_number,
-        initial_aa, site.offset};
+    return codon;
 }
 
 // get the distance in bp for a variant to the nearest exon boundary
