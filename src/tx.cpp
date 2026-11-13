@@ -659,6 +659,10 @@ std::string Tx::get_seq_in_region(int start, int end) {
 
 // get the codon sequence for a given codon_number
 std::string Tx::get_codon_sequence(int codon) { 
+    if (cds_sequence.empty()) {
+        throw std::invalid_argument(get_name() + " lacks coding sequence (e.g. "
+            "from a genome fasta)");
+    }
     if (codon < 0) {
         throw std::invalid_argument( "codon position < 0" );
     }

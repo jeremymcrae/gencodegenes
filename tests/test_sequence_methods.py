@@ -347,6 +347,15 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.gene.get_codon_sequence(3)
     
+    def test_get_codon_sequence_without_sequence(self):
+        """ check codon lookups need the coding sequence
+        """
+        self.gene = self.construct_gene(start=1, end=10, exons=[(1, 10)], cds=[(2, 7)])
+        with self.assertRaisesRegex(ValueError, 'lacks coding sequence'):
+            self.gene.get_codon_sequence(1)
+        with self.assertRaisesRegex(ValueError, 'lacks coding sequence'):
+            self.gene.get_codon_info(5)
+    
     def test_get_codon_sequence_minus_strand(self):
         """ test that get_codon_sequence() works correctly
         """
