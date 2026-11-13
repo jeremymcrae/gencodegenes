@@ -462,7 +462,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
         throw std::invalid_argument(msg);
     }
     
-    _fix_cds_length();
+    fix_cds_length();
     
     cds_length = total_length(cds);
 }
@@ -477,7 +477,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
 // the final codon.
 //
 // We simply extend the coding sequence 1-2 bases to make a complete codon.
-void Tx::_fix_cds_length() {
+void Tx::fix_cds_length() {
     if (cds.empty()) {
         return;
     }

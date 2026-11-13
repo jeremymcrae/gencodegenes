@@ -48,10 +48,8 @@ cdef extern from "tx.h" namespace "gencode":
         int get_cds_length()
         
         bool is_exonic(int) except +
-        int closest_exon_num(int)
         Region get_closest_exon(int) except +
         bool in_coding_region(int)
-        CDS_coords to_closest_exon(int, Region)
         CDS_coords get_coding_distance(int) except +
         
         int get_position_on_chrom(int, int) except +
@@ -73,7 +71,6 @@ cdef extern from "tx.h" namespace "gencode":
         string reverse_complement(string)
         string get_centered_sequence(int, int) except +
         string get_codon_sequence(int) except +
-        string get_seq_in_region(int, int) except +
         string translate(string) except +
         
         Codon get_codon_info(int) except +

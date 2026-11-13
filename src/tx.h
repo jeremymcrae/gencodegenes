@@ -46,9 +46,16 @@ class Tx {
     std::shared_ptr<std::map<std::string, std::string>> attributes =
         std::make_shared<std::map<std::string, std::string>>();
     
+    bool is_exonic(int pos, Region exon);
+    int closest_exon_num(int pos);
+    int closest_exon_num(int pos, std::vector<Region> & group);
+    int overlapping_region_num(int start, int end, std::vector<Region> & group);
+    CDS_coords to_closest_exon(int pos, Region exon);
     int exonic_position(int pos, int idx);
+    std::string get_seq_in_region(int start, int end);
+    char translate_codon(const std::string & seq);
     
-    void _fix_cds_length();
+    void fix_cds_length();
     void trim_alleles(int& start, int& end, std::string& ref, std::string& alt);
     bool overlaps_cds(int start, int end);
     bool in_exonic_splice_region(int start, int end);
@@ -91,14 +98,9 @@ class Tx {
     int get_cds_end();
     int get_cds_length() { return cds_length; }
     
-    bool is_exonic(int pos, Region exon);
     bool is_exonic(int pos);
-    int closest_exon_num(int pos);
-    int closest_exon_num(int pos, std::vector<Region> & group);
-    int overlapping_region_num(int start, int end, std::vector<Region> & group);
     Region get_closest_exon(int pos);
     bool in_coding_region(int pos);
-    CDS_coords to_closest_exon(int pos, Region exon);
     CDS_coords get_coding_distance(int pos);
     
     int get_position_on_chrom(int cds_position, int offset=0);
@@ -123,9 +125,7 @@ class Tx {
     
     std::string reverse_complement(const std::string & seq);
     std::string get_centered_sequence(int pos, int length=3);
-    std::string get_seq_in_region(int start, int end);
     std::string get_codon_sequence(int codon_number);
-    char translate_codon(const std::string & seq);
     std::string translate(std::string seq);
     
     Codon get_codon_info(int bp);
