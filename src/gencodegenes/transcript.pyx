@@ -50,6 +50,8 @@ cdef class Transcript:
             raise ValueError('transcript needs a name')
         if chrom is None:
             raise ValueError(f'transcript {name} needs a chromosome')
+        if strand not in ('+', '-'):
+            raise ValueError(f'unknown strand type: {strand!r}')
 
         name = name.encode('utf8')
         chrom = chrom.encode('utf8')

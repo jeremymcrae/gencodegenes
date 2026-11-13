@@ -152,8 +152,9 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.cds_start, 200)
         self.assertEqual(self.gene.cds_end, 100)
         
-        with self.assertRaises(ValueError):
-            self.construct_gene(strand='x')
+        for strand in ['x', '', '++', None, b'+']:
+            with self.assertRaises(ValueError):
+                self.construct_gene(strand=strand)
         
         # removing the CDS resets the CDS range
         self.gene.cds = []
