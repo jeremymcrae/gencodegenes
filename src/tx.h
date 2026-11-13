@@ -22,8 +22,8 @@ namespace gencode {
 //
 // The CDS coordinates can differ from those in the GTF, as they are adjusted
 // to include the start and stop codons (in gencode.cpp), moved into the exons
-// if they lie in introns (fix_cds_boundary), and extended to complete the final
-// codon once the sequence is known (fix_cds_length).
+// if they lie in introns (move_cds_ends_into_exons), and extended to complete
+// the final codon once the sequence is known (complete_final_codon).
 
 struct CDS_coords {
     int position;
@@ -76,7 +76,9 @@ class Tx {
     std::string get_seq_in_region(int start, int end);
     char translate_codon(const std::string & seq);
     
-    void fix_cds_length();
+    void move_cds_ends_into_exons();
+    void extract_cds_sequence();
+    void complete_final_codon();
     bool overlaps_cds(int start, int end);
     
     // consequence prediction, defined in consequence.cpp

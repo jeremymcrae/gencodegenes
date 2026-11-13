@@ -118,62 +118,36 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     cds_min = 0;
     cds_max = 0;
     if (cds_ranges.empty()) {
-        // no subsequent adjustments for transcripts without CDS
         return;
     }
     
-    // If the transcript lacks exon coordinates and only has a single CDS
-    // region, then if the CDS region fits within the gene range, make a
-    // single exon, using the transcript start and end. This prevents issues
-    // when adding the CDS coordinates for the transcript.
-    if ( exons.empty() ) {
-        Region exon = cds_ranges[0];
-        if (cds_ranges.size() == 1 && std::min(exon.start, exon.end) >= tx_start \
-                && std::max(exon.start, exon.end) <= tx_end) {
-            Region region {tx_start, tx_end};
-            exons.push_back(region);
-        } else {
-            std::string msg = get_name() + " lacks exon coordinates";
-            throw std::invalid_argument( msg );
+    // without exons, a single CDS region within the transcript gets an exon
+    // spanning the transcript
+    if (exons.empty()) {
+        Region region = cds_ranges[0];
+        if (cds_ranges.size() > 1 || region.start < tx_start || region.end > tx_end) {
+            throw std::invalid_argument(get_name() + " lacks exon coordinates");
         }
+        exons.push_back(Region {tx_start, tx_end});
     }
     
     std::sort(cds_ranges.begin(), cds_ranges.end(), compare_regions);
     cds = std::move(cds_ranges);
-    
-    cds_min = cds[0].start;
+    cds_min = cds.front().start;
     cds_max = cds.back().end;
-    
-    // sometimes the cds start and end lie outside the exons. We find the
-    // offset to the closest exon boundary, and use that to place the
-    // position within the up or downstream exon, and correct the initial
-    // cds boundaries
-    if (!is_exonic(cds_min)) {
-        Region region = fix_cds_boundary(cds_min);
-        int delta = region.end - region.start;
-        
-        cds[0] = Region {cds[0].start + delta, cds[0].end};
-        cds_min = region.start;
-        cds.insert(cds.begin(), region);
-    }
-    
-    if (!is_exonic(cds_max)) {
-        Region region = fix_cds_boundary(cds_max);
-        int delta = region.end - region.start;
-        
-        size_t idx = cds.size() - 1;
-        cds[idx] = Region {cds[idx].start, cds[idx].end - delta};
-        cds_max = region.end;
-        cds.push_back(region);
-    }
-    
+    move_cds_ends_into_exons();
     cds_length = total_length(cds);
     
     if (!genomic_sequence.empty()) {
-        // rebuild the CDS sequence
+        // rebuild the CDS sequence, which can also complete the final codon
         add_genomic_sequence(genomic_sequence, true);
     }
 }
+
+// The CDS coordinates are repaired in two steps: CDS ends lying in introns are
+// moved into the exons when the CDS is set, then an incomplete final codon is
+// completed once the genomic sequence is added (as that needs the bases past the
+// CDS end). The start and stop codons are also included when loading the GTF.
 
 // fix CDS start and ends which occur outside exons.
 //
@@ -213,6 +187,65 @@ Region Tx::fix_cds_boundary(int position) {
     }
     
     return Region {start, end};
+}
+
+// move CDS ends which lie in introns into the adjacent exons
+void Tx::move_cds_ends_into_exons() {
+    if (!is_exonic(cds_min)) {
+        Region region = fix_cds_boundary(cds_min);
+        cds.front().start += region.end - region.start;
+        cds.insert(cds.begin(), region);
+        cds_min = region.start;
+    }
+    if (!is_exonic(cds_max)) {
+        Region region = fix_cds_boundary(cds_max);
+        cds.back().end -= region.end - region.start;
+        cds.push_back(region);
+        cds_max = region.end;
+    }
+}
+
+// extend the CDS by 1-2 bases to complete the final codon, if it is incomplete.
+//
+// Some transcripts terminate in the middle of a codon, which causes problems
+// when translating the final codon. This is rare, and it is rarer that we
+// select these transcripts for analysis. TNS3 is an example, where the de novos
+// in the gene can only be contained within a transcript that is incomplete at
+// the 3' end. The exons are also extended if the CDS now runs past them.
+void Tx::complete_final_codon() {
+    int missing = (3 - cds_sequence.size() % 3) % 3;
+    if (cds.empty() || missing == 0) {
+        return;
+    }
+    
+    // the genomic sequence is on the + strand, so the extra bases come from
+    // just past the 3' CDS end on the + strand, or just before it (then
+    // reverse complemented) on the - strand
+    bool fwd = is_forward();
+    int end = get_cds_end();
+    int idx = genomic_index(fwd ? end + 1 : end - missing);
+    if (idx < 0 || idx + missing > (int) genomic_sequence.size()) {
+        // the genomic sequence doesn't extend far enough to complete the codon
+        return;
+    }
+    std::string extra = genomic_sequence.substr(idx, missing);
+    if (fwd) {
+        cds.back().end += missing;
+        cds_sequence += extra;
+    } else {
+        cds.front().start -= missing;
+        cds_sequence += reverse_complement(extra);
+    }
+    cds_min = cds.front().start;
+    cds_max = cds.back().end;
+    cds_length = total_length(cds);
+    
+    if (cds_min < exons.front().start) {
+        exons.front().start -= missing;
+    }
+    if (cds_max > exons.back().end) {
+        exons.back().end += missing;
+    }
 }
 
 int Tx::get_cds_start() {
@@ -406,7 +439,8 @@ void Tx::set_genomic_offset(int offset) {
     gdna_offset = offset;
 }
 
-// add and process the genomic sequence into a CDS sequence
+// add the genomic sequence, and build the CDS sequence from it. This completes
+// an incomplete final codon, so can extend the CDS and exon coordinates.
 //
 // @param gdna string for genomic sequence. If the transcript strand is '-',
 //    then the DNA sequence will be for the - strand, so we need to
@@ -426,7 +460,13 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
     }
     
     genomic_sequence = std::move(gdna);
-    
+    extract_cds_sequence();
+    complete_final_codon();
+}
+
+// build the CDS sequence from the genomic sequence, checking it matches any CDS
+// sequence set already
+void Tx::extract_cds_sequence() {
     std::string cds_seq;
     for (auto &region : cds) {
         int x = genomic_index(region.start);
@@ -448,67 +488,6 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
             "coding sequence obtained from Ensembl.\nTranscript:" + get_name() +
             "\n" + cds_seq + "\n\nshould be\n" + cds_sequence + "\n";
         throw std::invalid_argument(msg);
-    }
-    
-    fix_cds_length();
-    
-    cds_length = total_length(cds);
-}
-
-// correct the coding sequence of a transcript, if it misses bases.
-//
-// Some transcripts don't cover the full length of a gene, they terminate
-// in the middle of an amino acid. This is rare, and it is rarer that we
-// select these transcripts for analysis. TNS3 is an example, where the
-// de novos in the gene can only be contained within a transcript that is
-// incomplete at the 3' end. This causes problems when we try to translate
-// the final codon.
-//
-// We simply extend the coding sequence 1-2 bases to make a complete codon.
-void Tx::fix_cds_length() {
-    if (cds.empty()) {
-        return;
-    }
-    int diff = cds_sequence.size() % 3;
-    int end = get_cds_end();
-
-    size_t last = cds.size() - 1;
-
-    // genomic_sequence is stored in + strand orientation, so the extra bases
-    // come from just past the 3' CDS end on the + strand, or just before it
-    // (then reverse complemented) on the - strand
-    if (diff != 0) {
-        diff = 3 - diff;
-        
-        bool fwd = is_forward();
-        int start_bp = genomic_index(fwd ? end + 1 : end - diff);
-        if (start_bp < 0 || start_bp + diff > (int) genomic_sequence.size()) {
-            // the genomic sequence doesn't extend far enough to complete the codon
-            return;
-        }
-        
-        if (fwd) {
-            cds[last] = Region {cds[last].start, cds[last].end + diff};
-            cds_sequence += genomic_sequence.substr(start_bp, diff);
-        } else {
-            cds[0] = Region {cds[0].start - diff, cds[0].end};
-            cds_sequence += reverse_complement(genomic_sequence.substr(start_bp, diff));
-        }
-    }
-    
-    cds_min = cds[0].start;
-    cds_max = cds[last].end;
-    
-    // shifting the CDS coordinates can, very infrequently, shift the CDS
-    // beyond the exon coordinates. This is only a problem if we take the union
-    // transcript coordinates, but should be accounted for.
-    if (cds_min < exons[0].start) {
-        exons[0] = Region {exons[0].start - diff, exons[0].end};
-    }
-    
-    last = exons.size() - 1;
-    if (cds_max > exons[last].end) {
-        exons[last] = Region {exons[last].start, exons[last].end + diff};
     }
 }
 
