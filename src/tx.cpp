@@ -469,6 +469,17 @@ void Tx::add_cds_sequence(std::string cds_dna) {
     cds_sequence = std::move(cds_dna);
 }
 
+// set how far the genomic sequence extends beyond each end of the transcript.
+// This can't change once a sequence is loaded, as it would shift every position.
+void Tx::set_genomic_offset(int offset) {
+    if (!genomic_sequence.empty() && offset != gdna_offset) {
+        throw std::invalid_argument("cannot change the genomic offset of " + get_name()
+            + " from " + std::to_string(gdna_offset) + " to " + std::to_string(offset)
+            + " after its genomic sequence is loaded");
+    }
+    gdna_offset = offset;
+}
+
 // add and process the genomic sequence into a CDS sequence
 //
 // @param gdna string for genomic sequence. If the transcript strand is '-',

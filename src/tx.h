@@ -109,7 +109,7 @@ class Tx {
     void add_genomic_sequence(std::string gdna, bool plus_strand=false);
     const std::string & get_cds_sequence() { return cds_sequence; }
     const std::string & get_genomic_sequence() { return genomic_sequence; }
-    void set_genomic_offset(int offset) { gdna_offset=offset; }
+    void set_genomic_offset(int offset);
     int get_genomic_offset() { return gdna_offset; }
     
     void set_attribute(const std::string & key, const std::string & value) {

@@ -187,6 +187,22 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
                 self.gene.genomic_sequence = gdna
         self.gene.genomic_sequence = "AAAGGCCTTTT"
     
+    def test_genomic_offset_after_sequence(self):
+        """ check the offset can't change once a sequence is loaded, as that
+        would shift every position in the sequence
+        """
+        self.gene = self.construct_gene(start=1, end=9, exons=[(1, 4), (6, 9)],
+            cds=[(2, 4), (6, 8)])
+        self.gene.genomic_offset = 1
+        self.gene.genomic_sequence = "AAAGGCCTTTT"
+        with self.assertRaisesRegex(ValueError, 'genomic offset'):
+            self.gene.genomic_offset = 2
+        self.assertEqual(self.gene.genomic_offset, 1)
+        self.assertEqual(self.gene.get_centered_sequence(5), "GCC")
+        
+        # setting the same offset is fine
+        self.gene.genomic_offset = 1
+    
     def test_reverse_complement(self):
         """ check reverse complementing DNA, RNA and ambiguity codes
         """

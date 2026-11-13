@@ -63,7 +63,7 @@ cdef extern from "tx.h" namespace "gencode":
         const string & get_cds_sequence()
         const string & get_genomic_sequence()
         int get_genomic_offset()
-        void set_genomic_offset(int)
+        void set_genomic_offset(int) except +
         
         void set_attribute(string, string)
         const map[string, string] & get_attributes()

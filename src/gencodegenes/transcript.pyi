@@ -114,7 +114,8 @@ class Transcript:
 
     @property
     def genomic_offset(self) -> int:
-        """distance the DNA sequence extends symmetrically beyond gene boundaries"""
+        """distance the DNA sequence extends symmetrically beyond gene boundaries.
+        This can't be changed once the genomic sequence is loaded."""
         ...
     @genomic_offset.setter
     def genomic_offset(self, offset: int) -> None: ...
