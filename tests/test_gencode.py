@@ -52,6 +52,8 @@ class TestGencode(unittest.TestCase):
         gene = gencode['OR4F5']
         with self.assertRaises(KeyError):
             gencode['ZZZZZZZ']
+        self.assertIn('OR4F5', gencode)
+        self.assertNotIn('ZZZZZZZ', gencode)
     
     def test_genome_cache(self):
         ''' test the genome keeps the most recently used regions

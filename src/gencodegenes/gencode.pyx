@@ -458,6 +458,8 @@ cdef class Gencode:
         ''' get the gene for a symbol (the first loaded, if at multiple loci)
         '''
         return self.genes[symbol][0]
+    def __contains__(self, symbol):
+        return symbol in self.genes
     def __iter__(self):
         for x in self.genes:
             yield x
