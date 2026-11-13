@@ -1132,24 +1132,27 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     }
     Region exon = exons[idx];
     
-    // deletions running into an intron disrupt the splice site, which is more
+    // indels running into an intron disrupt the splice site, which is more
     // severe than any frameshift or inframe change. Deletions running past
     // the transcript ends are trimmed to the exonic part instead.
     bool fwd = get_strand() == '+';
     bool deletion = ref.size() > alt.size();
-    if (deletion & (start < exon.start)) {
-        if (idx > 0) {
-            return fwd ? "splice_acceptor_variant" : "splice_donor_variant";
-        }
+    std::string splice;
+    if (start < exon.start && idx > 0) {
+        splice = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
+    }
+    if (end > exon.end && idx < (int) exons.size() - 1) {
+        splice = most_severe(splice, fwd ? "splice_donor_variant" : "splice_acceptor_variant");
+    }
+    if (!splice.empty()) {
+        return splice;
+    }
+    if (alt.empty() && start < exon.start) {
         ref = ref.substr(exon.start - start);
-        alt = "";
         start = exon.start;
-    } else if (deletion & (end > exon.end)) {
-        if (idx < (int) exons.size() - 1) {
-            return fwd ? "splice_donor_variant" : "splice_acceptor_variant";
-        }
+    }
+    if (alt.empty() && end > exon.end) {
         ref = ref.substr(0, (exon.end - start) + 1);
-        alt = "";
         end = exon.end;
     }
 

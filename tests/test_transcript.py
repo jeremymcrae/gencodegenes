@@ -922,6 +922,32 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(tx.consequence(10038, 'TAGGC', 'T'), 'splice_acceptor_variant')
         # deletes 10019-10020 (end of exon 1) and 10021 (intron)
         self.assertEqual(tx.consequence(10018, 'AAGG', 'A'), 'splice_donor_variant')
+        
+        # deletes 10000-10022, from before the transcript start, through the
+        # whole of exon 1, and into the intron
+        ref = 'AA' + tx.genomic_sequence[:22]
+        self.assertEqual(tx.consequence(9999, ref, 'A'), 'splice_donor_variant')
+        tx = self.construct_cq_gene('-')
+        self.assertEqual(tx.consequence(9999, ref, 'A'), 'splice_acceptor_variant')
+        
+        # replacing bases across the exon/intron boundary with a different
+        # number of bases also disrupts the splice site
+        tx = self.construct_cq_gene('+')
+        self.assertEqual(tx.consequence(10020, 'GG', 'CCC'), 'splice_donor_variant')
+        self.assertEqual(tx.consequence(10040, 'GG', 'C'), 'splice_acceptor_variant')
+        tx = self.construct_cq_gene('-')
+        self.assertEqual(tx.consequence(10020, 'GG', 'CCC'), 'splice_acceptor_variant')
+    
+    def test_consequence_deletion_of_whole_transcript(self):
+        ''' check deletions running past both ends of a single exon transcript
+        are trimmed to the exon at both ends
+        '''
+        # CDS is ATG GCC TGG TAA (M A W *) at positions 4-15
+        tx = Transcript('TEST', '1', 1, 20, '+', exons=[(1, 20)], cds=[(4, 15)],
+            sequence='CCCATGGCCTGGTAAGGGGG')
+        # deletes 0-21, but only the 20 exonic bases count, which isn't inframe
+        ref = 'AA' + tx.genomic_sequence + 'A'
+        self.assertEqual(tx.consequence(-1, ref, 'A'), 'start_lost')
     
     def test_consequence_inframe_indel_codons(self):
         ''' check inframe indels which gain a stop, or lose the start or stop
