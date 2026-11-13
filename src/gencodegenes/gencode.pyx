@@ -321,7 +321,7 @@ cdef class Gene:
         ''' find the canonical transcript for a gene.
         
         Canonical is defined as:
-            - transcript with Ensembl_canonical tag (peferred)
+            - transcript with Ensembl_canonical tag (preferred)
             - transcript with longest CDS tagged with appris_principal in the GTF
             - if no appris_principal tags for any tx, use the tx with longest CDS
             # TODO: for the last case, maybe check the protein coding subset first

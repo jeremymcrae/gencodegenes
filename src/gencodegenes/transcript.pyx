@@ -200,11 +200,11 @@ cdef class Transcript:
     def __add__(self, other):
         """ combine the coding sequences of two Transcript objects
         
-        When we determine the sites for sampling, occasioally we want to
+        When we determine the sites for sampling, occasionally we want to
         use sites from multiple alternative transcripts. We determine the sites
         for each transcript in turn, but mask the sites that have been collected
-        in the preceeding transcripts. In order to be able to mask all previous
-        trabnscripts, we need to combine the coding sequence of the transcripts
+        in the preceding transcripts. In order to be able to mask all previous
+        transcripts, we need to combine the coding sequence of the transcripts
         as we move through them. This function performs the union of coding
         sequence regions between different transcripts.
         
@@ -217,7 +217,7 @@ cdef class Transcript:
         Returns:
             an altered instance of the class, where the coding sequence regions
             are the union of the coding regions of two Transcript objects. This
-            disrupts the ability to get meaningingful sequence from the object,
+            disrupts the ability to get meaningful sequence from the object,
             so don't try to extract sequence from the returned object.
         """
         
@@ -368,7 +368,7 @@ cdef class Transcript:
         return self.thisptr.is_exonic(position)
     
     def get_closest_exon(self, pos):
-        ''' finds the the exon closest to a site
+        ''' finds the exon closest to a site
 
         Args:
             pos: nucleotide position on chromosome
@@ -413,7 +413,7 @@ cdef class Transcript:
         return self.thisptr.get_codon_number_for_cds_position(cds_pos)
     
     def get_position_within_codon(self, cds_pos):
-        ''' find the position within 
+        ''' find the position within a codon (0, 1 or 2) of a CDS position
 
         Args:
             cds_pos: CDS distance in bp to CDS start
