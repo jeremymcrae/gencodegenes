@@ -366,7 +366,24 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.assertEqual(self.gene.translate("AAAAAC"), "KN")
         
         # raise an error if we translate sequence with an incomplete codon
-        with self.assertRaises(ValueError):
-            self.assertEqual(self.gene.translate("AA"), "KN")
-            self.assertEqual(self.gene.translate("AAAAA"), "KN")
+        for seq in ["AA", "AAAAA"]:
+            with self.assertRaises(ValueError):
+                self.gene.translate(seq)
+        
+        # codons with ambiguous bases can't be translated
+        for seq in ["AAN", "NAA", "AAAANA"]:
+            with self.assertRaises(ValueError):
+                self.gene.translate(seq)
+    
+    def test_translate_all_codons(self):
+        """ check every codon translates as in the standard genetic code
+        """
+        # NCBI translation table 1, for codons ordered TTT, TTC, TTA, ... GGG
+        bases = 'TCAG'
+        aa = 'FFLLSSSSYY**CC*WLLLLPPPPHHQQRRRRIIIMTTTTNNKKSSRRVVVVAAAADDEEGGGG'
+        codons = [a + b + c for a in bases for b in bases for c in bases]
+        for codon, expected in zip(codons, aa):
+            self.assertEqual(self.gene.translate(codon), expected, msg=codon)
+            self.assertEqual(self.gene.translate(codon.lower()), expected, msg=codon)
+        self.assertEqual(self.gene.translate(''.join(codons)), aa)
         

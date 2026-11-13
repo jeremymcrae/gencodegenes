@@ -12,23 +12,36 @@
 
 namespace gencode {
 
-static std::unordered_map<std::string, char> aa_code = {
-    {"AAA", 'K'}, {"AAC", 'N'}, {"AAG", 'K'}, {"AAT", 'N'},
-    {"ACA", 'T'}, {"ACC", 'T'}, {"ACG", 'T'}, {"ACT", 'T'},
-    {"AGA", 'R'}, {"AGC", 'S'}, {"AGG", 'R'}, {"AGT", 'S'},
-    {"ATA", 'I'}, {"ATC", 'I'}, {"ATG", 'M'}, {"ATT", 'I'},
-    {"CAA", 'Q'}, {"CAC", 'H'}, {"CAG", 'Q'}, {"CAT", 'H'},
-    {"CCA", 'P'}, {"CCC", 'P'}, {"CCG", 'P'}, {"CCT", 'P'},
-    {"CGA", 'R'}, {"CGC", 'R'}, {"CGG", 'R'}, {"CGT", 'R'},
-    {"CTA", 'L'}, {"CTC", 'L'}, {"CTG", 'L'}, {"CTT", 'L'},
-    {"GAA", 'E'}, {"GAC", 'D'}, {"GAG", 'E'}, {"GAT", 'D'},
-    {"GCA", 'A'}, {"GCC", 'A'}, {"GCG", 'A'}, {"GCT", 'A'},
-    {"GGA", 'G'}, {"GGC", 'G'}, {"GGG", 'G'}, {"GGT", 'G'},
-    {"GTA", 'V'}, {"GTC", 'V'}, {"GTG", 'V'}, {"GTT", 'V'},
-    {"TAA", '*'}, {"TAC", 'Y'}, {"TAG", '*'}, {"TAT", 'Y'},
-    {"TCA", 'S'}, {"TCC", 'S'}, {"TCG", 'S'}, {"TCT", 'S'},
-    {"TGA", '*'}, {"TGC", 'C'}, {"TGG", 'W'}, {"TGT", 'C'},
-    {"TTA", 'L'}, {"TTC", 'F'}, {"TTG", 'L'}, {"TTT", 'F'}};
+// standard genetic code, indexed by codon with bases encoded as A=0, C=1, G=2,
+// T=3, i.e. AAA, AAC, AAG, AAT, ACA, ... TTT
+static const char aa_code[] =
+    "KNKNTTTTRSRSIIMI"
+    "QHQHPPPPRRRRLLLL"
+    "EDEDAAAAGGGGVVVV"
+    "*Y*YSSSS*CWCLFLF";
+
+// lookup table of 2-bit codes for (upper case) bases, with -1 for other characters
+static std::array<int8_t, 256> make_base_codes() {
+    std::array<int8_t, 256> table;
+    table.fill(-1);
+    table['A'] = 0;
+    table['C'] = 1;
+    table['G'] = 2;
+    table['T'] = 3;
+    return table;
+}
+
+// translate a codon, or return 0 if the codon contains other characters
+static char translate_bases(const char * codon) {
+    static const std::array<int8_t, 256> codes = make_base_codes();
+    int a = codes[(uint8_t) codon[0]];
+    int b = codes[(uint8_t) codon[1]];
+    int c = codes[(uint8_t) codon[2]];
+    if ((a | b | c) < 0) {
+        return 0;
+    }
+    return aa_code[(a << 4) | (b << 2) | c];
+}
 
 static void to_upper(std::string & seq) {
     for (auto & base : seq) {
@@ -648,11 +661,11 @@ char Tx::translate_codon(const std::string & codon) {
     if (codon.size() != 3) {
         throw std::invalid_argument("translate_codon() needs a 3 bp sequence");
     }
-    if (aa_code.count(codon) == 0) {
-        std::string msg = "cannot translate codon: " + codon;
-        throw std::invalid_argument(msg);
+    char aa = translate_bases(codon.data());
+    if (aa == 0) {
+        throw std::invalid_argument("cannot translate codon: " + codon);
     }
-    return aa_code[codon];
+    return aa;
 }
 
 // translate a DNA codon to a single character amino acid
@@ -661,14 +674,18 @@ char Tx::translate_codon(const std::string & codon) {
 // @returns translated amino acid sequence as single character codes.
 std::string Tx::translate(std::string seq) {
     to_upper(seq);
-    
-    std::string protein;
-    protein.resize(seq.size() / 3);
-    
-    for (std::uint32_t i=0, j=0; i<seq.size(); i=i+3, j++) {
-        protein[j] = translate_codon(seq.substr(i, 3));
+    if (seq.size() % 3 != 0) {
+        throw std::invalid_argument("translate() needs a multiple of 3 bp, but got "
+            + std::to_string(seq.size()) + " bp");
     }
-
+    
+    std::string protein(seq.size() / 3, '\0');
+    for (size_t i = 0; i < protein.size(); i++) {
+        protein[i] = translate_bases(seq.data() + i * 3);
+        if (protein[i] == 0) {
+            throw std::invalid_argument("cannot translate codon: " + seq.substr(i * 3, 3));
+        }
+    }
     return protein;
 }
 
