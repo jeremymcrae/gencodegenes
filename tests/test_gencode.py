@@ -176,6 +176,14 @@ class TestGencode(unittest.TestCase):
         self.assertEqual(Gene('TEST', ['ENSG1', 'HGNC:1']).alternate_ids, ['ENSG1', 'HGNC:1'])
         self.assertEqual(Gene('TEST', [b'ENSG1']).alternate_ids, ['ENSG1'])
     
+    def test_gene_span_beyond_1gb(self):
+        ''' test genes on long chromosomes get the span of their transcripts
+        '''
+        gene = Gene('TEST')
+        gene.add_transcript(Transcript('TX1', 'chr1', 1500000000, 1500001000, '+',
+            exons=[(1500000000, 1500001000)]))
+        self.assertEqual((gene.start, gene.end), (1500000000, 1500001000))
+    
     def test_gene_transcript_attributes_are_independent(self):
         ''' test setting attributes on a transcript from a gene doesn't alter
         the gene's copy, or other transcripts from the gene

@@ -6,6 +6,7 @@ from pathlib import Path
 import weakref
 
 from cython.operator cimport dereference as deref, preincrement as inc
+from libc.limits cimport INT_MAX, INT_MIN
 from libcpp.algorithm cimport lower_bound, upper_bound, stable_sort
 from libcpp.vector cimport vector
 from libcpp.string cimport string
@@ -161,8 +162,8 @@ cdef class Gene:
         elif isinstance(alt_ids, str):
             alt_ids = [alt_ids]
         self.alternate_ids = [x.decode('utf8') if isinstance(x, bytes) else x for x in alt_ids]
-        self.start = 999999999
-        self.end = -999999999
+        self.start = INT_MAX
+        self.end = INT_MIN
     
     cdef add_tx(self, Tx tx, int is_canonical):
         self.chrom = tx.get_chrom().decode('utf8')
