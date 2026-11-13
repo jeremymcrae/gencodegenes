@@ -196,6 +196,12 @@ class TestTranscriptPy(unittest.TestCase):
         # check that we can add transcript + None correctly
         self.assertEqual(a + None, a)
         self.assertEqual(None + a, a)
+        
+        # other types can't be added
+        with self.assertRaises(TypeError):
+            a + 5
+        with self.assertRaises(TypeError):
+            5 + a
     
     def test___add__not_overlapping(self):
         ''' test that __add__() works correctly when transcripts do not overlap

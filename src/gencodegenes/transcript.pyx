@@ -225,8 +225,8 @@ cdef class Transcript:
         # transcript, rather than raising an error.
         if other is None:
             return self
-        if self is None:
-            return other
+        if not isinstance(other, Transcript):
+            return NotImplemented
         if self.chrom != other.chrom or self.strand != other.strand:
             raise ValueError(f'cannot combine transcripts on different chromosomes or '
                 f'strands: {self.name} ({self.chrom}{self.strand}) and '
