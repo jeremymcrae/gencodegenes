@@ -1048,6 +1048,16 @@ class TestGencode(unittest.TestCase):
         data = _open_gencode(self.temp_gtf_path)
         self.assertEqual([x[1].name for x in data], ['ENST_A'])
     
+    def test__open_gencode_without_transcript_id(self):
+        '''test feature lines without a transcript_id aren't grouped into a transcript
+        '''
+        lines = 'chr1\tHAVANA\texon\t10\t20\t.\t+\t.\tgene_name "TEST1"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t30\t40\t.\t+\t.\tgene_name "TEST2"; transcript_type "protein_coding";\n' \
+                'chr1\tHAVANA\texon\t50\t60\t.\t+\t.\ttranscript_id "ENST_A"; gene_name "TEST3"; transcript_type "protein_coding";\n'
+        write_gtf(self.temp_gtf_path, lines)
+        data = _open_gencode(self.temp_gtf_path)
+        self.assertEqual([x[1].name for x in data], ['ENST_A'])
+    
     def test__open_gencode_missing_file(self):
         '''test a GTF which can't be opened raises an error
         '''

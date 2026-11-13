@@ -196,7 +196,8 @@ static void load_transcripts(std::vector<NamedTx> & transcripts, GTF & gtf_file,
 
     while (gtf_file.next(gtf)) {
         Feature feature = get_feature(gtf.feature);
-        if (feature == Feature::other || (coding && gtf.transcript_type != "protein_coding")) {
+        if (feature == Feature::other || gtf.tx_id.empty()
+                || (coding && gtf.transcript_type != "protein_coding")) {
             continue;
         }
 
