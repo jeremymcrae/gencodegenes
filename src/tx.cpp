@@ -1290,21 +1290,19 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     return worst;
 }
 
-int min_len(const std::string & a, const std::string & b) {
-    return (int)std::min(a.size(), b.size());
-}
-
 // realign alt against ref sequence, and strip down to alternate bases
 void Tx::trim_alleles(int& start, int&end, std::string& ref, std::string& alt) {
-    // trim the front of the alleles
-    while ((min_len(ref, alt) > 0) && (ref.size() > 1) && (alt[0] == ref[0])) {
-        ref.erase(0, 1);
-        alt.erase(0, 1);
-        start += 1;
+    // trim the front of the alleles, leaving at least one ref base
+    size_t k = 0;
+    while ((k < alt.size()) && (ref.size() - k > 1) && (alt[k] == ref[k])) {
+        k++;
     }
+    ref.erase(0, k);
+    alt.erase(0, k);
+    start += (int) k;
     
     // trim the back of the alleles
-    while ((min_len(ref, alt) > 0) && (ref.size() > 1) && (alt.back() == ref.back())) {
+    while (!alt.empty() && (ref.size() > 1) && (alt.back() == ref.back())) {
         ref.pop_back();
         alt.pop_back();
         end -= 1;

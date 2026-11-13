@@ -28,8 +28,6 @@ struct Codon {
     int offset;
 };
 
-int min_len(const std::string & a, const std::string & b);
-
 class Tx {
     std::string name;
     std::string chrom;
