@@ -508,8 +508,7 @@ cdef Transcript _wrap_tx(Tx & tx):
     equivalent object through Transcript.__init__.
     '''
     cdef Transcript transcript = Transcript.__new__(Transcript, _WRAP)
-    transcript.thisptr = new Tx()
-    transcript.thisptr[0] = tx
+    transcript.thisptr = new Tx(tx)
     return transcript
 
 

@@ -29,6 +29,7 @@ cdef extern from "tx.h" namespace "gencode":
     cdef cppclass Tx:
         Tx(string, string, int, int, char, string, map[string, string]) except +
         Tx() except +
+        Tx(const Tx &) except +
         
         void set_exons(vector[vector[int]]) except +
         void set_cds(vector[vector[int]]) except +
