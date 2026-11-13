@@ -259,9 +259,9 @@ class TestTranscriptPy(unittest.TestCase):
         b = Transcript("b", "1", 40, 50, "+", exons=[(40, 50)], cds=[(42, 47)],
             offset=2, sequence='TTGATTACAGATTAA')
         
-        # a's sequence (8-22), Ns for 23-39, then b's sequence from 40
+        # a's sequence (8-22), Ns for 23-37, then b's sequence from 38
         c = a + b
-        self.assertEqual(c.genomic_sequence, 'CCACGTACGTACGGG' + 'N' * 17 + 'GATTACAGATTAA')
+        self.assertEqual(c.genomic_sequence, 'CCACGTACGTACGGG' + 'N' * 15 + 'TTGATTACAGATTAA')
         self.assertEqual(c.cds_sequence, 'GTACGT' + 'TTACAG')
     
     def test___add__cds_length_fixed(self):

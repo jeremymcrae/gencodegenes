@@ -98,7 +98,8 @@ cdef class Transcript:
         return self._key() == other._key() and self.exons == other.exons \
             and self.cds == other.cds
     
-    def _merge_coordinates(self, first, second):
+    @staticmethod
+    def _merge_coordinates(first, second):
         ''' merge two sets of coordinates, to get the union of regions
         
         Args:
@@ -117,70 +118,23 @@ cdef class Transcript:
         return merged
     
     def _merge_genomic_seq(self, other):
-        ''' merge the genomic sequence from two transcripts
-        
-        We have two transcripts A, and B. We need to get the contiguous sequence
-        from the start of the first transcript on the chromosome to the end of
-        the second transcript. The transcripts may or may not overlap. There are
-        three scenarios we need to account for:
-        
-        
-        overlap without   A   =================
-        enveloping                           ================= B
-        
-        
-            overlap       A   ==============================
-        and envelop               ==================  B
-        
-        
-        no overlap        A  ===============
-                                               ===============  B
-        
-        I've called the transcript whose sequence is first along the chromosome
-        as 'lead', and the transcript whose sequence is last as 'lag', and the
-        converse as 'not_lead', and 'not_lag'. Note that in the envelope case,
-        the lead transcript can also be the lag transcript.
+        ''' merge the genomic sequences of two transcripts (on the + strand), to
+        cover both transcripts and their flanks. Any gap between the sequences is
+        filled with Ns. Where the sequences overlap, the bases come from the
+        transcript starting first.
         '''
-        
-        # make sure that the surrounding sequence is the same length in both
-        # transcripts.
-        # TODO: this could be worked around, by figuring the minimum offset length,
-        # TODO: then trimming the respective DNA offset sequences to that length.
         if self.genomic_offset != other.genomic_offset:
             raise ValueError(f'cannot merge sequences with different offsets: '
                 f'{self.name} ({self.genomic_offset}) and {other.name} ({other.genomic_offset})')
+        offset = self.genomic_offset
+        first, second = sorted([self, other], key=lambda x: x.start)
         
-        # figure out which transcripts hold the leading and lagging sections
-        lead, not_lead = self, other
-        if self.start > other.start:
-            lead, not_lead = other, self
-        
-        lag, not_lag = self, other
-        if self.end < other.end:
-            lag, not_lag = other, self
-        
-        lead_offset = lead.genomic_offset
-        lead_gdna = lead.genomic_sequence
-        initial = lead_gdna[:not_lead.start - lead.start + lead_offset]
-        
-        if self.start <= other.end and self.end >= other.start:
-            intersect_start = not_lead.start - lead.start + lead_offset
-            intersect_end = not_lag.end - lead.start + lead_offset
-            intersect = lead_gdna[intersect_start:intersect_end]
-        else:
-            intersect = 'N' * (lag.start - lead.end - lead_offset - 1)
-        
-        lag_offset = lag.genomic_offset
-        lag_gdna = lag.genomic_sequence
-        
-        # some transcripts overlap, but some do not. We need to find the position
-        # where the lagging transcript takes over, which is either at the end of
-        # not lagging transcript, or the start of the lagging transcript,
-        # whichever is higher
-        pos = max(not_lag.end, lag.start)
-        final = lag_gdna[pos - lag.start + lead_offset:]
-        
-        return initial + intersect + final
+        # bases between the end of the first sequence and the start of the
+        # second, which is negative if the sequences overlap
+        gap = (second.start - offset) - (first.end + offset) - 1
+        if gap >= 0:
+            return first.genomic_sequence + 'N' * gap + second.genomic_sequence
+        return first.genomic_sequence + second.genomic_sequence[-gap:]
     
     def __add__(self, other):
         """ combine the coding sequences of two Transcript objects
