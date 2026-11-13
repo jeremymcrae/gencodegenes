@@ -279,20 +279,6 @@ cdef class Gene:
         cdef size_t i
         return [self._to_Transcript(self._transcripts[i]) for i in range(self._transcripts.size())]
     
-    cdef size_t _max_by_cds(self, vector[size_t] & indices) except *:
-        ''' get index of the longest transcript by CDS length
-        '''
-        cdef size_t i, max_i = 0
-        cdef int curr_len, length = 0
-        for i in indices:
-            curr_len = self._transcripts[i].get_cds_length()
-            if curr_len > length:
-                length = curr_len
-                max_i = i
-        if length == 0:
-            raise ValueError('no coding transcripts')
-        return max_i
-    
     cdef int _exonic_len(self, Tx & tx):
         ''' get length of exonic sequence for a Tx object based transcript
         '''
@@ -302,18 +288,21 @@ cdef class Gene:
             length += (tx.get_exons()[i].end - tx.get_exons()[i].start) + 1
         return length
     
-    cdef size_t _max_by_exonic(self, vector[size_t] & indices) except *:
-        ''' get index of the longest transcript by exonic length
+    cdef size_t _longest(self, vector[size_t] & indices, bint coding) except *:
+        ''' get index of the longest transcript, by CDS or exonic length
         '''
         cdef size_t i, max_i = 0
         cdef int curr_len, length = 0
         for i in indices:
-            curr_len = self._exonic_len(self._transcripts[i])
+            if coding:
+                curr_len = self._transcripts[i].get_cds_length()
+            else:
+                curr_len = self._exonic_len(self._transcripts[i])
             if curr_len > length:
                 length = curr_len
                 max_i = i
         if length == 0:
-            raise ValueError('no exonic transcripts')
+            raise ValueError(f'no {"coding" if coding else "exonic"} transcripts')
         return max_i
     
     @property
@@ -334,7 +323,7 @@ cdef class Gene:
     cdef size_t _canonical_idx(self) except *:
         ''' get the index of the canonical transcript (see canonical)
         '''
-        cdef size_t i, max_i
+        cdef size_t i
         cdef int score, max_score = 0
         for score in self._canonical:
             max_score = max(max_score, score)
@@ -345,10 +334,9 @@ cdef class Gene:
                 canonical.push_back(i)
         
         try:
-            max_i = self._max_by_cds(canonical)
+            return self._longest(canonical, True)
         except ValueError:
-            max_i = self._max_by_exonic(canonical)
-        return max_i
+            return self._longest(canonical, False)
     
     def in_any_tx_cds(self, int pos):
         ''' find if a pos is in coding region of any transcript of a gene
