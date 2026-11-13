@@ -1,14 +1,12 @@
 
 #include <algorithm>
 #include <climits>
-#include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <map>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -235,70 +233,60 @@ std::vector<NamedTx> open_gencode(std::string path, bool coding) {
     return transcripts;
 }
 
-bool CompFunc(const GenePoint &l, const GenePoint &r) {
-    return l.pos < r.pos;
+// sort gene intervals by start, and track the furthest end seen so far, so
+// searches can stop once no earlier gene could reach a position
+void index_intervals(std::vector<GeneInterval> & intervals) {
+    std::stable_sort(intervals.begin(), intervals.end(),
+        [](const GeneInterval & a, const GeneInterval & b) { return a.start < b.start; });
+    int max_end = INT_MIN;
+    int max_end_idx = -1;
+    for (auto & x : intervals) {
+        if (x.end >= max_end) {
+            max_end = x.end;
+            max_end_idx = x.idx;
+        }
+        x.max_end = max_end;
+        x.max_end_idx = max_end_idx;
+    }
+}
+
+// find the number of intervals starting at or before a position
+static size_t n_starting_by(const std::vector<GeneInterval> & intervals, int pos) {
+    return std::upper_bound(intervals.begin(), intervals.end(), pos,
+        [](int pos, const GeneInterval & x) { return pos < x.start; }) - intervals.begin();
 }
 
 // find genes overlapping a region
 //
-// @param starts gene start positions per chromosome, sorted by position
-// @param ends gene end positions per chromosome, sorted by position
-// @param max_window maximum gene length, which limits how far beyond the region
-//     we search for genes that span the whole region
-// @returns keys for the genes overlapping the region
-std::vector<std::string> _in_region(std::string chrom, int start, int end, 
-        std::map<std::string, std::vector<GenePoint>> & starts, 
-        std::map<std::string, std::vector<GenePoint>> & ends,
-        int max_window) {
+// @param intervals gene intervals for a chromosome, from index_intervals()
+// @returns indices of the genes overlapping the region, ordered by gene start
+std::vector<int> genes_in_region(const std::vector<GeneInterval> & intervals,
+        int start, int end) {
     if (start > end) {
         throw std::invalid_argument("region start (" + std::to_string(start)
             + ") is after its end (" + std::to_string(end) + ")");
     }
-    auto starts_it = starts.find(chrom);
-    if (starts_it == starts.end()) {
-        throw std::invalid_argument("unknown_chrom: " + chrom);
-    }
-    const std::vector<GenePoint> & chrom_starts = starts_it->second;
-    const std::vector<GenePoint> & chrom_ends = ends.at(chrom);
-    const int n_starts = (int) chrom_starts.size();
-    const int n_ends = (int) chrom_ends.size();
-    std::vector<std::string> symbols;
-
-    // find genes with a start inside the region
-    std::unordered_set<std::string> inside;
-    int first_start = std::lower_bound(chrom_starts.begin(), chrom_starts.end(),
-        GenePoint {start, ""}, CompFunc) - chrom_starts.begin();
-    for (int i = first_start; i < n_starts && chrom_starts[i].pos <= end; i++) {
-        inside.insert(chrom_starts[i].symbol);
-        symbols.push_back(chrom_starts[i].symbol);
-    }
-
-    // find genes with an end inside the region (that don't also start inside it)
-    int after_end = std::upper_bound(chrom_ends.begin(), chrom_ends.end(),
-        GenePoint {end, ""}, CompFunc) - chrom_ends.begin();
-    for (int i = after_end - 1; i >= 0 && chrom_ends[i].pos >= start; i--) {
-        if (inside.count(chrom_ends[i].symbol) == 0) {
-            symbols.push_back(chrom_ends[i].symbol);
+    std::vector<int> found;
+    for (size_t i = n_starting_by(intervals, end); i-- > 0 && intervals[i].max_end >= start; ) {
+        if (intervals[i].end >= start) {
+            found.push_back(intervals[i].idx);
         }
     }
+    std::reverse(found.begin(), found.end());
+    return found;
+}
 
-    if (std::abs(end - start) > max_window) {
-        // if the window is too wide to permit a gene to span it, just return
-        return symbols;
-    }
-
-    // find genes that span the region, i.e. start upstream and end downstream
-    std::unordered_set<std::string> starts_before;
-    for (int i = first_start - 1; i >= 0 && std::abs(chrom_starts[i].pos - end) <= max_window; i--) {
-        starts_before.insert(chrom_starts[i].symbol);
-    }
-    for (int i = after_end; i < n_ends && std::abs(chrom_ends[i].pos - start) <= max_window; i++) {
-        if (starts_before.count(chrom_ends[i].symbol) != 0) {
-            symbols.push_back(chrom_ends[i].symbol);
-        }
-    }
-
-    return symbols;
+// find the closest genes before and after a position that no gene overlaps
+//
+// @param intervals gene intervals for a chromosome, from index_intervals()
+// @returns indices of the gene ending closest before the position, and the gene
+//     starting closest after it, or -1 where there is no such gene
+std::pair<int, int> flanking_genes(const std::vector<GeneInterval> & intervals,
+        int pos) {
+    size_t n = n_starting_by(intervals, pos);
+    int before = (n > 0) ? intervals[n - 1].max_end_idx : -1;
+    int after = (n < intervals.size()) ? intervals[n].idx : -1;
+    return {before, after};
 }
 
 } // namespace

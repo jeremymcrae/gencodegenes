@@ -267,6 +267,24 @@ class TestGencode(unittest.TestCase):
         del gencode
         self.assertIsNone(ref())
     
+    def test_gencode_in_region_long_gene(self):
+        ''' test in_region finds genes spanning a region, however long they are
+        '''
+        gencode = Gencode()
+        gene = Gene('LONG')
+        gene.add_transcript(Transcript('TX1', 'chr1', 100, 6000000, '+',
+            exons=[(100, 200), (5999900, 6000000)]))
+        gencode.add_gene(gene)
+        small = Gene('SMALL')
+        small.add_transcript(Transcript('TX2', 'chr1', 1000, 2000, '+', exons=[(1000, 2000)]))
+        gencode.add_gene(small)
+        
+        self.assertEqual(gencode.in_region('chr1', 3000000, 3000010), [gene])
+        self.assertEqual(gencode.in_region('chr1', 3000000, 3000010, max_window=1000), [gene])
+        self.assertEqual(gencode.in_region('chr1', 1500, 3000000), [gene, small])
+        self.assertEqual(gencode.nearest('chr1', 3000000), gene)
+        self.assertEqual(gencode.in_region('chr1', 6000001, 7000000), [])
+    
     def test_gencode_in_region(self):
         ''' test that in_region pulls out the correct genes
         '''

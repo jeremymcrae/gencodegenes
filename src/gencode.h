@@ -2,7 +2,7 @@
 #define GENCODEGENES_GENCODE_H_
 
 #include <string>
-#include <map>
+#include <utility>
 #include <vector>
 
 #include "tx.h"
@@ -17,19 +17,23 @@ struct NamedTx {
     int is_canonical;
 };
 
-struct GenePoint {
-    int pos;
-    std::string symbol;
+// gene coordinates, for finding genes by position
+struct GeneInterval {
+    int start;
+    int end;
+    int max_end;      // highest end of this and all preceding intervals
+    int idx;          // index of the gene
+    int max_end_idx;  // index of the gene ending at max_end
 };
 
 // open the gencode annotations GTF, and return Tx objects for each transcript
 std::vector<NamedTx> open_gencode(std::string path, bool coding=true);
 
-bool CompFunc(const GenePoint &l, const GenePoint &r);
-std::vector<std::string> _in_region(std::string chrom, int start, int end, 
-    std::map<std::string, std::vector<GenePoint>> & starts, 
-    std::map<std::string, std::vector<GenePoint>> & ends,
-    int max_window);
+void index_intervals(std::vector<GeneInterval> & intervals);
+std::vector<int> genes_in_region(const std::vector<GeneInterval> & intervals,
+    int start, int end);
+std::pair<int, int> flanking_genes(const std::vector<GeneInterval> & intervals,
+    int pos);
 
 } // namespace
 

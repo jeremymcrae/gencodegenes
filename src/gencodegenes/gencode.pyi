@@ -84,7 +84,10 @@ class Gencode:
     def in_region(
         self, chrom: str, start: int, end: int, max_window: int = ...
     ) -> list[Gene]:
-        """find genes within a genomic region"""
+        """find genes overlapping a genomic region, ordered by gene start
+
+        max_window is unused, and only kept for backwards compatibility.
+        """
         ...
 
     def __enter__(self) -> Gencode: ...

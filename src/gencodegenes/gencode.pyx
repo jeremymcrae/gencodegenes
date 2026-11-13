@@ -6,12 +6,11 @@ import weakref
 
 from cython.operator cimport dereference as deref, preincrement as inc
 from libc.limits cimport INT_MAX, INT_MIN
-from libcpp.algorithm cimport lower_bound, stable_sort
 from libcpp.vector cimport vector
 from libcpp.string cimport string
 from libcpp cimport bool
 from libcpp.map cimport map
-from libcpp.utility cimport move
+from libcpp.utility cimport move, pair
 
 from pyfaidx import Fasta
 
@@ -45,15 +44,18 @@ cdef extern from "gencode.h" namespace "gencode":
         Tx tx
         int is_canonical
     
-    cdef struct GenePoint:
-        int pos
-        string symbol
+    cdef struct GeneInterval:
+        int start
+        int end
+        int max_end
+        int idx
+        int max_end_idx
     
     vector[NamedTx] open_gencode(string, bool) except +
-    bool CompFunc(const GenePoint &l, const GenePoint &r)
-    vector[string] _in_region(string chrom, int start, int end, 
-        map[string, vector[GenePoint]] & starts, map[string, vector[GenePoint]] & ends,
-        int max_window) except+
+    void index_intervals(vector[GeneInterval] & intervals)
+    vector[int] genes_in_region(const vector[GeneInterval] & intervals, int start,
+        int end) except +
+    pair[int, int] flanking_genes(const vector[GeneInterval] & intervals, int pos)
 
 cpdef _parse_gtfline(string line):
     ''' python function for unit testing GTF parsing
@@ -364,7 +366,8 @@ cdef class Gencode:
     # maps symbol to a list of Genes, as some symbols are used at multiple loci,
     # e.g. PAR genes on chrX and chrY
     cdef dict genes
-    cdef map[string, vector[GenePoint]] starts, ends
+    cdef list _indexed  # genes in the order they are indexed in intervals
+    cdef map[string, vector[GeneInterval]] intervals
     cdef object _genome
     cdef bint _stale  # set when a gene's span may have changed since indexing
     cdef object __weakref__
@@ -415,28 +418,24 @@ cdef class Gencode:
         self._sort()
     
     def _sort(self):
-        ''' index by starts and ends, to speed finding genes in a region
+        ''' index gene coordinates per chromosome, to speed finding genes by
+        position
         '''
         self._stale = False
-        self.starts.clear()
-        self.ends.clear()
+        self._indexed = []
+        self.intervals.clear()
         cdef Gene gene
         cdef string chrom
-        for symbol, genes in self.genes.items():
-            for i, gene in enumerate(genes):
+        for genes in self.genes.values():
+            for gene in genes:
                 chrom = gene._chrom.encode('utf8')
-                key = f'{symbol}\t{i}'.encode('utf8')
-                self.starts[chrom].push_back(GenePoint(gene._start, key))
-                self.ends[chrom].push_back(GenePoint(gene._end, key))
+                self.intervals[chrom].push_back(GeneInterval(gene._start, gene._end,
+                    0, len(self._indexed), 0))
+                self._indexed.append(gene)
         
-        # sort start and end coords by position, keeping the order of ties
-        cdef map[string, vector[GenePoint]].iterator it = self.starts.begin()
-        while it != self.starts.end():
-            stable_sort(deref(it).second.begin(), deref(it).second.end(), &CompFunc)
-            inc(it)
-        it = self.ends.begin()
-        while it != self.ends.end():
-            stable_sort(deref(it).second.begin(), deref(it).second.end(), &CompFunc)
+        cdef map[string, vector[GeneInterval]].iterator it = self.intervals.begin()
+        while it != self.intervals.end():
+            index_intervals(deref(it).second)
             inc(it)
     
     def __repr__(self):
@@ -450,12 +449,6 @@ cdef class Gencode:
     def __iter__(self):
         for x in self.genes:
             yield x
-    
-    cdef Gene _gene_at(self, string key):
-        ''' get the Gene for a key from the starts/ends index
-        '''
-        symbol, idx = key.decode('utf8').rsplit('\t', 1)
-        return self.genes[symbol][int(idx)]
     
     def add_gene(self, Gene gene):
         ''' add another gene to the Gencode object
@@ -478,12 +471,11 @@ cdef class Gencode:
         '''
         if self._stale:
             self._sort()
-        _chrom = self._match_chrom(chrom)
-        chrom = _chrom.decode('utf8')
+        cdef vector[GeneInterval] * intervals = &self.intervals[self._match_chrom(chrom)]
         
         # first, account for any overlapping genes
         cdef Gene gene
-        overlaps = self.in_region(chrom, pos, pos)
+        overlaps = [self._indexed[i] for i in genes_in_region(deref(intervals), pos, pos)]
         if len(overlaps) > 0:
             # if we have > 0 prioritise if the position is in the CDS
             cds_overlaps = [x for x in overlaps if x.in_any_tx_cds(pos)]
@@ -497,24 +489,18 @@ cdef class Gencode:
             idx = lengths.index(max(lengths))
             return overlaps[idx]
         
-        # no overlaps observed, look for the nearest upstream or downstream gene
-        cdef GenePoint site = GenePoint(pos, b'A');
-        cdef int i = lower_bound(self.ends[_chrom].begin(), self.ends[_chrom].end(), site, &CompFunc) - self.ends[_chrom].begin()
-        cdef int j = lower_bound(self.starts[_chrom].begin(), self.starts[_chrom].end(), site, &CompFunc) - self.starts[_chrom].begin()
-        
-        # upstream is the gene ending closest before pos, downstream is the gene
-        # starting closest after pos. starts and ends are sorted independently,
-        # so each index is only valid for its own vector
-        i = max(i - 1, 0)
-        j = min(j, <int>self.starts[_chrom].size() - 1)
-        
-        upstream = self._gene_at(self.ends[_chrom][i].symbol)
-        downstream = self._gene_at(self.starts[_chrom][j].symbol)
-        
-        if upstream.distance(chrom, pos) <= downstream.distance(chrom, pos):
+        # no overlaps observed, so pick the closer of the gene ending closest
+        # before pos, and the gene starting closest after pos
+        cdef pair[int, int] flanks = flanking_genes(deref(intervals), pos)
+        if flanks.first < 0:
+            return self._indexed[flanks.second]
+        if flanks.second < 0:
+            return self._indexed[flanks.first]
+        cdef Gene upstream = self._indexed[flanks.first]
+        cdef Gene downstream = self._indexed[flanks.second]
+        if pos - upstream._end <= downstream._start - pos:
             return upstream
-        else:
-            return downstream
+        return downstream
     
     def in_region(self, str chrom, int start, int end, int max_window=2500000):
         ''' find genes within a genomic region
@@ -523,18 +509,15 @@ cdef class Gencode:
             chrom: chromosome to search on
             start: start position of region
             end: end position of region
-            max_window: some genes encapsulate the region, which means we have 
-                to account for gene lengths of up to 2.3 Mb in the human genome.
-                This permits extra search space in other organisms.
+            max_window: unused, only kept for backwards compatibility
         
         Returns:
-            list of Gene objects
+            list of Gene objects, ordered by gene start
         '''
         if self._stale:
             self._sort()
-        symbols = _in_region(self._match_chrom(chrom), start, end, self.starts,
-            self.ends, max_window)
-        return [self._gene_at(x) for x in symbols]
+        cdef vector[GeneInterval] * intervals = &self.intervals[self._match_chrom(chrom)]
+        return [self._indexed[i] for i in genes_in_region(deref(intervals), start, end)]
     
     cdef bytes _match_chrom(self, str chrom):
         ''' find the chromosome name used in the annotations, allowing for
@@ -542,11 +525,11 @@ cdef class Gencode:
         the mitochondrial genome
         '''
         key = chrom.encode('utf8')
-        if self.starts.count(key) > 0:
+        if self.intervals.count(key) > 0:
             return key
         for name in _chrom_names(chrom):
             key = name.encode('utf8')
-            if self.starts.count(key) > 0:
+            if self.intervals.count(key) > 0:
                 return key
         raise ValueError(f'unknown_chrom: {chrom}')
     
