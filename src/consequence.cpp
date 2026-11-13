@@ -49,6 +49,8 @@ static const std::vector<std::string> cq_order = {"splice_acceptor_variant",
     "non_coding_transcript_exon_variant", "intron_variant",
     "upstream_gene_variant", "downstream_gene_variant", "intergenic_variant"};
 
+// rank of a consequence, where lower ranks are more severe. Unlisted values
+// (e.g. an empty string) rank last, so never win in most_severe().
 static size_t severity(const std::string & cq) {
     return std::find(cq_order.begin(), cq_order.end(), cq) - cq_order.begin();
 }
@@ -58,7 +60,7 @@ static std::string most_severe(const std::string & a, const std::string & b) {
 }
 
 // consequence for intronic sites from near to far bases from the splice donor
-// (at the 5' end of the intron)
+// (at the 5' end of the intron). Distances start at 1 for the first intronic base.
 static std::string donor_cq(int near, int far) {
     if (overlap(near, far, 1, 2)) { return "splice_donor_variant"; }
     if (overlap(near, far, 5, 5)) { return "splice_donor_5th_base_variant"; }
@@ -220,6 +222,7 @@ std::string Tx::intronic_cq(int start, int end) {
     CDS_coords start_coord = get_coding_distance(start);
     CDS_coords end_coord = get_coding_distance(end);
     
+    // sites touching an exon outside the CDS are in a UTR, or a non-coding exon
     bool intronic = (start_coord.offset != 0) && (end_coord.offset != 0);
     if (!intronic) {
         std::string cq;
@@ -249,9 +252,12 @@ std::string Tx::utr3_sequence(int n) {
     int step = fwd ? 1 : -1;
     int cds_end = get_cds_end();
     int first = closest_exon_num(cds_end);
+    // walk the exons in the direction of transcription, starting just past the
+    // CDS end, and reading each exon from its 5' to its 3' end
     for (int i = first; i >= 0 && i < (int) exons.size() && (int) seq.size() < n; i += step) {
         int from = (i == first) ? cds_end + step : (fwd ? exons[i].start : exons[i].end);
         int to = fwd ? exons[i].end : exons[i].start;
+        // (to - pos) * step >= 0 checks pos hasn't passed the exon's 3' end
         for (int pos = from; (to - pos) * step >= 0 && (int) seq.size() < n; pos += step) {
             int x = genomic_index(pos);
             if (x < 0 || x >= (int) genomic_sequence.size()) {
@@ -277,6 +283,7 @@ bool Tx::translate_change(int lo, int hi, const std::string & alt_t,
     if (lo < 0 || cds_sequence.empty() || (int) cds_sequence.size() != cds_length) {
         return false;
     }
+    // the whole codons covering lo to hi
     int last = std::max(lo, hi);
     int first = lo - lo % 3;
     int length = last - last % 3 + 3 - first;
@@ -284,6 +291,8 @@ bool Tx::translate_change(int lo, int hi, const std::string & alt_t,
         // insertions between codons leave the neighbouring codons intact
         length = 0;
     }
+    // changes reaching the stop codon read on past the change, until the last
+    // altered codon is complete
     int alt_length = length - (hi - lo + 1) + (int) alt_t.size();
     int needed = first + length;
     if (last >= cds_length - 3) {
@@ -300,6 +309,7 @@ bool Tx::translate_change(int lo, int hi, const std::string & alt_t,
     std::string alt_seq = ref_seq;
     alt_seq.replace(lo - first, hi - lo + 1, alt_t);
     alt_seq += seq.substr(first + length, needed - first - length);
+    // drop any incomplete final codon
     alt_seq.resize(alt_seq.size() - alt_seq.size() % 3);
     try {
         ref_aa = translate(ref_seq);

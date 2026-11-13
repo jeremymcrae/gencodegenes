@@ -126,10 +126,13 @@ class _Genome:
         '''
         for i, (cached_chrom, cached_start, cached_end, seq) in enumerate(self._cache):
             if cached_chrom == chrom and cached_start <= start and end <= cached_end:
+                # move to the end, so the least recently used region is dropped first
                 if i != len(self._cache) - 1:
                     self._cache.append(self._cache.pop(i))
                 return seq, start - cached_start
         
+        # read the wider region, so later requests within it hit the cache
+
         region_start = max(0, min(start, region_start))
         region_end = min(self.chrom_length(chrom), max(end, region_end))
         seq = self._fasta[chrom][region_start:region_end].seq.encode('utf8')
@@ -202,6 +205,8 @@ cdef class Gene:
         self.end = INT_MIN
     
     cdef add_tx(self, Tx tx, int canonical_score):
+        ''' add a C++ transcript, extending the gene to cover it
+        '''
         self.chrom = tx.get_chrom().decode('utf8')
         self.start = min(self.start, tx.get_start())
         self.end = max(self.end, tx.get_end())
@@ -435,6 +440,7 @@ cdef class Gencode:
         for genes in self.genes.values():
             for gene in genes:
                 chrom = gene._chrom.encode('utf8')
+                # the max_end fields are filled in by index_intervals
                 self.intervals[chrom].push_back(GeneInterval(gene._start, gene._end,
                     0, len(self._indexed), 0))
                 self._indexed.append(gene)

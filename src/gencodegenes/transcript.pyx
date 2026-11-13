@@ -38,7 +38,8 @@ cdef class Transcript:
             end: position in bp at 3' edge of transcript (on + strand)
             exons: list of tuples defining start and end positions of exons
             cds: list of tuples defining start and end positions of CDS regions
-            sequence: DNA sequence of genome region of the transcript.
+            sequence: DNA sequence of genome region of the transcript, in the
+                direction of transcription (so reverse complemented on the - strand)
             offset: how many base pairs the DNA sequence extends outwards
             attributes: dict of key/value pairs from the GTF attributes field
         '''
@@ -190,6 +191,7 @@ cdef class Transcript:
         return altered
     
     def __radd__(self, other):
+        # handles None + transcript, e.g. when building up a merged transcript
         return self.__add__(other)
     
     @property
@@ -270,7 +272,9 @@ cdef class Transcript:
 
     @property
     def genomic_sequence(self):
-        ''' genomic sequence spanning the transcript 
+        ''' genomic sequence spanning the transcript (plus genomic_offset bases on
+        each side), on the + strand. This is set in the direction of
+        transcription, so is reverse complemented when set on the - strand.
         '''
         return self.thisptr.get_genomic_sequence().decode('utf8')
     
@@ -290,7 +294,8 @@ cdef class Transcript:
         return _Attributes(self)
 
     def _fix_cds_boundary(self, pos):
-        ''' adjust CDS boundary
+        ''' find where a CDS end lying in an intron is moved to, in the adjacent
+        exon (for testing)
 
         Args:
             pos: nucleotide position on chromosome

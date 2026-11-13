@@ -55,10 +55,12 @@ Tx::Tx(std::string transcript_id, std::string chromosome,
     }
 }
 
+// sort order for regions, by start then end
 static bool compare_regions(const Region & a, const Region & b) {
     return a.start < b.start || (a.start == b.start && a.end < b.end);
 }
 
+// convert [start, end] pairs (e.g. from python) to Regions
 static std::vector<Region> to_regions(const std::vector<std::vector<int>> & ranges) {
     std::vector<Region> regions;
     regions.reserve(ranges.size());
@@ -176,6 +178,7 @@ Region Tx::fix_cds_boundary(int position) {
         throw std::invalid_argument(get_name() + " CDS lies outside the exons");
     }
     
+    // place the bases which ran into the intron at the facing end of that exon
     int start;
     int end;
     if (start_dist < end_dist) {
@@ -189,7 +192,9 @@ Region Tx::fix_cds_boundary(int position) {
     return Region {start, end};
 }
 
-// move CDS ends which lie in introns into the adjacent exons
+// move CDS ends which lie in introns into the adjacent exons. The intronic part
+// is trimmed from the end CDS region, and added as a new region in the adjacent
+// exon (see fix_cds_boundary).
 void Tx::move_cds_ends_into_exons() {
     if (!is_exonic(cds_min)) {
         Region region = fix_cds_boundary(cds_min);
@@ -305,7 +310,7 @@ int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
         return idx;
     }
     
-    // pos lies after the start of a. a is upstream, b is downstream, find closest.
+    // pos lies in the intron between a and b, so pick the closer exon
     int delta_a = std::min(std::abs(pos - a.start), std::abs(pos - a.end));
     int delta_b = std::min(std::abs(pos - b.start), std::abs(pos - b.end));
     
@@ -384,6 +389,8 @@ CDS_coords Tx::get_coding_distance(int pos) {
         pos = site.position;
     }
     
+    // count exonic bases from the CDS start, then flip the sign on the - strand,
+    // where transcription runs towards lower positions
     int cds_start = get_cds_start();
     int delta = exonic_position(pos, idx)
         - exonic_position(cds_start, closest_exon_num(cds_start));
@@ -397,6 +404,8 @@ CDS_coords Tx::get_coding_distance(int pos) {
 //     transcription
 // @returns chromosome position
 int Tx::get_position_on_chrom(int cds_position, int offset) {
+    // walk the CDS regions in the direction of transcription, until reaching
+    // the region containing the position
     bool fwd = is_forward();
     int remaining = cds_position;
     for (size_t i = 0; i < cds.size(); i++) {
@@ -597,6 +606,8 @@ Codon Tx::get_codon_info(int bp) {
         throw std::invalid_argument( "position not inside CDS region" );
     }
     
+    // intronic sites between the CDS start and end have a CDS position, but
+    // aren't in a codon
     Codon codon {site.position, "", -1, -1, '\0', site.offset, in_coding};
     if (in_coding) {
         codon.codon_number = get_codon_number_for_cds_position(site.position);
@@ -628,6 +639,7 @@ int Tx::get_boundary_distance(int bp) {
 // find the index of the first region overlapping a genomic range. Returns -1
 // if none overlap.
 int Tx::overlapping_region_num(int start, int end, std::vector<Region> & group) {
+    // find the first region ending at or after the start
     auto it = std::lower_bound(group.begin(), group.end(), start,
         [](const Region & r, int pos) { return r.end < pos; });
     if (it == group.end() || !overlap(start, end, it->start, it->end)) {

@@ -25,6 +25,7 @@ namespace gencode {
 // if they lie in introns (move_cds_ends_into_exons), and extended to complete
 // the final codon once the sequence is known (complete_final_codon).
 
+// a site's position in the CDS, and distance into an intron (see above)
 struct CDS_coords {
     int position;
     int offset;
@@ -35,12 +36,13 @@ struct Region {
     int end;
 };
 
+// the codon containing a site, from get_codon_info()
 struct Codon {
     int cds_pos;
-    std::string codon_seq;
-    int intra_codon;
-    int codon_number;
-    char initial_aa;
+    std::string codon_seq;  // in transcript orientation
+    int intra_codon;        // position within the codon (0, 1 or 2)
+    int codon_number;       // 0 for the first codon
+    char initial_aa;        // amino acid the codon encodes
     int offset;
     bool in_coding;  // the codon fields are only set if the site is coding
 };

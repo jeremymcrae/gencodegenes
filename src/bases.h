@@ -12,6 +12,7 @@ inline bool overlap(int start1, int end1, int start2, int end2) {
     return (end1 >= start2) && (end2 >= start1);
 }
 
+// convert a sequence to upper case, in place
 inline void to_upper(std::string & seq) {
     for (auto & base : seq) {
         base = (base >= 'a' && base <= 'z') ? (char) (base - ('a' - 'A')) : base;

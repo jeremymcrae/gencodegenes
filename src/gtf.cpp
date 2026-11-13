@@ -138,6 +138,7 @@ static void find_tx_fields(const std::string &line, size_t offset, GTFLine &info
         }
         pos = p - data;
         bool at_start = pos == offset || data[pos - 1] == ' ' || data[pos - 1] == ';' || data[pos - 1] == '\t';
+        // check the second character first, to cheaply skip most other words
         if (!at_start || pos + prefix_len >= size || data[pos + 1] != 'r'
                 || std::memcmp(p, prefix, prefix_len) != 0) {
             pos += 1;
