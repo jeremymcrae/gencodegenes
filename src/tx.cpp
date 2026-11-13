@@ -743,21 +743,15 @@ static bool overlap(const int & start1, const int & end1, const int & start2, co
     return (end1 >= start2) && (end2 >= start1);
 }
 
-// find the index of a region overlapping a genomic range, checking the region
-// closest to the range start, then its neighbours. Returns -1 if none overlap.
+// find the index of the first region overlapping a genomic range. Returns -1
+// if none overlap.
 int Tx::overlapping_region_num(int start, int end, std::vector<Region> & group) {
-    if (group.empty()) {
+    auto it = std::lower_bound(group.begin(), group.end(), start,
+        [](const Region & r, int pos) { return r.end < pos; });
+    if (it == group.end() || !overlap(start, end, it->start, it->end)) {
         return -1;
     }
-    int idx = closest_exon_num(start, group);
-    int prev = std::max(0, idx - 1);
-    int post = std::min((int) group.size() - 1, idx + 1);
-    for (int i : {idx, prev, post}) {
-        if (overlap(start, end, group[i].start, group[i].end)) {
-            return i;
-        }
-    }
-    return -1;
+    return (int) (it - group.begin());
 }
 
 // checks if a genomic range overlaps any CDS range
