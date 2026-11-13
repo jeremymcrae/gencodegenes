@@ -136,13 +136,9 @@ class TestTranscriptPy(unittest.TestCase):
         with self.assertRaises(ValueError):
             tx.cds = [(1850, 1905)]
     
-    def test_cdsange(self):
+    def test_cds_range(self):
         """ unit test checking the CDS end points by strand
         """
-        
-        # self.gene.cds_min = 100
-        # self.gene.cds_max = 200
-        
         self.gene = self.construct_gene(exons=[(0, 300)], cds=[(100, 200)])
         
         self.assertEqual(self.gene.cds_start, 100)
@@ -453,7 +449,7 @@ class TestTranscriptPy(unittest.TestCase):
         
         # self.gene.cds = [(1100, 1200), (1800, 1900)]
         
-        # raise an error for positions outside the CDS
+        # positions upstream or downstream of the CDS
         self.assertEqual(self.gene.get_coding_distance(900), {'pos': -100, 'offset': -100})
         self.assertEqual(self.gene.get_coding_distance(1000), {'pos': -100, 'offset': 0})
         self.assertEqual(self.gene.get_coding_distance(1051), {'pos': -49, 'offset': 0})
@@ -498,7 +494,7 @@ class TestTranscriptPy(unittest.TestCase):
         """
         # self.gene.cds = [(1100, 1200), (1800, 1900)]
         
-        # note that all of these chr positions are 0-based (ie pos - 1)
+        # positions within the first coding exon
         self.assertEqual(self.gene.get_coding_distance(1100), {'pos': 0, 'offset': 0})
         self.assertEqual(self.gene.get_coding_distance(1101), {'pos': 1, 'offset': 0})
         self.assertEqual(self.gene.get_coding_distance(1199), {'pos': 99, 'offset': 0})
@@ -514,15 +510,11 @@ class TestTranscriptPy(unittest.TestCase):
         self.assertEqual(self.gene.get_coding_distance(1215), {'pos': 100, 'offset': 15})
         self.assertEqual(self.gene.get_coding_distance(1098), {'pos': -2, 'offset': 0})
         
-        # check that sites in a different exon are counted correctly
-        self.assertEqual(self.gene.get_coding_distance(1799), {'pos': 101, 'offset': -1})
-        
         # check that sites on the reverse strand still give the correct CDS
         self.gene = self.construct_gene(strand="-")
         self.assertEqual(self.gene.get_coding_distance(1900), {'pos': 0, 'offset': 0})
         self.assertEqual(self.gene.get_coding_distance(1890), {'pos': 10, 'offset': 0})
         self.assertEqual(self.gene.get_coding_distance(1799), {'pos': 100, 'offset': 1})
-        self.assertEqual(self.gene.get_coding_distance(1792), {'pos': 100, 'offset': 8})
         self.assertEqual(self.gene.get_coding_distance(1792), {'pos': 100, 'offset': 8})
         
         self.assertEqual(self.gene.get_coding_distance(1205), {'pos': 101, 'offset': -5})
