@@ -81,6 +81,8 @@ extensions = [
         language="c++"),
     ]
 
+# transcript.pxd declares classes from tx.h, so the header is installed alongside
+# it, for other packages to cimport the Transcript class
 shutil.copy("src/tx.h", "src/gencodegenes/tx.h")
 
 setup(

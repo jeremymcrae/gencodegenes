@@ -169,6 +169,9 @@ static TxInfo * get_entry(std::deque<TxInfo> & entries,
     return info;
 }
 
+// UTR coordinates aren't used, but UTR lines aren't skipped, since in GTFs without
+// transcript lines, the first line of a transcript (which can be a UTR) holds
+// its gene fields
 enum class Feature { other, transcript, exon, cds, codon, utr };
 
 static Feature get_feature(const std::string & feature) {

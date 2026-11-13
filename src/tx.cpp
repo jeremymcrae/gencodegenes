@@ -551,10 +551,10 @@ char Tx::translate_codon(const std::string & codon) {
     return aa;
 }
 
-// translate a DNA codon to a single character amino acid
+// translate a DNA sequence to single character amino acid codes
 //
-// @param seq codon sequence, or longer DNA sequences.
-// @returns translated amino acid sequence as single character codes.
+// @param seq coding DNA sequence (case-insensitive), a multiple of 3 bp long
+// @returns translated amino acid sequence
 std::string Tx::translate(std::string seq) {
     to_upper(seq);
     if (seq.size() % 3 != 0) {
@@ -575,8 +575,8 @@ std::string Tx::translate(std::string seq) {
 // get the details of the codon which a variant resides in
 //
 // @param bp nucleotide position of the variant (within the transcript gene range)
-// @returns dictionary of codon sequence, cds position, amino acid that the
-//    codon translates to, and position within the codon.
+// @returns CDS position and offset, plus (for positions within the CDS) the
+//    codon sequence and number, position within the codon, and amino acid
 Codon Tx::get_codon_info(int bp) {
     bool in_coding = in_coding_region(bp);
     CDS_coords site = get_coding_distance(bp);

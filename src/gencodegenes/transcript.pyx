@@ -137,30 +137,26 @@ cdef class Transcript:
         gap = (second.start - offset) - (first.end + offset) - 1
         if gap >= 0:
             return first.genomic_sequence + 'N' * gap + second.genomic_sequence
+        # otherwise add only the second's bases past the end of the first (none
+        # if the first sequence contains the second)
         return first.genomic_sequence + second.genomic_sequence[-gap:]
     
     def __add__(self, other):
-        """ combine the coding sequences of two Transcript objects
+        """ combine two transcripts into one covering the union of their exons
+        and CDS regions
         
-        When we determine the sites for sampling, occasionally we want to
-        use sites from multiple alternative transcripts. We determine the sites
-        for each transcript in turn, but mask the sites that have been collected
-        in the preceding transcripts. In order to be able to mask all previous
-        transcripts, we need to combine the coding sequence of the transcripts
-        as we move through them. This function performs the union of coding
-        sequence regions between different transcripts.
-        
-        We do this outside of the c++ class, so as to be able to set up a
-        Transcript object correctly.
+        This builds up the coding regions of several alternative transcripts,
+        e.g. to mask sites already sampled from earlier transcripts. If both
+        transcripts have genomic sequence, the combined transcript has sequence
+        covering both, but its CDS sequence joins the CDS regions of both, so
+        needn't translate to a real protein.
         
         Args:
-            other: a transcript to be combined with the current object.
+            other: transcript on the same chromosome and strand, or None
         
         Returns:
-            an altered instance of the class, where the coding sequence regions
-            are the union of the coding regions of two Transcript objects. This
-            disrupts the ability to get meaningful sequence from the object,
-            so don't try to extract sequence from the returned object.
+            new Transcript named 'name:other_name', or this transcript if other
+            is None
         """
         
         # if we try transcript + None or None + transcript, return the original
