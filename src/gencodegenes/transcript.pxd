@@ -34,14 +34,14 @@ cdef extern from "tx.h" namespace "gencode":
         void set_cds(vector[vector[int]]) except +
         Region fix_cds_boundary(int) except +
         
-        vector[Region] get_exons()
-        vector[Region] get_cds()
-        string get_name()
-        string get_chrom()
+        const vector[Region] & get_exons()
+        const vector[Region] & get_cds()
+        const string & get_name()
+        const string & get_chrom()
         int get_start()
         int get_end()
         char get_strand()
-        string get_type()
+        const string & get_type()
         int get_cds_start()
         int get_cds_end()
         
@@ -58,15 +58,15 @@ cdef extern from "tx.h" namespace "gencode":
         void add_cds_sequence(string)
         void add_genomic_sequence(string) except +
         void add_genomic_sequence(string, bool) except +
-        string get_cds_sequence()
-        string get_genomic_sequence()
+        const string & get_cds_sequence()
+        const string & get_genomic_sequence()
         int get_genomic_offset()
         void set_genomic_offset(int)
         
         void set_attribute(string, string)
-        map[string, string] get_attributes()
+        const map[string, string] & get_attributes()
         bool has_attribute(string)
-        string get_attribute(string) except +
+        const string & get_attribute(string) except +
         
         string reverse_complement(string)
         string get_centered_sequence(int, int) except +

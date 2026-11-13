@@ -540,14 +540,14 @@ cdef class _Attributes:
         return self._tx.thisptr.has_attribute(key.encode('utf8'))
 
     def keys(self):
-        return [k.decode('utf8') for k, v in self._tx.thisptr.get_attributes()]
+        return [k for k, v in self.items()]
 
     def values(self):
-        return [v.decode('utf8') for k, v in self._tx.thisptr.get_attributes()]
+        return [v for k, v in self.items()]
 
     def items(self):
-        return [(k.decode('utf8'), v.decode('utf8'))
-            for k, v in self._tx.thisptr.get_attributes()]
+        cdef dict attributes = self._tx.thisptr.get_attributes()
+        return [(k.decode('utf8'), v.decode('utf8')) for k, v in attributes.items()]
 
     def __iter__(self):
         return iter(self.keys())

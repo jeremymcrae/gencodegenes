@@ -298,9 +298,9 @@ cdef class Gene:
         ''' get length of exonic sequence for a Tx object based transcript
         '''
         cdef int length = 0
-        cdef Region region
-        for region in tx.get_exons():
-            length += abs(region.end - region.start) + 1
+        cdef size_t i
+        for i in range(tx.get_exons().size()):
+            length += abs(tx.get_exons()[i].end - tx.get_exons()[i].start) + 1
         return length
     
     cdef size_t _max_by_exonic(self, vector[size_t] & indices) except *:
@@ -400,6 +400,7 @@ cdef class Gencode:
         cdef NamedTx * x
         cdef size_t i
         cdef Gene curr
+        cdef bytes chrom, gene_id
         loci = {}
         parent = weakref.ref(self)
         if gencode is not None:
@@ -411,7 +412,8 @@ cdef class Gencode:
                 gene_id = x.symbol
                 if x.tx.has_attribute(b'gene_id'):
                     gene_id = x.tx.get_attribute(b'gene_id')
-                key = (x.tx.get_chrom(), gene_id)
+                chrom = x.tx.get_chrom()
+                key = (chrom, gene_id)
                 if key not in loci:
                     curr = Gene(x.symbol, x.alternate_ids)
                     curr._genome = self._genome
