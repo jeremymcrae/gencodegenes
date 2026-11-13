@@ -222,11 +222,11 @@ Region Tx::fix_cds_boundary(int position) {
 }
 
 int Tx::get_cds_start() {
-    return (get_strand() == '+') ? cds_min : cds_max;
+    return is_forward() ? cds_min : cds_max;
 }
 
 int Tx::get_cds_end() {
-    return (get_strand() == '+') ? cds_max : cds_min;
+    return is_forward() ? cds_max : cds_min;
 }
 
 // checks if a position lies within the exon ranges
@@ -323,7 +323,7 @@ CDS_coords Tx::to_closest_exon(int pos, Region exon) {
         site = exon.end;
     }
     
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     int offset = (fwd) ? pos - site : site - pos;
     return CDS_coords {site, offset};
 }
@@ -362,7 +362,7 @@ CDS_coords Tx::get_coding_distance(int pos) {
     int cds_start = get_cds_start();
     int delta = exonic_position(pos, idx)
         - exonic_position(cds_start, closest_exon_num(cds_start));
-    return CDS_coords {(get_strand() == '+') ? delta : -delta, offset};
+    return CDS_coords {is_forward() ? delta : -delta, offset};
 }
 
 // find the chromosome position of a CDS position
@@ -372,7 +372,7 @@ CDS_coords Tx::get_coding_distance(int pos) {
 //     transcription
 // @returns chromosome position
 int Tx::get_position_on_chrom(int cds_position, int offset) {
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     int remaining = cds_position;
     for (size_t i = 0; i < cds.size(); i++) {
         const Region & region = fwd ? cds[i] : cds[cds.size() - 1 - i];
@@ -428,8 +428,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
             + " bp (the transcript span, plus the offset on each side)");
     }
     to_upper(gdna);
-    char fwd = '+';
-    if (get_strand() != fwd && !plus_strand) {
+    if (!is_forward() && !plus_strand) {
         // orient the DNA sequence to the + strand.
         gdna = reverse_complement(gdna);
     }
@@ -442,7 +441,7 @@ void Tx::add_genomic_sequence(std::string gdna, bool plus_strand) {
         int len = (region.end - region.start) + 1;
         cds_seq += genomic_sequence.substr(x, len);
     }
-    if (get_strand() != fwd) {
+    if (!is_forward()) {
         cds_seq = reverse_complement(cds_seq);
     }
     
@@ -492,7 +491,7 @@ void Tx::_fix_cds_length() {
     if (diff != 0) {
         diff = 3 - diff;
         
-        bool fwd = get_strand() == '+';
+        bool fwd = is_forward();
         int start_bp = (fwd ? end + 1 : end - diff) - get_start() + gdna_offset;
         if (start_bp < 0 || start_bp + diff > (int) genomic_sequence.size()) {
             // the genomic sequence doesn't extend far enough to complete the codon
@@ -823,7 +822,7 @@ static bool is_stop_change(const std::string & cq) {
 //
 // @param idx index of an exon overlapping the range
 std::string Tx::splice_boundary_cq(int start, int end, int idx) {
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     std::string cq;
     if (idx > 0 && start < exons[idx].start) {
         cq = fwd ? "splice_acceptor_variant" : "splice_donor_variant";
@@ -835,7 +834,7 @@ std::string Tx::splice_boundary_cq(int start, int end, int idx) {
 }
 
 std::string Tx::outside_gene_cq(int start, int end) {
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     if ((end < tx_start) && ((tx_start - end) <= 5000)) {
         if (fwd) {
             return "upstream_gene_variant";
@@ -869,7 +868,7 @@ std::string Tx::short_intron_cq(int start, int end) {
     if (intron_length >= 10) {
         return "";
     }
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     if (cds.empty()) {
         return "non_coding_transcript_exon_variant";
     } else if (end < cds_min) {
@@ -896,7 +895,7 @@ std::string Tx::intron_cq(int start, int end, bool insertion) {
     // distances into the intron, from the exon before, and the exon after
     int lower = exons[idx].end;
     int upper = exons[idx + 1].start;
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     int donor_near = fwd ? start - lower : upper - end;
     int donor_far = fwd ? end - lower : upper - start;
     int acceptor_near = fwd ? upper - end : start - lower;
@@ -948,7 +947,7 @@ std::string Tx::intronic_cq(int start, int end) {
 // up to n bases of the 3' UTR following the CDS, in transcript orientation
 std::string Tx::utr3_sequence(int n) {
     std::string seq;
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     int step = fwd ? 1 : -1;
     int cds_end = get_cds_end();
     int first = closest_exon_num(cds_end);
@@ -1053,7 +1052,7 @@ std::string Tx::insertion_cq(int left, const std::string & ins) {
     }
     
     // insertions at an exon/intron junction count as being in the exon
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     std::string cq;
     if (cds.empty()) {
         cq = "non_coding_transcript_exon_variant";
@@ -1099,7 +1098,7 @@ std::string Tx::indel_codon_cq(int start, int end, const std::string & ref, cons
     
     std::string ref_aa;
     std::string alt_aa;
-    std::string alt_t = (get_strand() == '+') ? alt : reverse_complement(alt);
+    std::string alt_t = is_forward() ? alt : reverse_complement(alt);
     if (!translate_change(lo, hi, alt_t, ref_aa, alt_aa)) {
         return "";
     }
@@ -1127,7 +1126,7 @@ std::string Tx::indel_cq(int start, int end, std::string ref, std::string alt) {
     // indels running into an intron disrupt the splice site, which is more
     // severe than any frameshift or inframe change. Deletions running past
     // the transcript ends are trimmed to the exonic part instead.
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     bool deletion = ref.size() > alt.size();
     std::string splice = splice_boundary_cq(start, end, idx);
     if (!splice.empty()) {
@@ -1189,7 +1188,7 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
         throw std::invalid_argument(get_name() + " lacks genomic sequence (e.g. "
             "from a genome fasta), which is needed for coding consequences");
     }
-    bool fwd = get_strand() == '+';
+    bool fwd = is_forward();
     int partial = cds_sequence.size() % 3;
     int complete = (int) cds_sequence.size() - partial;
     // CDS positions change monotonically with chromosome position, so bases

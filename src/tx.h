@@ -86,6 +86,7 @@ class Tx {
     int get_start() { return tx_start; }
     int get_end() { return tx_end; }
     char get_strand() { return tx_strand; }
+    bool is_forward() { return tx_strand == '+'; }
     int get_cds_start();
     int get_cds_end();
     int get_cds_length() { return cds_length; }
