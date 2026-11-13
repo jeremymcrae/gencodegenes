@@ -73,32 +73,17 @@ cdef class Transcript:
         del self.thisptr
     
     def __repr__(self):
-        
-        exons = [ (x['start'], x['end']) for x in self.exons ]
-        cds = [ (x['start'], x['end']) for x in self.cds ]
+        exons = [(x['start'], x['end']) for x in self.exons] or None
+        cds = [(x['start'], x['end']) for x in self.cds] or None
         seq = self.genomic_sequence
-        
         if len(seq) > 40:
-            seq = seq[:20] + '...[{} bp]...'.format(len(seq) - 40) + seq[-20:]
-        
-        if exons == []:
-            exons = None
-        
-        if cds == []:
-            cds = None
-        
-        if seq == '':
-            seq = None
-        else:
-            seq = '"' + seq + '"'
+            seq = f'{seq[:20]}...[{len(seq) - 40} bp]...{seq[-20:]}'
+        seq = f'"{seq}"' if seq else None
         
         return f'Transcript(name="{self.name}", chrom="{self.chrom}", ' \
             f'start={self.start}, end={self.end}, strand="{self.strand}", ' \
             f'transcript_type="{self.type}", exons={exons}, cds={cds}, ' \
             f'sequence={seq}, offset={self.genomic_offset})'
-    
-    def __str__(self):
-        return self.__repr__()
     
     def _key(self):
         return (self.name, self.chrom, self.start, self.end, self.strand)
