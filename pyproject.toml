@@ -28,7 +28,7 @@ packages = [
 ]
 
 [tool.setuptools.package-data]
-gencodegenes = ['transcript.pxd', 'tx.h', 'tx.cpp', 'py.typed', '*.pyi']
+gencodegenes = ['transcript.pxd', 'tx.h', 'py.typed', '*.pyi']
 
 [project.urls]
 homepage = 'https://github.com/jeremymcrae/gencodegenes'
