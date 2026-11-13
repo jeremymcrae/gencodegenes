@@ -142,6 +142,10 @@ class TestTranscriptPy(unittest.TestCase):
         
         with self.assertRaises(ValueError):
             self.construct_gene(strand='x')
+        
+        # removing the CDS resets the CDS range
+        self.gene.cds = []
+        self.assertEqual((self.gene.cds_start, self.gene.cds_end), (0, 0))
     
     def test___add__(self):
         """ test that __add__() works correctly

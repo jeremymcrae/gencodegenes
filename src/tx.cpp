@@ -93,6 +93,8 @@ void Tx::set_cds(std::vector<Region> cds_ranges) {
     exon_to_cds.clear();
     cds_sequence.clear();
     cds_length = 0;
+    cds_min = 0;
+    cds_max = 0;
     if (cds_ranges.empty()) {
         // no subsequent adjustments for transcripts without CDS
         return;
