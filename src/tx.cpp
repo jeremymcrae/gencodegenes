@@ -225,21 +225,11 @@ Region Tx::fix_cds_boundary(int position) {
 }
 
 int Tx::get_cds_start() {
-    char fwd = '+';
-    if (get_strand() == fwd) {
-        return cds_min;
-    } else {
-        return cds_max;
-    }
+    return (get_strand() == '+') ? cds_min : cds_max;
 }
 
 int Tx::get_cds_end() {
-    char fwd = '+';
-    if (get_strand() == fwd) {
-        return cds_max;
-    } else {
-        return cds_min;
-    }
+    return (get_strand() == '+') ? cds_max : cds_min;
 }
 
 // checks if a position lies within the exon ranges
@@ -275,10 +265,9 @@ int Tx::closest_exon_num(int pos) {
 // @returns number of exon containing the position
 int Tx::closest_exon_num(int pos, std::vector<Region> & group) {
     size_t idx = std::lower_bound(group.begin(), group.end(), pos, compareRegion) - group.begin();
-    size_t size = group.size();
     if (idx == 0) {
         return idx;
-    } else if ((idx == size) && (pos > group[idx - 1].start)) {
+    } else if (idx == group.size()) {
         return idx - 1;
     }
     
@@ -1353,7 +1342,6 @@ std::string Tx::consequence(int pos, std::string ref, std::string alt) {
         }
     }
     
-    // TODO: need to realign alt against ref sequence, and strip down to alternate bases
     trim_alleles(start, end, ref, alt);
     
     // insertions lie between the anchor base and its neighbour
