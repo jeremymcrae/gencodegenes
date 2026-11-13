@@ -63,9 +63,22 @@ static std::vector<Region> to_regions(const std::vector<std::vector<int>> & rang
     std::vector<Region> regions;
     regions.reserve(ranges.size());
     for (auto & range : ranges) {
+        if (range.size() != 2) {
+            throw std::invalid_argument("regions need a start and end, but got "
+                + std::to_string(range.size()) + " values");
+        }
         regions.push_back(Region {range[0], range[1]});
     }
     return regions;
+}
+
+static void check_regions(const std::vector<Region> & regions, const std::string & name) {
+    for (auto & region : regions) {
+        if (region.start > region.end) {
+            throw std::invalid_argument(name + " has a region starting after it ends: "
+                + std::to_string(region.start) + "-" + std::to_string(region.end));
+        }
+    }
 }
 
 // set exon ranges to the class object
@@ -76,6 +89,7 @@ void Tx::set_exons(std::vector<std::vector<int>> exon_ranges) {
 }
 
 void Tx::set_exons(std::vector<Region> exon_ranges) {
+    check_regions(exon_ranges, get_name());
     std::sort(exon_ranges.begin(), exon_ranges.end(), compare_regions);
     exons = std::move(exon_ranges);
     exon_to_cds.clear();
@@ -89,6 +103,7 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
 }
 
 void Tx::set_cds(std::vector<Region> cds_ranges) {
+    check_regions(cds_ranges, get_name());
     cds.clear();
     exon_to_cds.clear();
     cds_sequence.clear();

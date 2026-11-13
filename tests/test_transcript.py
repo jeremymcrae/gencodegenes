@@ -39,6 +39,18 @@ class TestTranscriptPy(unittest.TestCase):
         self.gene.exons = exons
         self.assertEqual(self.gene.exons, [{'start': 0, 'end': 200}, {'start': 800, 'end': 1000}])
     
+    def test_set_regions_invalid(self):
+        """ check regions must have a start and end, with the start first
+        """
+        for ranges in [[(200, 100)], [(5,)], [(1, 2, 3)]]:
+            with self.assertRaises(ValueError):
+                self.gene.exons = ranges
+            with self.assertRaises(ValueError):
+                self.gene.cds = ranges
+        self.assertEqual(self.gene.exons, [{'start': 1000, 'end': 1200}, {'start': 1800, 'end': 2000}])
+        # single base regions are fine
+        self.gene.exons = [(1000, 1000)]
+    
     def test_set_exons_missing_exon(self):
         """ test that set_exons() works correctly when we lack coordinates
         """
