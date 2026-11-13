@@ -244,10 +244,9 @@ cdef class Transcript:
         
         if self.genomic_sequence != "" and other.genomic_sequence != "":
             altered.genomic_offset = self.genomic_offset
+            # the merged sequence is already on the + strand
             seq = self._merge_genomic_seq(other)
-            if self.strand == '-':
-                seq = self.reverse_complement(seq)
-            altered.genomic_sequence = seq
+            altered.thisptr.add_genomic_sequence(seq.encode('utf8'), True)
         
         return altered
     
