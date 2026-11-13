@@ -517,7 +517,7 @@ cdef class Gencode:
         else:
             return downstream
     
-    def in_region(self, str _chrom, int start, int end, int max_window=2500000):
+    def in_region(self, str chrom, int start, int end, int max_window=2500000):
         ''' find genes within a genomic region
         
         Args:
@@ -533,7 +533,7 @@ cdef class Gencode:
         '''
         if self._stale:
             self._sort()
-        symbols = _in_region(self._match_chrom(_chrom), start, end, self.starts,
+        symbols = _in_region(self._match_chrom(chrom), start, end, self.starts,
             self.ends, max_window)
         return [self._gene_at(x) for x in symbols]
     

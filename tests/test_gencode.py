@@ -323,6 +323,10 @@ class TestGencode(unittest.TestCase):
         in_region = gencode.in_region('chr1', 0, 11)
         self.assertEqual(len(in_region), 1)
         
+        # arguments can be passed by keyword
+        genes = gencode.in_region(chrom='chr1', start=5, end=15)
+        self.assertEqual([x.symbol for x in genes], ['TEST1'])
+        
         # regions with the start after the end raise an error
         with self.assertRaisesRegex(ValueError, 'is after its end'):
             gencode.in_region('chr1', 105, 5)
