@@ -39,9 +39,9 @@ class Tx {
     std::string transcript_type;
     std::vector<Region> exons;
     std::vector<Region> cds;
-    std::string cds_sequence = "";
-    int gdna_offset=0;
-    std::string genomic_sequence = "";
+    std::string cds_sequence;
+    int gdna_offset = 0;
+    std::string genomic_sequence;
     // shared between copies of a Tx, and only copied when one is modified
     std::shared_ptr<std::map<std::string, std::string>> attributes =
         std::make_shared<std::map<std::string, std::string>>();

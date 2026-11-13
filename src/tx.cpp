@@ -48,23 +48,16 @@ static void to_upper(std::string & seq) {
     }
 }
 
-// Constructor for Tx class
 Tx::Tx(std::string transcript_id, std::string chromosome,
     int start_pos, int end_pos, char strand, std::string _transcript_type,
-    std::map<std::string, std::string> _attributes) {
-    
-    name = std::move(transcript_id);
-    
-    chrom = std::move(chromosome);
-    tx_start = start_pos;
-    tx_end = end_pos;
-    
-    if ( strand != '+' && strand != '-' ) {
-        throw std::invalid_argument( "unknown strand type" );
+    std::map<std::string, std::string> _attributes)
+    : name(std::move(transcript_id)), chrom(std::move(chromosome)),
+      tx_start(start_pos), tx_end(end_pos), tx_strand(strand),
+      transcript_type(std::move(_transcript_type)),
+      attributes(std::make_shared<std::map<std::string, std::string>>(std::move(_attributes))) {
+    if (strand != '+' && strand != '-') {
+        throw std::invalid_argument("unknown strand type");
     }
-    tx_strand = strand;
-    transcript_type = std::move(_transcript_type);
-    attributes = std::make_shared<std::map<std::string, std::string>>(std::move(_attributes));
 }
 
 static bool compare_regions(const Region & a, const Region & b) {
