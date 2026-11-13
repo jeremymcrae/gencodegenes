@@ -42,8 +42,8 @@ static void trim(const std::string &s, size_t start, size_t end, std::string &ou
 // parse the full attributes field into a key/value map
 //
 // The attributes field is the 9th (final) tab-delimited column of a GTF line. It
-// is a list of "key value" pairs, conventionally separated by "; " (though the
-// trailing space is not guaranteed). Values may be quoted. Some keys (e.g. "tag")
+// is a list of "key value" (or "key=value") pairs, conventionally separated by
+// "; " (though the trailing space is not guaranteed). Values may be quoted. Some keys (e.g. "tag")
 // can be repeated; repeated values are joined with commas into a single value.
 // Bare keys without a value are kept with an empty value, so downstream code can
 // probe for the presence of such keys.
@@ -69,7 +69,7 @@ static std::map<std::string, std::string> parse_attributes(const std::string &li
             key_start++;
         }
         size_t key_end = key_start;
-        while (key_end < sep && line[key_end] != ' ') {
+        while (key_end < sep && line[key_end] != ' ' && line[key_end] != '=') {
             key_end++;
         }
         pos = sep + 1;

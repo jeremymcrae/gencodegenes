@@ -869,6 +869,16 @@ class TestGencode(unittest.TestCase):
         with self.assertRaises(ValueError):
             _parse_gtfline(b'chr1\tHAVANA\tCDS\t70006\t70008\n')
     
+    def test_parse_gtf_equals_separated_attributes(self):
+        '''test attributes with keys and values separated by '=' are split
+        '''
+        line = 'chr1\t.\ttranscript\t70006\t70008\t.\t-\t.\ttranscript_id=ENST_A; gene_name=TEST; tag=basic;\n'
+        obj = _parse_gtfline(line.encode('utf8'))
+        self.assertEqual(obj['tx_id'], b'ENST_A')
+        self.assertEqual(obj['symbol'], b'TEST')
+        self.assertEqual(obj['attributes'], {b'transcript_id': b'ENST_A',
+            b'gene_name': b'TEST', b'tag': b'basic'})
+    
     def test_parse_gtf_attribute_keys(self):
         '''test transcript_id and transcript_type only match whole attribute keys
         '''
