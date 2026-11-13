@@ -1246,7 +1246,9 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     bool fwd = get_strand() == '+';
     int partial = cds_sequence.size() % 3;
     int complete = (int) cds_sequence.size() - partial;
-    std::map<int, Codon> codons;
+    // CDS positions change monotonically with chromosome position, so bases
+    // in the same codon are consecutive
+    std::vector<Codon> codons;
     for (int pos = start; pos <= end; pos++) {
         if (!in_coding_region(pos)) {
             continue;
@@ -1255,12 +1257,14 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
             continue;
         }
         Codon codon = get_codon_info(pos);
-        auto it = codons.emplace(codon.codon_number, codon).first;
+        if (codons.empty() || codons.back().codon_number != codon.codon_number) {
+            codons.push_back(codon);
+        }
         char base = alt[pos - start];
         if (!fwd) {
             base = complement(base);
         }
-        it->second.codon_seq[codon.intra_codon] = base;
+        codons.back().codon_seq[codon.intra_codon] = base;
     }
     
     if (codons.empty()) {
@@ -1269,8 +1273,7 @@ std::string Tx::coding_cq(int start, int end, const std::string & alt) {
     
     int last_codon = get_codon_number_for_cds_position(cds_length - 1);
     std::string worst = "synonymous_variant";
-    for (auto &item : codons) {
-        Codon & codon = item.second;
+    for (auto &codon : codons) {
         char mutated_aa = translate_codon(codon.codon_seq);
         worst = most_severe(worst, codon_cq(codon.initial_aa, mutated_aa, codon.codon_number, last_codon));
     }
