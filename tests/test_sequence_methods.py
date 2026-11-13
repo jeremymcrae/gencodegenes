@@ -239,6 +239,18 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         self.gene.genomic_sequence = 'TGCATTGGATCCTGCAACGT'
         self.assertEqual(self.gene.cds_sequence, 'CATTGGATCCTG')
     
+    def test_position_on_chrom_extended_cds(self):
+        """ check CDS positions map to the chromosome after completing a final
+        codon extends the CDS past the exon
+        """
+        # the 7 bp CDS on the - strand gains bases 18-19, from the intron
+        self.gene = self.construct_gene(start=1, end=30, exons=[(1, 10), (20, 30)],
+            cds=[(20, 26)], strand='-')
+        self.gene.genomic_sequence = 'ACGTACGTACGTACGTACGTACGTACGTAC'
+        self.assertEqual(self.gene.cds, [{'start': 18, 'end': 26}])
+        self.assertEqual(self.gene.get_position_on_chrom(0), 26)
+        self.assertEqual(self.gene.get_position_on_chrom(8), 18)
+    
     def test_get_centered_sequence(self):
         """ test that get_centered_sequence() works correctly
         """

@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <algorithm>
 #include <stdexcept>
-#include <unordered_map>
 #include <utility>
 
 #include "tx.h"
@@ -105,7 +104,6 @@ void Tx::set_exons(std::vector<Region> exon_ranges) {
     check_regions(exon_ranges, get_name());
     std::sort(exon_ranges.begin(), exon_ranges.end(), compare_regions);
     exons = std::move(exon_ranges);
-    exon_to_cds.clear();
 }
 
 // set CDS ranges to the class object
@@ -118,7 +116,6 @@ void Tx::set_cds(std::vector<std::vector<int>> cds_ranges) {
 void Tx::set_cds(std::vector<Region> cds_ranges) {
     check_regions(cds_ranges, get_name());
     cds.clear();
-    exon_to_cds.clear();
     cds_sequence.clear();
     cds_length = 0;
     cds_min = 0;
@@ -331,113 +328,61 @@ CDS_coords Tx::to_closest_exon(int pos, Region exon) {
     return CDS_coords {site, offset};
 }
 
-// find the distance in coding bp to the CDS start
+// count the exonic bases before a position, on the + strand
 //
-// @param pos first chromosome position
-// @returns CDS_coords, which contains distance in coding sequence base
-//    pairs between two positions and an offset for distance into the
-//    intron
+// @param pos chromosome position
+// @param idx index of the exon to measure the position from
+int Tx::exonic_position(int pos, int idx) {
+    int bases = pos - exons[idx].start;
+    for (int i = 0; i < idx; i++) {
+        bases += (exons[i].end - exons[i].start) + 1;
+    }
+    return bases;
+}
+
+// find the distance in exonic bp from the CDS start to a position, in the
+// direction of transcription. Intronic positions are measured from the
+// closest boundary of the closest exon, with the distance into the intron
+// given as the offset.
+//
+// @param pos chromosome position
+// @returns CDS_coords with the exonic distance and the intronic offset
 CDS_coords Tx::get_coding_distance(int pos) {
     if (exons.size() == 0) {
         throw std::invalid_argument("no exons assigned to this transcript");
     }
-    int cds_start = get_cds_start();
-    
-    int first = closest_exon_num(cds_start);
-    int alt = closest_exon_num(pos);
-
+    int idx = closest_exon_num(pos);
     int offset = 0;
-    if ( !is_exonic(pos, exons[alt]) ) {
-        CDS_coords site = to_closest_exon(pos, exons[alt]);
+    if (!is_exonic(pos, exons[idx])) {
+        CDS_coords site = to_closest_exon(pos, exons[idx]);
         offset = site.offset;
         pos = site.position;
     }
     
-    bool fwd = get_strand() == '+';
-    bool after = alt > first;
-    bool positive = fwd == after;
-    // use positive coding position if the transcript is either:
-    //   a) on the + strand and the site is 3' of CDS start
-    //   b) on the - strand and the site is 5' of CDS start
-    int delta = 0;
-    if (first == alt) {
-        delta = (fwd) ? pos - cds_start : cds_start - pos ;
-    } else {
-        int dist_1;
-        int dist_2;
-        if (after) {
-            dist_1 = (fwd) ? exons[first].end - cds_start : cds_start - exons[first].end;
-            dist_2 = (fwd) ? (pos - exons[alt].start) + 1 : (exons[alt].start - pos) - 1;
-        } else {
-            dist_1 = (fwd) ? exons[first].start - cds_start : cds_start - exons[first].start;
-            dist_2 = (fwd) ? (pos - exons[alt].end) - 1 : (exons[alt].end - pos) + 1;
-        }
-        
-        int lo = std::min(first, alt) + 1;
-        int hi = std::max(first, alt);
-        delta = dist_1 + dist_2;
-        for (int i=lo; i < hi; i++) {
-            int left = exons[i].start;
-            int right = exons[i].end;
-            delta += (positive) ? (right - left) + 1 : (left - right) - 1;
-        }
-    }
-    
-    return CDS_coords {delta, offset};
+    int cds_start = get_cds_start();
+    int delta = exonic_position(pos, idx)
+        - exonic_position(cds_start, closest_exon_num(cds_start));
+    return CDS_coords {(get_strand() == '+') ? delta : -delta, offset};
 }
 
-// cache the exon boundary positions as CDS coordinates. 
+// find the chromosome position of a CDS position
 //
-// Rather than recalculate the CDS positions each time we want to convert a 
-// chromosome position to a CDS position, we calculate them once and cache 
-// the coordinates in a dictionary for rapid access.
-void Tx::_cache_exon_cds_positions() {
-    exon_to_cds.clear();
-    
-    for (auto &region : cds) {
-        // get exon boundaries as CDS distance from the start site
-        CDS_coords start = get_coding_distance(region.start);
-        CDS_coords end = get_coding_distance(region.end);
-        
-        // cache the CDS positions of the exon boundaries
-        exon_to_cds[region.start] = std::abs(start.position);
-        exon_to_cds[region.end] = std::abs(end.position);
-    }
-}
-
-// figure out the chromosome position of a CDS site
-//
-// @param cds_position position of a variant in CDS.
-// @returns chromosome bp position of the CDS site
+// @param cds_position distance in coding bp from the CDS start
+// @param offset distance into the adjacent intron, in the direction of
+//     transcription
+// @returns chromosome position
 int Tx::get_position_on_chrom(int cds_position, int offset) {
-    // cache the exon boundaries in CDS distances
-    if (exon_to_cds.empty()) { _cache_exon_cds_positions(); }
-    
-    int start;
-    int end;
-    int start_cds;
-    int end_cds;
-    
-    // quickly find the exon containing the CDS position
-    for (auto &region : cds) {
-        start = region.start;
-        end = region.end;
-        
-        start_cds = std::min(exon_to_cds[start], exon_to_cds[end]);
-        end_cds = std::max(exon_to_cds[start], exon_to_cds[end]);
-        
-        if (start_cds <= cds_position && cds_position <= end_cds) {
-            // convert the CDS position to a chromosomal coordinate
-            char fwd = '+';
-            if (get_strand() == fwd) {
-                return start + (cds_position - start_cds) + offset;
-            } else {
-                return start + (end_cds - cds_position) - offset;
-            }
+    bool fwd = get_strand() == '+';
+    int remaining = cds_position;
+    for (size_t i = 0; i < cds.size(); i++) {
+        const Region & region = fwd ? cds[i] : cds[cds.size() - 1 - i];
+        int length = (region.end - region.start) + 1;
+        if (remaining >= 0 && remaining < length) {
+            return fwd ? region.start + remaining + offset : region.end - remaining - offset;
         }
+        remaining -= length;
     }
-    
-    throw std::invalid_argument( "position not in CDS" );
+    throw std::invalid_argument("position not in CDS");
 }
 
 // figure out the codon position for a position
@@ -536,7 +481,6 @@ void Tx::_fix_cds_length() {
     if (cds.empty()) {
         return;
     }
-    exon_to_cds.clear();
     int diff = cds_sequence.size() % 3;
     int end = get_cds_end();
 

@@ -5,7 +5,6 @@
 #include <vector>
 #include <map>
 #include <memory>
-#include <unordered_map>
 
 namespace gencode {
 
@@ -47,8 +46,7 @@ class Tx {
     std::shared_ptr<std::map<std::string, std::string>> attributes =
         std::make_shared<std::map<std::string, std::string>>();
     
-    std::unordered_map<int, int> exon_to_cds;
-    void _cache_exon_cds_positions();
+    int exonic_position(int pos, int idx);
     
     void _fix_cds_length();
     void trim_alleles(int& start, int& end, std::string& ref, std::string& alt);
