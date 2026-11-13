@@ -836,22 +836,15 @@ std::string Tx::splice_boundary_cq(int start, int end, int idx) {
     return cq;
 }
 
+// consequence for sites outside the transcript, which are upstream or
+// downstream if within 5 kb
 std::string Tx::outside_gene_cq(int start, int end) {
-    bool fwd = is_forward();
-    if ((end < tx_start) && ((tx_start - end) <= 5000)) {
-        if (fwd) {
-            return "upstream_gene_variant";
-        } else {
-            return "downstream_gene_variant";
-        }
-    } else if ((start > tx_end) && ((start - tx_end) <= 5000)) {
-        if (fwd) {
-            return "downstream_gene_variant";
-        } else {
-            return "upstream_gene_variant";
-        }
+    bool before = end < tx_start;
+    int distance = before ? tx_start - end : start - tx_end;
+    if (distance > 5000) {
+        return "intergenic_variant";
     }
-    return "intergenic_variant";
+    return (before == is_forward()) ? "upstream_gene_variant" : "downstream_gene_variant";
 }
 
 // consequence for a site in an intron under 10 bp, or an empty string for
