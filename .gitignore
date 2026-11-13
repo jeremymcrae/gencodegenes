@@ -11,3 +11,4 @@ src/gencodegenes/*.cpp
 tests/data/*.fai
 *.egg-info/
 *.so
+.DS_Store
