@@ -238,6 +238,12 @@ class TestTranscriptSequenceMethodsPy(unittest.TestCase):
         
         self.gene.genomic_sequence = 'TGCATTGGATCCTGCAACGT'
         self.assertEqual(self.gene.cds_sequence, 'CATTGGATCCTG')
+        
+        # the exon is only extended as far as the extended CDS
+        self.gene = self.construct_gene(start=1, end=20, exons=[(1, 13)], cds=[(3, 12)])
+        self.gene.genomic_sequence = 'ACGTTGCAGGATCCAATGCA'
+        self.assertEqual(self.gene.cds, [{'start': 3, 'end': 14}])
+        self.assertEqual(self.gene.exons, [{'start': 1, 'end': 14}])
     
     def test_position_on_chrom_extended_cds(self):
         """ check CDS positions map to the chromosome after completing a final

@@ -245,12 +245,8 @@ void Tx::complete_final_codon() {
     cds_max = cds.back().end;
     cds_length = total_length(cds);
     
-    if (cds_min < exons.front().start) {
-        exons.front().start -= missing;
-    }
-    if (cds_max > exons.back().end) {
-        exons.back().end += missing;
-    }
+    exons.front().start = std::min(exons.front().start, cds_min);
+    exons.back().end = std::max(exons.back().end, cds_max);
 }
 
 int Tx::get_cds_start() {
